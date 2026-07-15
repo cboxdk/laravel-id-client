@@ -1,5 +1,6 @@
 <?php
 
 declare(strict_types=1);
+use Cbox\Id\Client\Tests\TestCase;
 
-uses(Cbox\Id\Client\Tests\TestCase::class)->in(__DIR__);
+uses(TestCase::class)->in(__DIR__);
