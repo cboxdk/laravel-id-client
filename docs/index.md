@@ -1,51 +1,57 @@
 ---
-title: Cbox ID client SDK
-description: Laravel/PHP consumer SDK for authenticating an app against a Cbox ID instance
+title: Overview
+description: The Laravel client SDK for Cbox ID — turnkey OIDC login, a hosted profile-management redirect, machine tokens, and webhook verification.
 weight: 1
 ---
 
-# Cbox ID client SDK
+# cboxdk/laravel-id-client
 
-`cboxdk/laravel-id-client` is the **consumer** side of Cbox ID — the small package
-a *product* installs to authenticate its users against a running Cbox ID instance
-(the opposite end from `cboxdk/laravel-id`, which *is* the identity platform).
+The **consumer** side of Cbox ID — the small package a *product* installs to
+authenticate its users against a running [Cbox ID](https://github.com/cboxdk/laravel-id)
+instance. It is the opposite end from `cboxdk/laravel-id`, which *is* the identity
+platform.
 
-> **Status: scaffold.** This package currently ships only its service-provider
-> wiring; the typed client surface below is being built. Until it lands, consume
-> the platform with a standard OIDC client as shown in
-> [Consuming the platform today](consuming-today.md) — the endpoints are standard
-> OAuth2/OIDC, so nothing here blocks you. This page documents the intended surface
-> so the shape is clear; it does **not** describe methods that exist yet.
+## Mental model
 
-## What it will do
+Cbox ID speaks standard **OpenID Connect**, so under the hood this SDK is a
+correct, hardened OIDC relying party — you are never locked into a proprietary
+protocol. What the package adds is the ergonomics a hosted-identity product needs,
+so you don't hand-roll any of it:
 
-A product should never re-implement OIDC. This SDK wraps the Cbox ID endpoints
-behind a few typed calls:
+- **Login** — one redirect, one callback. PKCE, CSRF `state`, a nonce, and full
+  `id_token` verification (signature against the instance's JWKS, plus issuer,
+  audience and nonce) are handled for you.
+- **Hosted profile management** — send a signed-in user to the instance's own
+  account page (password, MFA, passkeys, sessions) and back to your app.
+- **Back-channel calls** — machine (client-credentials) tokens, UserInfo, RFC 7662
+  introspection.
+- **Webhook / action verification** — confirm an inbound `X-Cbox-Signature`.
 
-- **Login (OIDC RP):** redirect to Cbox ID, handle the callback, validate the
-  `id_token` (issuer, audience, nonce, signature against the published JWKS).
-- **Read identity:** the canonical `sub`, profile claims, and org/`org` context
-  from the token or UserInfo.
-- **Entitlements:** check what the user's org is entitled to (from token claims or
-  the decision API) — see the platform's
-  [Entitlements & billing](../../laravel-id/docs/entitlements-and-billing.md).
-- **Tokens:** refresh with rotation, and revoke on logout.
+Every endpoint is discovered from the issuer's `/.well-known/openid-configuration`,
+so the issuer URL is usually the only thing you configure.
 
 ## Which package do I install?
 
 | You are building… | Install |
 |---|---|
-| the identity provider itself (the login/SSO/SCIM service) | [`cboxdk/laravel-id`](../../laravel-id/docs/index.md) |
+| the identity provider itself (the login / SSO / SCIM service) | [`cboxdk/laravel-id`](https://github.com/cboxdk/laravel-id) |
 | a product that logs its users in **against** that provider | `cboxdk/laravel-id-client` (this package) |
 
-New to the whole model? Read
-[Start here](../../laravel-id/docs/start-here.md) first.
+## Scope — what this package is, and isn't
+
+This is a **client**. It authenticates users and calls a Cbox ID instance's standard
+endpoints. It does **not** configure SSO connections, run SCIM, manage
+organizations, or issue tokens — those live on the platform
+(`cboxdk/laravel-id`). Keep that boundary in mind when reading the recipes.
 
 ## Sections
 
-- [Installation](getting-started/installation.md)
-- [Consuming the platform today](consuming-today.md) — the standard-OIDC path that
-  works right now, and what the SDK will shorten.
+- **[Quickstart](quickstart.md)** — a working login in five minutes.
+- **[Requirements](requirements.md)** — PHP, Laravel and package versions.
+- **[Getting started](getting-started/_index.md)** — install and configure.
+- **[Cookbook](cookbook/_index.md)** — log in, hosted profile, API calls, webhooks.
+- **[Core concepts](core-concepts/_index.md)** — how the login flow works.
+- **[Security](security/_index.md)** — what the SDK verifies, and the honest limits.
 
 ## License
 
