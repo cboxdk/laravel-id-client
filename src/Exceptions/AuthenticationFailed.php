@@ -9,7 +9,7 @@ use RuntimeException;
 /**
  * Login could not be completed.
  */
-final class AuthenticationFailed extends RuntimeException
+class AuthenticationFailed extends RuntimeException
 {
     public static function because(string $reason): self
     {

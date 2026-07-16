@@ -27,7 +27,7 @@ use Throwable;
  * Login is hardened by default: PKCE (S256), a CSRF state check, a nonce, and full
  * id_token signature + issuer + audience verification against the instance's JWKS.
  */
-final class IdentityClient
+class IdentityClient
 {
     private const STATE_KEY = 'cbox-id-client.state';
 

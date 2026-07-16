@@ -7,7 +7,7 @@ namespace Cbox\Id\Client;
 use Cbox\Id\Client\Support\Discovery;
 use Illuminate\Support\ServiceProvider;
 
-final class ClientServiceProvider extends ServiceProvider
+class ClientServiceProvider extends ServiceProvider
 {
     public function register(): void
     {

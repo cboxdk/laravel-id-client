@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Http;
  * (`{issuer}/.well-known/openid-configuration`) and its JWKS, both cached. This is
  * what lets you configure only the issuer URL — every endpoint is discovered.
  */
-final class Discovery
+class Discovery
 {
     public function __construct(
         private readonly string $issuer,

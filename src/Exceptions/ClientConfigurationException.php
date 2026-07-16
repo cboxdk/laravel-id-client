@@ -9,7 +9,7 @@ use RuntimeException;
 /**
  * The Cbox ID client is not configured.
  */
-final class ClientConfigurationException extends RuntimeException
+class ClientConfigurationException extends RuntimeException
 {
     public static function because(string $reason): self
     {

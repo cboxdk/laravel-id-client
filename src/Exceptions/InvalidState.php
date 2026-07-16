@@ -9,7 +9,7 @@ use RuntimeException;
 /**
  * The login state did not match — the request may be forged or stale.
  */
-final class InvalidState extends RuntimeException
+class InvalidState extends RuntimeException
 {
     public static function because(string $reason): self
     {

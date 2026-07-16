@@ -9,7 +9,7 @@ namespace Cbox\Id\Client\Support;
  * only its SHA-256 challenge travels on the authorize URL, so an intercepted
  * authorization code cannot be redeemed without the verifier.
  */
-final class Pkce
+class Pkce
 {
     public static function verifier(): string
     {

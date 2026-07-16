@@ -10,7 +10,7 @@ namespace Cbox\Id\Client\ValueObjects;
  * verified id_token + userinfo claim set; the named accessors are conveniences over
  * it. The tokens let you call Cbox ID APIs on the user's behalf.
  */
-final readonly class CboxUser
+readonly class CboxUser
 {
     /**
      * @param  array<string, mixed>  $claims

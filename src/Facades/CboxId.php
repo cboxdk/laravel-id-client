@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Facade;
  *
  * @see IdentityClient
  */
-final class CboxId extends Facade
+class CboxId extends Facade
 {
     protected static function getFacadeAccessor(): string
     {
