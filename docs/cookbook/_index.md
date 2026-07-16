@@ -18,3 +18,5 @@ container if you prefer constructor injection.
   7662 introspection.
 - **[Verify webhooks](verify-webhooks.md)** — validate an inbound
   `X-Cbox-Signature`.
+- **[Integration prompt (for AI agents)](integration-prompt.md)** — a self-contained
+  brief to hand Claude Code (or a developer) to wire up login in a new SaaS.
