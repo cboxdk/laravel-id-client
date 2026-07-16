@@ -8,7 +8,8 @@ use Cbox\Id\Client\IdentityClient;
 use Illuminate\Support\Facades\Facade;
 
 /**
- * @method static \Illuminate\Http\RedirectResponse redirect(list<string>|null $scopes = null, ?string $state = null)
+ * @method static \Illuminate\Http\RedirectResponse redirect(list<string>|null $scopes = null, ?string $state = null, ?string $prompt = null, ?int $maxAge = null, ?string $loginHint = null)
+ * @method static \Illuminate\Http\RedirectResponse addAccount(list<string>|null $scopes = null, ?string $state = null)
  * @method static \Cbox\Id\Client\ValueObjects\CboxUser authenticate(\Illuminate\Http\Request $request)
  * @method static string profileUrl(?string $returnTo = null)
  * @method static \Illuminate\Http\RedirectResponse redirectToProfile(?string $returnTo = null)

@@ -49,8 +49,22 @@ class IdentityClient
      *
      * @param  list<string>|null  $scopes  overrides the configured default scopes
      */
-    public function redirect(?array $scopes = null, ?string $state = null): RedirectResponse
-    {
+    /**
+     * Start a login. `prompt` maps to OIDC `prompt` — pass `login` to force a fresh
+     * sign-in (so the user can authenticate as a different account, à la Notion/Slack
+     * "add account"), `select_account` for an account chooser, or `none` for silent
+     * auth. `maxAge` forces re-auth if the instance session is older than N seconds;
+     * `loginHint` pre-fills the identifier.
+     *
+     * @param  list<string>|null  $scopes
+     */
+    public function redirect(
+        ?array $scopes = null,
+        ?string $state = null,
+        ?string $prompt = null,
+        ?int $maxAge = null,
+        ?string $loginHint = null,
+    ): RedirectResponse {
         $verifier = Pkce::verifier();
         $state ??= bin2hex(random_bytes(16));
         $nonce = bin2hex(random_bytes(16));
@@ -59,7 +73,7 @@ class IdentityClient
         session()->put(self::VERIFIER_KEY, $verifier);
         session()->put(self::NONCE_KEY, $nonce);
 
-        $query = http_build_query([
+        $query = http_build_query(array_filter([
             'response_type' => 'code',
             'client_id' => $this->clientId(),
             'redirect_uri' => $this->redirectUri(),
@@ -68,9 +82,23 @@ class IdentityClient
             'nonce' => $nonce,
             'code_challenge' => Pkce::challenge($verifier),
             'code_challenge_method' => 'S256',
-        ]);
+            'prompt' => $prompt,
+            'max_age' => $maxAge !== null ? (string) $maxAge : null,
+            'login_hint' => $loginHint,
+        ], static fn (?string $v): bool => $v !== null && $v !== ''));
 
         return new RedirectResponse($this->discovery->endpoint('authorization_endpoint').'?'.$query);
+    }
+
+    /**
+     * Add / switch account: force a fresh sign-in so the user can authenticate as a
+     * different Cbox ID account. Sugar over `redirect(prompt: 'login')`.
+     *
+     * @param  list<string>|null  $scopes
+     */
+    public function addAccount(?array $scopes = null, ?string $state = null): RedirectResponse
+    {
+        return $this->redirect($scopes, $state, prompt: 'login');
     }
 
     /**
