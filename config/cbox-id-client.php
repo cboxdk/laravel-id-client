@@ -47,4 +47,24 @@ return [
     'http_timeout' => (int) env('CBOX_ID_HTTP_TIMEOUT', 10),
     'cache_ttl' => (int) env('CBOX_ID_CACHE_TTL', 3600),
 
+    /*
+     * Authorization manifest — declare this app's ROLES and PERMISSIONS in code, and
+     * `php artisan cbox-id:publish-manifest` (e.g. on deploy) pushes them to Cbox ID.
+     * Cbox ID owns identity + assignment; your app owns what a role means. Assigned
+     * roles then arrive in the token's `roles`/`permissions` claims for you to enforce.
+     * Requires the app's client to hold the `apps.manifest` scope.
+     *
+     * Permissions are `feature:action` keys; each role grants a subset of them.
+     */
+    'authz' => [
+        'permissions' => [
+            // ['key' => 'invoices:create', 'description' => 'Create invoices'],
+            // ['key' => 'invoices:read', 'description' => 'View invoices'],
+        ],
+        'roles' => [
+            // ['key' => 'billing-admin', 'name' => 'Billing Admin', 'description' => 'Full billing access',
+            //     'permissions' => ['invoices:create', 'invoices:read']],
+        ],
+    ],
+
 ];
