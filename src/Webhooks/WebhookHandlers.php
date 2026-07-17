@@ -31,6 +31,15 @@ final class WebhookHandlers
     }
 
     /**
+     * Whether any handler would run for this event type (type-specific or wildcard).
+     * Lets the receiver skip enqueuing a job nothing will process.
+     */
+    public function hasHandlerFor(string $eventType): bool
+    {
+        return isset($this->handlers[$eventType]) || isset($this->handlers['*']);
+    }
+
+    /**
      * Invoke every handler registered for this event's type and every wildcard
      * handler. Returns how many ran — 0 means the app subscribes to nothing for it.
      */

@@ -106,9 +106,14 @@ CboxIdWebhooks::on('*', fn ($e) => Log::info('cbox event', ['type' => $e->type])
 The SDK mounts a signed receiver at `POST /cbox-id/webhooks` (configurable). Register
 that URL as a webhook endpoint on your Cbox ID instance (Developers → Webhooks),
 subscribe it to the event types you handle, and copy its signing secret into
-`CBOX_ID_WEBHOOK_SECRET`. Each event's `deliveryId` is stable, so dedupe retries with
-it. Signature verification (HMAC-SHA256, replay-bounded) and JSON parsing are handled
-for you; a bad or stale signature is rejected before any handler runs.
+`CBOX_ID_WEBHOOK_SECRET`. Signature verification (HMAC-SHA256, replay-bounded) and JSON
+parsing are handled for you; a bad or stale signature is rejected before anything runs.
+
+**The receiver is slim.** It verifies, acknowledges immediately, and runs your handlers
+on a queued job (`ProcessCboxIdWebhook`) — so a slow handler never stalls the response
+or trips the dispatcher's timeout/retry. Point `CBOX_ID_WEBHOOK_QUEUE_CONNECTION` /
+`CBOX_ID_WEBHOOK_QUEUE` at a real async queue in production (with `QUEUE_CONNECTION=sync`
+the job runs inline). Each event's `deliveryId` is stable, so dedupe retries with it.
 
 ## License
 

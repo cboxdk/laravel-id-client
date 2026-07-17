@@ -92,6 +92,14 @@ return [
         // Reject a signature whose timestamp is older/newer than this many seconds
         // (replay + clock-skew bound). Matches Cbox ID's signing window.
         'tolerance' => (int) env('CBOX_ID_WEBHOOK_TOLERANCE', 300),
+
+        // The receiver verifies + acknowledges immediately and runs your handlers on a
+        // queued job (ProcessCboxIdWebhook), so a slow handler never stalls the
+        // response. Point these at a real async connection/queue for true off-thread
+        // processing; null uses the app defaults. (With QUEUE_CONNECTION=sync the job
+        // runs inline — set a real queue in production to avoid slow acks.)
+        'connection' => env('CBOX_ID_WEBHOOK_QUEUE_CONNECTION'),
+        'queue' => env('CBOX_ID_WEBHOOK_QUEUE'),
     ],
 
 ];

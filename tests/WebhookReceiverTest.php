@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use Cbox\Id\Client\Facades\CboxIdWebhooks;
+use Cbox\Id\Client\Webhooks\ProcessCboxIdWebhook;
 use Cbox\Id\Client\Webhooks\WebhookEvent;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
 
 beforeEach(function (): void {
@@ -22,7 +24,9 @@ function deliver(string $body, string $secret = 'whsec_test', ?int $ts = null): 
     ], $body);
 }
 
-it('dispatches a verified webhook to the registered handler', function (): void {
+it('verifies then runs the handler off the request via the queued job', function (): void {
+    // Testbench's default queue is sync, so the job runs inline here — proving the
+    // full path (verify -> enqueue -> job -> handler) end to end.
     $received = null;
     CboxIdWebhooks::on('role.assigned', function (WebhookEvent $event) use (&$received): void {
         $received = $event;
@@ -34,7 +38,7 @@ it('dispatches a verified webhook to the registered handler', function (): void 
         'delivery_id' => 'wd_123',
     ]);
 
-    deliver($body)->assertOk()->assertJson(['received' => true, 'handled' => 1]);
+    deliver($body)->assertOk()->assertJson(['received' => true, 'queued' => true]);
 
     expect($received)->toBeInstanceOf(WebhookEvent::class)
         ->and($received->type)->toBe('role.assigned')
@@ -43,13 +47,38 @@ it('dispatches a verified webhook to the registered handler', function (): void 
         ->and($received->deliveryId)->toBe('wd_123');
 });
 
+it('enqueues the job and returns immediately, without running the handler inline', function (): void {
+    Queue::fake();
+    $ran = false;
+    CboxIdWebhooks::on('role.assigned', function () use (&$ran): void {
+        $ran = true;
+    });
+
+    deliver((string) json_encode(['type' => 'role.assigned', 'data' => [], 'delivery_id' => 'wd_9']))
+        ->assertOk()->assertJson(['received' => true, 'queued' => true]);
+
+    // The receiver stays slim: the work is on the queue, not in the request.
+    expect($ran)->toBeFalse();
+    Queue::assertPushed(ProcessCboxIdWebhook::class, fn (ProcessCboxIdWebhook $job): bool => $job->event->type === 'role.assigned' && $job->event->deliveryId === 'wd_9');
+});
+
+it('does not enqueue when nothing handles the event type', function (): void {
+    Queue::fake();
+
+    deliver((string) json_encode(['type' => 'unwatched.event', 'data' => []]))
+        ->assertOk()->assertJson(['received' => true, 'queued' => false]);
+
+    Queue::assertNothingPushed();
+});
+
 it('also runs wildcard handlers', function (): void {
     $runs = 0;
     CboxIdWebhooks::on('*', function () use (&$runs): void {
         $runs++;
     });
 
-    deliver((string) json_encode(['type' => 'organization.member_added', 'data' => []]))->assertOk();
+    deliver((string) json_encode(['type' => 'organization.member_added', 'data' => []]))
+        ->assertOk()->assertJson(['queued' => true]);
 
     expect($runs)->toBe(1);
 });
