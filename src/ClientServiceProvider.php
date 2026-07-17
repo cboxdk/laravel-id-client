@@ -6,7 +6,10 @@ namespace Cbox\Id\Client;
 
 use Cbox\Id\Client\Authz\ManifestPublisher;
 use Cbox\Id\Client\Console\PublishManifestCommand;
+use Cbox\Id\Client\Http\WebhookController;
 use Cbox\Id\Client\Support\Discovery;
+use Cbox\Id\Client\Webhooks\WebhookHandlers;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
 class ClientServiceProvider extends ServiceProvider
@@ -14,6 +17,10 @@ class ClientServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/cbox-id-client.php', 'cbox-id-client');
+
+        // Shared registry — the app registers provisioning hooks against it, the
+        // webhook controller dispatches to it. Singleton so both see the same handlers.
+        $this->app->singleton(WebhookHandlers::class);
 
         $this->app->singleton(ManifestPublisher::class, static function (): ManifestPublisher {
             $issuer = self::configString('cbox-id-client.issuer');
@@ -60,6 +67,28 @@ class ClientServiceProvider extends ServiceProvider
                 __DIR__.'/../config/cbox-id-client.php' => config_path('cbox-id-client.php'),
             ], 'cbox-id-client-config');
         }
+
+        $this->registerWebhookRoute();
+    }
+
+    /**
+     * Mount the webhook receiver at the configured path (default `/cbox-id/webhooks`),
+     * unless disabled. A bare POST route — deliberately outside the `web` group, so it
+     * carries no session/CSRF; the HMAC signature is its authentication.
+     */
+    private function registerWebhookRoute(): void
+    {
+        if (config('cbox-id-client.webhooks.route', true) !== true) {
+            return;
+        }
+
+        $path = config('cbox-id-client.webhooks.path');
+
+        if (! is_string($path) || $path === '') {
+            return;
+        }
+
+        Route::post($path, WebhookController::class)->name('cbox-id.webhooks');
     }
 
     private static function configString(string $key): string

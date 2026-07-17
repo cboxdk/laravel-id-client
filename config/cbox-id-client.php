@@ -67,4 +67,31 @@ return [
         ],
     ],
 
+    /*
+     * Inbound webhooks — the "outbound provisioning" receiver. Cbox ID pushes signed
+     * events (member added/removed, role assigned/unassigned, directory user
+     * provisioned, …) to this app; the SDK verifies the signature and hands each to a
+     * handler you register in a service provider:
+     *
+     *     use Cbox\Id\Client\Facades\CboxIdWebhooks;
+     *     CboxIdWebhooks::on('organization.member_added', fn ($e) => Seat::allocate($e->string('user_id')));
+     *
+     * Then register `{app_url}{path}` as a webhook endpoint on the Cbox ID instance
+     * (Developers → Webhooks) subscribed to those event types, and copy its signing
+     * secret into `CBOX_ID_WEBHOOK_SECRET`. This is the low-ceremony alternative to
+     * standing up a full SCIM server — no token round-trip, react out-of-band.
+     */
+    'webhooks' => [
+        'secret' => env('CBOX_ID_WEBHOOK_SECRET'),
+
+        // When true (and a secret is set), the SDK registers a POST route at `path`.
+        // Turn off to mount the controller yourself (custom middleware/path).
+        'route' => env('CBOX_ID_WEBHOOK_ROUTE', true),
+        'path' => env('CBOX_ID_WEBHOOK_PATH', '/cbox-id/webhooks'),
+
+        // Reject a signature whose timestamp is older/newer than this many seconds
+        // (replay + clock-skew bound). Matches Cbox ID's signing window.
+        'tolerance' => (int) env('CBOX_ID_WEBHOOK_TOLERANCE', 300),
+    ],
+
 ];

@@ -88,6 +88,28 @@ $ok = CboxId::verifyWebhook(
 abort_unless($ok, 400);
 ```
 
+## Receive provisioning webhooks (outbound provisioning)
+
+Instead of standing up a SCIM server, register a hook and let the SDK verify and
+route Cbox ID's signed events. Set `CBOX_ID_WEBHOOK_SECRET`, then in a service
+provider's `boot()`:
+
+```php
+use Cbox\Id\Client\Facades\CboxIdWebhooks;
+
+CboxIdWebhooks::on('organization.member_added', fn ($e) => Seat::allocate($e->string('user_id')));
+CboxIdWebhooks::on('organization.member_removed', fn ($e) => Seat::release($e->string('user_id')));
+CboxIdWebhooks::on('role.assigned', fn ($e) => /* … */);
+CboxIdWebhooks::on('*', fn ($e) => Log::info('cbox event', ['type' => $e->type]));
+```
+
+The SDK mounts a signed receiver at `POST /cbox-id/webhooks` (configurable). Register
+that URL as a webhook endpoint on your Cbox ID instance (Developers → Webhooks),
+subscribe it to the event types you handle, and copy its signing secret into
+`CBOX_ID_WEBHOOK_SECRET`. Each event's `deliveryId` is stable, so dedupe retries with
+it. Signature verification (HMAC-SHA256, replay-bounded) and JSON parsing are handled
+for you; a bad or stale signature is rejected before any handler runs.
+
 ## License
 
 MIT © Cbox.
