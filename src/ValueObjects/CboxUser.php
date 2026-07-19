@@ -31,4 +31,14 @@ readonly class CboxUser
     {
         return $this->claims[$key] ?? null;
     }
+
+    /**
+     * Whether Cbox ID has verified this user's email (the OIDC `email_verified`
+     * claim). Defaults to false when the claim is absent — treat an unverified or
+     * unknown address as untrusted for account linking / adoption.
+     */
+    public function emailVerified(): bool
+    {
+        return ($this->claims['email_verified'] ?? false) === true;
+    }
 }

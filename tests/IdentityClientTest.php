@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Cbox\Id\Client\Exceptions\AuthenticationFailed;
 use Cbox\Id\Client\Exceptions\InvalidState;
 use Cbox\Id\Client\IdentityClient;
+use Cbox\Id\Client\ValueObjects\CboxUser;
 use Firebase\JWT\JWT;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -163,4 +164,18 @@ it('verifies a good webhook signature and rejects bad or stale ones', function (
     $old = (string) (time() - 4000);
     $stale = 't='.$old.',v1='.hash_hmac('sha256', $old.'.'.$body, $secret);
     expect($client->verifyWebhook($body, $stale, $secret))->toBeFalse();
+});
+
+it('reports email verification from the claim, defaulting to false', function (): void {
+    $verified = new CboxUser(
+        id: 'sub_1', email: 'a@b.test', name: 'A', organizationId: null,
+        claims: ['email_verified' => true], accessToken: 'at', refreshToken: null, idToken: 'it', expiresIn: 3600,
+    );
+    $unverified = new CboxUser(
+        id: 'sub_2', email: 'c@d.test', name: 'C', organizationId: null,
+        claims: [], accessToken: 'at', refreshToken: null, idToken: 'it', expiresIn: 3600,
+    );
+
+    expect($verified->emailVerified())->toBeTrue()
+        ->and($unverified->emailVerified())->toBeFalse();
 });
