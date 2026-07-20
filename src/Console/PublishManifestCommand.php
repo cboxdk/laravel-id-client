@@ -34,6 +34,12 @@ final class PublishManifestCommand extends Command
         } catch (Throwable $e) {
             $this->error($e->getMessage());
 
+            // The most common cause is the app's client lacking the manifest scope —
+            // point at the fix rather than leaving a bare HTTP error.
+            if (str_contains($e->getMessage(), '403') || stripos($e->getMessage(), 'forbidden') !== false) {
+                $this->line('The app client likely lacks the <options=bold>apps.manifest</> scope — grant it on the Cbox ID instance, then retry.');
+            }
+
             return self::FAILURE;
         }
 
