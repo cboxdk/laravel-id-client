@@ -1,6 +1,6 @@
 ---
 title: Call Cbox ID APIs
-description: Machine (client-credentials) tokens, the UserInfo endpoint, and RFC 7662 token introspection.
+description: Machine (client-credentials) tokens, the UserInfo endpoint, RFC 7662 token introspection and RFC 7009 revocation.
 weight: 3
 ---
 
@@ -61,12 +61,28 @@ if ($result['active'] === true) {
 }
 ```
 
+## Revocation (RFC 7009)
+
+Invalidate a token you hold. Revoking a **refresh token** also drops the whole token
+family, so this is what a real "sign out everywhere" does. Confidential-client auth is
+required.
+
+```php
+CboxId::revoke($user->refreshToken, 'refresh_token');
+```
+
+The instance answers `200` for an unknown or already-revoked token, so a call that
+does not throw means "the token is not valid any more", not "it existed". The
+`$tokenTypeHint` (`access_token` / `refresh_token`) only tells the instance which
+store to search first.
+
 ## What needs the secret
 
 | Call | Needs client secret |
 |---|---|
 | `machineToken()` | yes |
 | `introspect()` | yes |
+| `revoke()` | yes |
 | `userinfo()` | no (bearer token only) |
 
 Because the secret is involved, keep these calls server-side — never from a browser

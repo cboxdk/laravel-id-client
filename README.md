@@ -8,7 +8,8 @@ It speaks standard OpenID Connect, so integrating is a login redirect and a call
 not a rewrite — with PKCE, CSRF `state`, a nonce, and full id_token signature/issuer/
 audience verification handled for you. It adds the two conveniences a hosted-identity
 product needs: a **redirect to the instance's hosted profile-management page**, and
-back-channel helpers (**machine tokens, userinfo, introspection, webhook verification**).
+back-channel helpers (**machine tokens, userinfo, introspection, revocation, webhook
+verification**).
 
 Part of **Cbox ID** — the self-hostable, Laravel-native identity platform. MIT licensed.
 
@@ -75,7 +76,11 @@ Route::get('/account', fn () => CboxId::redirectToProfile(returnTo: route('dashb
 $token   = CboxId::machineToken(['api.read']);       // client-credentials (M2M)
 $claims  = CboxId::userinfo($accessToken);           // OIDC userinfo
 $active  = CboxId::introspect($token)['active'];      // RFC 7662
+CboxId::revoke($refreshToken, 'refresh_token');      // RFC 7009
 ```
+
+Revoking a refresh token drops the whole token family — that's what "sign out
+everywhere" needs.
 
 ## Verify a webhook / action
 

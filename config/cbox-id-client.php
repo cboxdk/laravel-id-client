@@ -14,8 +14,8 @@ return [
 
     /*
      * Your OAuth client credentials, registered on the Cbox ID instance. The secret
-     * is required for confidential clients (server-side apps) and for machine tokens
-     * and introspection.
+     * is required for confidential clients (server-side apps) and for machine tokens,
+     * introspection and revocation.
      */
     'client_id' => env('CBOX_ID_CLIENT_ID'),
     'client_secret' => env('CBOX_ID_CLIENT_SECRET'),

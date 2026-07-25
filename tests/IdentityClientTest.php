@@ -12,38 +12,51 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 /**
+ * A stable RSA keypair per `kid`, with its JWKS view. `$declareAlg` false serves a
+ * key WITHOUT the optional `alg` member (RFC 7517 §4.4), so verification must supply
+ * its own default.
+ *
  * @return array{private: string, jwks: array<string, mixed>}
  */
-function rsaKeypair(): array
+function rsaKeypair(string $kid = 'test-1', bool $declareAlg = true): array
 {
-    static $kp = null;
+    static $keys = [];
 
-    if ($kp !== null) {
-        return $kp;
+    if (! isset($keys[$kid])) {
+        $res = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
+        openssl_pkey_export($res, $priv);
+        $details = openssl_pkey_get_details($res);
+
+        $b64 = static fn (string $b): string => rtrim(strtr(base64_encode($b), '+/', '-_'), '=');
+        $keys[$kid] = ['private' => $priv, 'n' => $b64($details['rsa']['n']), 'e' => $b64($details['rsa']['e'])];
     }
 
-    $res = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
-    openssl_pkey_export($res, $priv);
-    $details = openssl_pkey_get_details($res);
+    $jwk = ['kty' => 'RSA', 'use' => 'sig', 'kid' => $kid, 'n' => $keys[$kid]['n'], 'e' => $keys[$kid]['e']];
 
-    $b64 = static fn (string $b): string => rtrim(strtr(base64_encode($b), '+/', '-_'), '=');
-    $jwks = ['keys' => [[
-        'kty' => 'RSA', 'use' => 'sig', 'alg' => 'RS256', 'kid' => 'test-1',
-        'n' => $b64($details['rsa']['n']), 'e' => $b64($details['rsa']['e']),
-    ]]];
+    if ($declareAlg) {
+        $jwk['alg'] = 'RS256';
+    }
 
-    return $kp = ['private' => $priv, 'jwks' => $jwks];
+    return ['private' => $keys[$kid]['private'], 'jwks' => ['keys' => [$jwk]]];
 }
 
 /**
  * @param  array<string, mixed>  $claims
  */
-function idToken(array $claims): string
+function idToken(array $claims, string $kid = 'test-1'): string
 {
-    return JWT::encode($claims, rsaKeypair()['private'], 'RS256', 'test-1');
+    return JWT::encode($claims, rsaKeypair($kid)['private'], 'RS256', $kid);
 }
 
-function fakeCbox(?string $idToken = null): void
+/**
+ * Stub a Cbox ID instance. `$idToken` and `$jwks` accept a Closure so a single fake
+ * can serve changing values across calls — `Http::fake()` resets recorded requests,
+ * so a test that counts them must set the stubs up exactly once.
+ *
+ * @param  string|Closure|null  $idToken  the id_token the token endpoint returns
+ * @param  array<string, mixed>|Closure|null  $jwks  overrides what the JWKS URI serves
+ */
+function fakeCbox(string|Closure|null $idToken = null, array|Closure|null $jwks = null): void
 {
     Http::fake([
         '*/.well-known/openid-configuration' => Http::response([
@@ -52,13 +65,44 @@ function fakeCbox(?string $idToken = null): void
             'token_endpoint' => 'https://id.test/oauth/token',
             'userinfo_endpoint' => 'https://id.test/oauth/userinfo',
             'introspection_endpoint' => 'https://id.test/oauth/introspect',
+            'revocation_endpoint' => 'https://id.test/oauth/revoke',
             'jwks_uri' => 'https://id.test/.well-known/jwks.json',
         ]),
-        '*/.well-known/jwks.json' => Http::response(rsaKeypair()['jwks']),
-        '*/oauth/token' => Http::response(['access_token' => 'at_1', 'id_token' => $idToken, 'refresh_token' => 'rt_1', 'expires_in' => 900]),
+        '*/.well-known/jwks.json' => match (true) {
+            $jwks instanceof Closure => $jwks,
+            is_array($jwks) => Http::response($jwks),
+            default => Http::response(rsaKeypair()['jwks']),
+        },
+        '*/oauth/token' => static fn () => Http::response([
+            'access_token' => 'at_1',
+            'id_token' => $idToken instanceof Closure ? $idToken() : $idToken,
+            'refresh_token' => 'rt_1',
+            'expires_in' => 900,
+        ]),
         '*/oauth/userinfo' => Http::response(['sub' => 'user-1', 'email' => 'ada@id.test', 'name' => 'Ada', 'org' => 'org_1']),
         '*/oauth/introspect' => Http::response(['active' => true, 'sub' => 'user-1']),
+        // RFC 7009: a successful revocation carries an empty 200 body.
+        '*/oauth/revoke' => Http::response('', 200),
     ]);
+}
+
+/** Seed the session a callback needs and build the matching callback request. */
+function loginCallback(): Request
+{
+    session([
+        'cbox-id-client.state' => 'st_1',
+        'cbox-id-client.verifier' => 'ver_1',
+        'cbox-id-client.nonce' => 'nonce_1',
+    ]);
+
+    return Request::create('https://app.test/callback', 'GET', ['state' => 'st_1', 'code' => 'code_1']);
+}
+
+function jwksRequestCount(): int
+{
+    return Http::recorded(
+        static fn ($request): bool => str_contains($request->url(), '/.well-known/jwks.json')
+    )->count();
 }
 
 beforeEach(function (): void {
@@ -147,6 +191,95 @@ it('mints a machine (client-credentials) token', function (): void {
     fakeCbox();
 
     expect(app(IdentityClient::class)->machineToken(['api.read']))->toBe('at_1');
+});
+
+it('revokes a token with confidential-client auth and the type hint (RFC 7009)', function (): void {
+    fakeCbox();
+
+    app(IdentityClient::class)->revoke('rt_1', 'refresh_token');
+
+    Http::assertSent(function ($request): bool {
+        if ($request->url() !== 'https://id.test/oauth/revoke') {
+            return false;
+        }
+
+        return $request['token'] === 'rt_1'
+            && $request['token_type_hint'] === 'refresh_token'
+            && $request->hasHeader('Authorization', 'Basic '.base64_encode('client_1:secret_1'));
+    });
+});
+
+it('omits token_type_hint when none is given', function (): void {
+    fakeCbox();
+
+    app(IdentityClient::class)->revoke('at_1');
+
+    Http::assertSent(fn ($request): bool => $request->url() === 'https://id.test/oauth/revoke'
+        && ! array_key_exists('token_type_hint', (array) $request->data()));
+});
+
+it('fails a rejected revocation', function (): void {
+    // Registered first so it wins over fakeCbox()'s 200 for the same URL — stubs are
+    // matched in registration order.
+    Http::fake(['*/oauth/revoke' => Http::response(['error' => 'invalid_client'], 401)]);
+    fakeCbox();
+
+    app(IdentityClient::class)->revoke('rt_1');
+})->throws(AuthenticationFailed::class);
+
+it('verifies an id_token whose JWKS key omits the optional alg member', function (): void {
+    // RFC 7517 §4.4 makes `alg` optional; verification must supply its own default
+    // rather than depend on the instance emitting it on every key.
+    fakeCbox(idToken([
+        'iss' => 'https://id.test', 'aud' => 'client_1', 'sub' => 'user-1',
+        'nonce' => 'nonce_1', 'iat' => time(), 'exp' => time() + 900,
+    ]), rsaKeypair('test-1', declareAlg: false)['jwks']);
+
+    expect(app(IdentityClient::class)->authenticate(loginCallback())->id)->toBe('user-1');
+});
+
+it('refetches the JWKS when the instance rotates its signing key mid-TTL', function (): void {
+    $rotated = false;
+    $claims = ['iss' => 'https://id.test', 'aud' => 'client_1', 'sub' => 'user-1', 'nonce' => 'nonce_1'];
+
+    fakeCbox(
+        idToken: function () use (&$rotated, $claims): string {
+            $claims += ['iat' => time(), 'exp' => time() + 900];
+
+            return idToken($claims, $rotated ? 'test-2' : 'test-1');
+        },
+        // Bound by reference: an arrow function would capture $rotated by value and
+        // keep serving the pre-rotation key set.
+        jwks: function () use (&$rotated) {
+            return Http::response(rsaKeypair($rotated ? 'test-2' : 'test-1')['jwks']);
+        },
+    );
+
+    // Warm the JWKS cache with the pre-rotation key set.
+    expect(app(IdentityClient::class)->authenticate(loginCallback())->id)->toBe('user-1');
+    $fetchesBefore = jwksRequestCount();
+
+    $rotated = true;
+
+    // Without the kid-miss refetch this throws "kid invalid" until the TTL lapses.
+    expect(app(IdentityClient::class)->authenticate(loginCallback())->id)->toBe('user-1');
+    expect(jwksRequestCount())->toBe($fetchesBefore + 1);
+});
+
+it('refetches at most once per cooldown when the kid is unknown', function (): void {
+    // A kid the instance never advertised: refetch once, then back off, so a bogus
+    // kid cannot turn every login into a JWKS request.
+    fakeCbox(fn (): string => idToken([
+        'iss' => 'https://id.test', 'aud' => 'client_1', 'sub' => 'user-1',
+        'nonce' => 'nonce_1', 'iat' => time(), 'exp' => time() + 900,
+    ], 'no-such-key'));
+
+    foreach (range(1, 3) as $ignored) {
+        expect(fn () => app(IdentityClient::class)->authenticate(loginCallback()))
+            ->toThrow(AuthenticationFailed::class);
+    }
+
+    expect(jwksRequestCount())->toBe(2); // the initial fetch plus one refetch
 });
 
 it('verifies a good webhook signature and rejects bad or stale ones', function (): void {

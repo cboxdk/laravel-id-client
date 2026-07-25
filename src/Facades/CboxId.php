@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static string machineToken(list<string> $scopes = [], ?string $resource = null)
  * @method static array<string, mixed> userinfo(string $accessToken)
  * @method static array<string, mixed> introspect(string $token)
+ * @method static void revoke(string $token, ?string $tokenTypeHint = null)
  * @method static bool verifyWebhook(string $payload, ?string $signatureHeader, string $secret, int $toleranceSeconds = 300)
  *
  * @see IdentityClient

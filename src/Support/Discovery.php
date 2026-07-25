@@ -15,6 +15,12 @@ use Illuminate\Support\Facades\Http;
  */
 class Discovery
 {
+    /**
+     * How long to wait before a second JWKS refetch after a `kid` miss. Without it a
+     * token bearing a bogus kid would force a JWKS request on every verification.
+     */
+    private const REFETCH_COOLDOWN_SECONDS = 60;
+
     public function __construct(
         private readonly string $issuer,
         private readonly int $cacheTtl,
@@ -63,7 +69,7 @@ class Discovery
         $uri = $this->endpoint('jwks_uri');
 
         /** @var array<string, mixed> $jwks */
-        $jwks = Cache::remember('cbox-id-client:jwks:'.md5($uri), $this->cacheTtl, function () use ($uri): array {
+        $jwks = Cache::remember($this->jwksCacheKey($uri), $this->cacheTtl, function () use ($uri): array {
             $response = Http::timeout($this->timeout)->get($uri);
 
             if (! $response->successful()) {
@@ -77,5 +83,35 @@ class Discovery
         });
 
         return $jwks;
+    }
+
+    /**
+     * Refetch the JWKS, discarding the cached copy — for when an id_token presents a
+     * `kid` the cached set does not carry, i.e. the instance rolled its signing key
+     * inside our cache TTL. Without this, every login fails until the TTL lapses.
+     *
+     * Rate-limited to one refetch per cooldown window (and across processes, since
+     * the marker lives in the cache), so a token bearing a bogus kid cannot turn each
+     * verification into a JWKS request. Returns null while the cooldown is in effect.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function refreshJwks(): ?array
+    {
+        $uri = $this->endpoint('jwks_uri');
+
+        // add() is atomic: the first caller in the window wins, the rest back off.
+        if (! Cache::add('cbox-id-client:jwks-refetch:'.md5($uri), true, self::REFETCH_COOLDOWN_SECONDS)) {
+            return null;
+        }
+
+        Cache::forget($this->jwksCacheKey($uri));
+
+        return $this->jwks();
+    }
+
+    private function jwksCacheKey(string $uri): string
+    {
+        return 'cbox-id-client:jwks:'.md5($uri);
     }
 }

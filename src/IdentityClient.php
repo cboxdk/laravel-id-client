@@ -36,6 +36,13 @@ class IdentityClient
     private const NONCE_KEY = 'cbox-id-client.nonce';
 
     /**
+     * The signature algorithm assumed for a JWKS key that omits `alg`. RFC 7517 §4.4
+     * makes `alg` optional, so verification must not depend on the instance emitting
+     * it on every key — but the value is pinned here rather than taken from the token.
+     */
+    private const DEFAULT_JWK_ALG = 'RS256';
+
+    /**
      * @param  array<string, mixed>  $config
      */
     public function __construct(
@@ -265,6 +272,34 @@ class IdentityClient
     }
 
     /**
+     * RFC 7009 token revocation (confidential client auth). Revokes an access or
+     * refresh token; revoking a refresh token also drops the whole token family, so
+     * this is what a real "sign out everywhere" does.
+     *
+     * Per RFC 7009 the instance answers 200 for an unknown or already-revoked token,
+     * so a successful call means "the token is not valid any more", not "it existed".
+     * `$tokenTypeHint` (`access_token` / `refresh_token`) only tells the instance
+     * which store to search first.
+     */
+    public function revoke(string $token, ?string $tokenTypeHint = null): void
+    {
+        $params = ['token' => $token];
+
+        if ($tokenTypeHint !== null && $tokenTypeHint !== '') {
+            $params['token_type_hint'] = $tokenTypeHint;
+        }
+
+        $response = Http::asForm()
+            ->withBasicAuth($this->clientId(), $this->clientSecret())
+            ->timeout($this->timeout())
+            ->post($this->discovery->endpoint('revocation_endpoint'), $params);
+
+        if (! $response->successful()) {
+            throw AuthenticationFailed::because('Revocation request failed.');
+        }
+    }
+
+    /**
      * Verify a Cbox ID webhook / action signature (`X-Cbox-Signature: t=..,v1=..`):
      * an HMAC-SHA256 over `"{timestamp}.{raw body}"`, within a freshness window. Use
      * the raw request body, not a re-encoded one.
@@ -325,8 +360,16 @@ class IdentityClient
      */
     private function verifyIdToken(string $idToken, ?string $nonce): array
     {
+        $jwks = $this->discovery->jwks();
+
+        // The instance can roll its signing key inside our JWKS cache TTL. Without a
+        // refetch on a kid miss, every login fails until the TTL lapses.
+        if (! $this->jwksCarriesKid($jwks, $this->idTokenKid($idToken))) {
+            $jwks = $this->discovery->refreshJwks() ?? $jwks;
+        }
+
         try {
-            $claims = $this->asArray(get_object_vars(JWT::decode($idToken, JWK::parseKeySet($this->discovery->jwks()))));
+            $claims = $this->asArray(get_object_vars(JWT::decode($idToken, JWK::parseKeySet($jwks, self::DEFAULT_JWK_ALG))));
         } catch (Throwable $e) {
             throw AuthenticationFailed::because('The id_token could not be verified: '.$e->getMessage());
         }
@@ -346,6 +389,58 @@ class IdentityClient
         }
 
         return $claims;
+    }
+
+    /**
+     * The `kid` from an id_token's (unverified) header, or null when it carries none.
+     * Only used to decide whether the cached JWKS can possibly hold the signing key —
+     * never to choose an algorithm.
+     */
+    private function idTokenKid(string $idToken): ?string
+    {
+        $segment = explode('.', $idToken)[0];
+
+        if ($segment === '') {
+            return null;
+        }
+
+        $remainder = strlen($segment) % 4;
+        $padded = $remainder === 0 ? $segment : $segment.str_repeat('=', 4 - $remainder);
+        $json = base64_decode(strtr($padded, '-_', '+/'), true);
+
+        if ($json === false) {
+            return null;
+        }
+
+        $header = json_decode($json, true);
+        $kid = is_array($header) ? ($header['kid'] ?? null) : null;
+
+        return is_string($kid) && $kid !== '' ? $kid : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $jwks
+     */
+    private function jwksCarriesKid(array $jwks, ?string $kid): bool
+    {
+        // No kid to look up — nothing a refetch could improve; let the decoder decide.
+        if ($kid === null) {
+            return true;
+        }
+
+        $keys = $jwks['keys'] ?? null;
+
+        if (! is_array($keys)) {
+            return false;
+        }
+
+        foreach ($keys as $key) {
+            if (is_array($key) && ($key['kid'] ?? null) === $kid) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
