@@ -17,7 +17,7 @@ namespace Cbox\Id\Client\Webhooks;
  * these hooks are how your app reacts out-of-band (seat allocation, deprovisioning,
  * pre-provisioning) without a token round-trip.
  */
-final class WebhookHandlers
+class WebhookHandlers
 {
     /** @var array<string, list<callable(WebhookEvent): void>> */
     private array $handlers = [];

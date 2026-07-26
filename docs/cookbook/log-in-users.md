@@ -101,3 +101,31 @@ Route::post('/logout', function () {
 
 `logoutUrl()` returns `null` when the instance advertises no end-session endpoint —
 fall back to a local logout, as above.
+
+`returnTo` must match a **Sign-out URI** registered on the application in the
+environment console character for character — scheme, host, port, path and trailing
+slash all count. An unregistered value is dropped and the user lands on a bare "you
+are signed out" page.
+
+### Passing an `id_token_hint`
+
+`logoutUrl()` takes an optional second argument, the user's `id_token`. It is the
+spec's other way to identify the relying party, and it also tells Cbox ID *whose*
+session is ending — useful when one browser holds several signed-in accounts, and
+required by stricter OpenID providers. `CboxUser` exposes it as `->idToken` after
+`authenticate()`, so stash it at login if you want to send it:
+
+```php
+// at login, after authenticate()
+session(['cbox_id_token' => $user->idToken]);
+
+// at logout
+$url = CboxId::logoutUrl(
+    returnTo: url('/'),
+    idTokenHint: session('cbox_id_token'),
+);
+```
+
+Optional: an empty or missing hint is simply omitted. Storing the token costs session
+space (it is typically ~1 kB), so skip it unless you need it — a registered `returnTo`
+is enough for a normal single-account sign-out.

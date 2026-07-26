@@ -89,6 +89,11 @@ Route::post('/logout', function () {
     return $url ? redirect($url) : redirect('/');
 });
 ```
+`returnTo` must match a **Sign-out URI** registered on the application character for
+character, or Cbox ID drops it. `logoutUrl()` also takes an optional second argument,
+`idTokenHint:` — the user's `id_token` (`$user->idToken`, if you stashed it in the
+session at login). Send it when the browser may hold several signed-in accounts or the
+provider requires the hint; otherwise a registered `returnTo` is enough.
 
 ## Optional — only if the app needs them
 - **Call Cbox ID / your APIs as this app:** `CboxId::machineToken(scopes: ['reports.read'])`.

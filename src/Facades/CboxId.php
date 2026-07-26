@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static \Cbox\Id\Client\ValueObjects\CboxUser authenticate(\Illuminate\Http\Request $request)
  * @method static string profileUrl(?string $returnTo = null)
  * @method static \Illuminate\Http\RedirectResponse redirectToProfile(?string $returnTo = null)
- * @method static string|null logoutUrl(?string $returnTo = null)
+ * @method static string|null logoutUrl(?string $returnTo = null, ?string $idTokenHint = null)
  * @method static string machineToken(list<string> $scopes = [], ?string $resource = null)
  * @method static array<string, mixed> userinfo(string $accessToken)
  * @method static array<string, mixed> introspect(string $token)

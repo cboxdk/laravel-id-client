@@ -19,7 +19,7 @@ use Illuminate\Http\Request;
  * machine endpoint: no session or CSRF. 401 on a bad/replayed signature, 422 on a
  * malformed body, 200 once the event is accepted.
  */
-final class WebhookController
+class WebhookController
 {
     public function __construct(
         private readonly IdentityClient $identity,

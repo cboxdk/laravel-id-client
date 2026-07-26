@@ -186,8 +186,16 @@ class IdentityClient
 
     /**
      * The RP-initiated logout URL, or null when the instance advertises none.
+     *
+     * `client_id` is always sent, even without a `$returnTo`: Cbox ID validates
+     * `post_logout_redirect_uri` against the registered allow-list of THAT client
+     * (OIDC RP-Initiated Logout 1.0 §2). A request that names no client leaves it
+     * no list to check, so it drops the return URL and the user lands on a bare
+     * "you are signed out" page. `$idTokenHint` — the user's `id_token`, when you
+     * still hold it — is the spec's other way to identify the client, and also
+     * tells the server whose session is ending.
      */
-    public function logoutUrl(?string $returnTo = null): ?string
+    public function logoutUrl(?string $returnTo = null, ?string $idTokenHint = null): ?string
     {
         try {
             $endpoint = $this->discovery->endpoint('end_session_endpoint');
@@ -195,7 +203,17 @@ class IdentityClient
             return null;
         }
 
-        return $returnTo === null ? $endpoint : $endpoint.'?'.http_build_query(['post_logout_redirect_uri' => $returnTo]);
+        $params = ['client_id' => $this->clientId()];
+
+        if ($returnTo !== null) {
+            $params['post_logout_redirect_uri'] = $returnTo;
+        }
+
+        if ($idTokenHint !== null && $idTokenHint !== '') {
+            $params['id_token_hint'] = $idTokenHint;
+        }
+
+        return $endpoint.'?'.http_build_query($params);
     }
 
     /**

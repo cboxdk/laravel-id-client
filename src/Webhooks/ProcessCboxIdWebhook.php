@@ -15,7 +15,7 @@ use Illuminate\Queue\InteractsWithQueue;
  * dispatcher timeout/retry) and the real work (seat allocation, API calls) happens on
  * a worker. The event is plain scalars/array, so it serialises cleanly onto any queue.
  */
-final class ProcessCboxIdWebhook implements ShouldQueue
+class ProcessCboxIdWebhook implements ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;

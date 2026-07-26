@@ -11,7 +11,7 @@ namespace Cbox\Id\Client\Webhooks;
  * carries it), `deliveryId` a stable id for idempotent processing (dedupe retries),
  * and `deliveredAt` the signed timestamp. Handed to the app's registered handler.
  */
-final readonly class WebhookEvent
+readonly class WebhookEvent
 {
     /**
      * @param  array<string, mixed>  $payload

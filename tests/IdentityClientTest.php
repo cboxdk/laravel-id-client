@@ -66,6 +66,7 @@ function fakeCbox(string|Closure|null $idToken = null, array|Closure|null $jwks 
             'userinfo_endpoint' => 'https://id.test/oauth/userinfo',
             'introspection_endpoint' => 'https://id.test/oauth/introspect',
             'revocation_endpoint' => 'https://id.test/oauth/revoke',
+            'end_session_endpoint' => 'https://id.test/oauth/logout',
             'jwks_uri' => 'https://id.test/.well-known/jwks.json',
         ]),
         '*/.well-known/jwks.json' => match (true) {
@@ -185,6 +186,40 @@ it('builds a hosted profile URL with a return link', function (): void {
     $url = app(IdentityClient::class)->profileUrl('https://app.test/account');
 
     expect($url)->toBe('https://id.test/settings?return_to='.urlencode('https://app.test/account'));
+});
+
+// Cbox ID validates post_logout_redirect_uri against the requesting client's
+// registered allow-list, so a logout URL without client_id can never redirect —
+// it strands the user on a bare "signed out" page.
+it('always carries client_id on the RP-initiated logout URL', function (): void {
+    fakeCbox();
+
+    $url = app(IdentityClient::class)->logoutUrl('https://app.test/bye');
+
+    expect($url)->toBeString();
+
+    parse_str((string) parse_url((string) $url, PHP_URL_QUERY), $query);
+
+    expect(strtok((string) $url, '?'))->toBe('https://id.test/oauth/logout')
+        ->and($query['client_id'])->toBe('client_1')
+        ->and($query['post_logout_redirect_uri'])->toBe('https://app.test/bye')
+        ->and($query)->not->toHaveKey('id_token_hint');
+
+    parse_str((string) parse_url((string) app(IdentityClient::class)->logoutUrl(), PHP_URL_QUERY), $bare);
+
+    expect($bare['client_id'])->toBe('client_1')
+        ->and($bare)->not->toHaveKey('post_logout_redirect_uri');
+});
+
+it('passes an id_token_hint on the logout URL when one is supplied', function (): void {
+    fakeCbox();
+
+    $url = app(IdentityClient::class)->logoutUrl('https://app.test/bye', 'header.payload.sig');
+
+    parse_str((string) parse_url((string) $url, PHP_URL_QUERY), $query);
+
+    expect($query['id_token_hint'])->toBe('header.payload.sig')
+        ->and($query['client_id'])->toBe('client_1');
 });
 
 it('mints a machine (client-credentials) token', function (): void {

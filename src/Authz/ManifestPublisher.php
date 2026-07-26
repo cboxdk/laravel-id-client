@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Http;
  * `apps.manifest` scope, then POSTs the manifest to `{issuer}/api/v1/apps/manifest`.
  * The app owns what roles mean; Cbox ID owns who holds them.
  */
-final class ManifestPublisher
+class ManifestPublisher
 {
     /**
      * @param  list<array<string, mixed>>  $permissions

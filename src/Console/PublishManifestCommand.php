@@ -13,7 +13,7 @@ use Throwable;
  * Cbox ID. Run it on deploy so the console always reflects the app's current
  * catalog. Idempotent — an unchanged manifest is a server-side no-op.
  */
-final class PublishManifestCommand extends Command
+class PublishManifestCommand extends Command
 {
     protected $signature = 'cbox-id:publish-manifest';
 
