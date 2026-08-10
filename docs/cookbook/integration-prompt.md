@@ -25,7 +25,7 @@ standard OpenID Connect. Do NOT hand-roll OAuth — the SDK handles PKCE, state,
 and full id_token verification.
 
 ## Prerequisites (ask me if not set)
-- A reachable Cbox ID instance — its **issuer URL** (e.g. `https://id.acme.com`).
+- A reachable Cbox ID instance — its **issuer URL** (e.g. `https://acme.cboxid.com`).
 - An **OAuth client** registered on it: `client_id`, `client_secret`, and this app's
   callback URL registered as a redirect URI.
 
@@ -38,7 +38,7 @@ php artisan vendor:publish --tag=cbox-id-client-config
 ```
 Add to `.env` (every other endpoint is auto-discovered from the issuer):
 ```dotenv
-CBOX_ID_ISSUER=https://id.acme.com
+CBOX_ID_ISSUER=https://acme.cboxid.com
 CBOX_ID_CLIENT_ID=client_...
 CBOX_ID_CLIENT_SECRET=secret_...
 CBOX_ID_REDIRECT=https://this-app.com/auth/cbox/callback

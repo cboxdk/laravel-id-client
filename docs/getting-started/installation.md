@@ -24,7 +24,7 @@ self-register, if the instance enables Dynamic Client Registration):
 
 | Value | What it is |
 |---|---|
-| **Issuer URL** | the platform's public URL, e.g. `https://id.acme.com` — its discovery document lives at `/.well-known/openid-configuration` |
+| **Issuer URL** | the platform's public URL, e.g. `https://acme.cboxid.com` — one subdomain of `cboxid.com` per tenant, or your own host if you run Cbox ID yourself. Its discovery document lives at `/.well-known/openid-configuration` |
 | **Client ID / secret** | your product's registered OAuth client |
 | **Redirect URI** | your callback URL, registered on that client |
 

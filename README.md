@@ -25,7 +25,7 @@ Requires PHP `^8.4` and Laravel 12 or 13.
 Configure the instance and your OAuth client (registered on the Cbox ID instance):
 
 ```dotenv
-CBOX_ID_ISSUER=https://id.acme.com
+CBOX_ID_ISSUER=https://acme.cboxid.com
 CBOX_ID_CLIENT_ID=client_...
 CBOX_ID_CLIENT_SECRET=secret_...
 CBOX_ID_REDIRECT=https://app.acme.com/auth/callback

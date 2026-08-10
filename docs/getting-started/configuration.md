@@ -13,7 +13,7 @@ in `.env` and leave the rest at their defaults.
 ## The four you must set
 
 ```dotenv
-CBOX_ID_ISSUER=https://id.acme.com
+CBOX_ID_ISSUER=https://acme.cboxid.com
 CBOX_ID_CLIENT_ID=client_...
 CBOX_ID_CLIENT_SECRET=secret_...
 CBOX_ID_REDIRECT=https://app.acme.com/auth/callback
