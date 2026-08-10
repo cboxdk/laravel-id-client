@@ -144,9 +144,51 @@ class IdentityClient
             throw AuthenticationFailed::because('No access token was returned.');
         }
 
+        // AN `openid` REQUEST WITHOUT AN ID_TOKEN IS A PROTOCOL VIOLATION, and refusing it
+        // is the difference between an authenticated login and a bearer token.
+        //
+        // This used to be `is_string($idToken) ? verify() : []`, so a token response that
+        // omitted the id_token skipped verification entirely and the subject was taken
+        // from UserInfo instead. Nothing failed: the login succeeded, the signature was
+        // never checked, and the `nonce` pulled from the session a few lines above was
+        // simply never used. An OIDC login degraded silently into an OAuth one — and
+        // silently is the problem, because the surface that would tell you is the one
+        // that stopped running.
+        //
+        // Asked of the SCOPES WE REQUESTED rather than of the response: a deployment that
+        // has deliberately configured a non-OIDC scope set gets the old behaviour, and one
+        // that asked for `openid` gets what OIDC Core §3.1.3.3 promises it.
+        if (! is_string($idToken) && in_array('openid', $this->scopes(), true)) {
+            throw AuthenticationFailed::because('Cbox ID returned no id_token for an OpenID Connect request.');
+        }
+
         $claims = is_string($idToken) ? $this->verifyIdToken($idToken, is_string($nonce) ? $nonce : null) : [];
-        // Enrich with userinfo (email/name/org that may not be in a minimal id_token).
-        $claims = array_merge($claims, $this->userinfo($accessToken));
+
+        // THE SUBJECT IS WHATEVER THE SIGNATURE SAID, and UserInfo cannot move it.
+        //
+        // This read `$sub` AFTER `array_merge($claims, $userinfo)` — UserInfo second, so
+        // its `sub` overwrote the one that arrived inside a signature. Verifying the
+        // id_token buys exactly one thing, that its claims are bound to a key, and an
+        // unsigned bearer-authenticated response overriding them gives that away: a token
+        // response pairing a signed assertion for one person with an access token whose
+        // UserInfo answers for another logged in the other. The refusal below even said
+        // "The verified token carried no subject", which by then was not what happened.
+        //
+        // OIDC Core §5.3.2 is explicit: the UserInfo `sub` MUST be verified to match the
+        // ID Token's exactly, and on a mismatch the response "MUST NOT be used".
+        $verifiedSub = $claims['sub'] ?? null;
+
+        $userinfo = $this->userinfo($accessToken);
+        $userinfoSub = $userinfo['sub'] ?? null;
+
+        if (is_string($verifiedSub) && is_string($userinfoSub) && ! hash_equals($verifiedSub, $userinfoSub)) {
+            throw AuthenticationFailed::because('The UserInfo subject does not match the verified id_token.');
+        }
+
+        // Enriches (email/name/org a minimal id_token may omit) and never replaces: the
+        // verified claims are re-applied on top, so the merge cannot move `sub`, `iss`,
+        // `aud` or anything else the signature covered.
+        $claims = array_merge($userinfo, $claims);
 
         $sub = $claims['sub'] ?? null;
 

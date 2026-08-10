@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    WITHOUT THIS FILE THE SUITE DOES NOT RUN IN CI, AND HAS NOT SINCE 2026-07-19.
+
+    Pest falls back to passing its configuration on the command line when it finds no
+    phpunit config, and newer PHPUnit majors reject that: every run since then died with
+    `Could not read XML from file "(cache-directory flag)"` and exited 2. Pint passed, PHPStan
+    reported no errors, and the gate still went red — including on the v0.5.0 release tag,
+    so this package shipped from a repo whose tests had not run for three weeks.
+
+    It only bites in CI: `ci.yml` deliberately commits no lockfile and runs `composer
+    update`, so it resolves a newer Pest/PHPUnit than a local `vendor/` that was installed
+    earlier. A green local run proved nothing about the one that gates the release.
+
+    Mirrors laravel-id's own phpunit.xml.dist so the two packages fail the same way.
+-->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+         failOnRisky="true"
+         failOnWarning="true"
+         cacheDirectory=".phpunit.cache">
+    <testsuites>
+        <testsuite name="Cbox ID Client">
+            <directory>tests</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>src</directory>
+        </include>
+    </source>
+    <php>
+        <env name="APP_ENV" value="testing"/>
+        <env name="DB_CONNECTION" value="testing"/>
+    </php>
+</phpunit>

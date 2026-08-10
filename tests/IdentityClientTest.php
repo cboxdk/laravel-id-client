@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Cbox\Id\Client\Exceptions\AuthenticationFailed;
+use Cbox\Id\Client\Exceptions\ClientConfigurationException;
 use Cbox\Id\Client\Exceptions\InvalidState;
 use Cbox\Id\Client\IdentityClient;
 use Cbox\Id\Client\ValueObjects\CboxUser;
@@ -300,6 +301,116 @@ it('refetches the JWKS when the instance rotates its signing key mid-TTL', funct
     expect(app(IdentityClient::class)->authenticate(loginCallback())->id)->toBe('user-1');
     expect(jwksRequestCount())->toBe($fetchesBefore + 1);
 });
+
+/**
+ * An `openid` request whose response carries no id_token must fail, not fall back.
+ *
+ * It used to fall back. `is_string($idToken) ? verify() : []` meant a response without one
+ * skipped verification entirely and took the subject from UserInfo — the login succeeded,
+ * the signature was never checked, and the nonce pulled from the session was never used.
+ * An OIDC login degraded into an OAuth one with nothing to show for it.
+ *
+ * Found while chasing a different bug: three attempts to test outage behaviour all passed
+ * without ever fetching a JWKS, because `fakeCbox()` with no idToken argument returns
+ * `id_token => null` and the client was happy to proceed. The vacuous test and the missing
+ * guard had the same root.
+ */
+it('refuses an OpenID Connect login whose response carries no id_token', function (): void {
+    fakeCbox(idToken: null);
+
+    expect(fn () => app(IdentityClient::class)->authenticate(loginCallback()))
+        ->toThrow(AuthenticationFailed::class);
+});
+
+/**
+ * THE OUTAGE PROMISE, with an id_token so the verification path actually runs.
+ *
+ * The control-plane argument is that a relying party does not phone home per request:
+ * tokens verify locally against a cached JWKS, so the issuer being unreachable is invisible
+ * to traffic that is already authenticated. This pins where that stops being true — the
+ * cache TTL — by taking the issuer away and clearing the cache under it.
+ *
+ * `Http::fake()` ACCUMULATES stubs and the first match wins, so a second `fake()` call
+ * cannot make an endpoint start failing. The flag flipped by reference inside the original
+ * closure is the only way, and it is the idiom the key-rotation test above already uses.
+ */
+it('stops verifying once the JWKS cache lapses while the issuer is unreachable', function (): void {
+    $down = false;
+
+    fakeCbox(
+        idToken: fn (): string => idToken([
+            'iss' => 'https://id.test', 'aud' => 'client_1', 'sub' => 'user-1',
+            'nonce' => 'nonce_1', 'iat' => time(), 'exp' => time() + 900,
+        ]),
+        // BY REFERENCE. An arrow function captures `$down` by value and keeps serving
+        // good keys however the flag is flipped — the trap the rotation test above warns
+        // about, and the one that made three earlier attempts at this test pass without
+        // ever reaching an outage.
+        jwks: function () use (&$down) {
+            return $down ? Http::response('', 503) : Http::response(rsaKeypair()['jwks']);
+        },
+    );
+
+    // Warm the cache, and prove the issuer being reachable is not what carries the login.
+    expect(app(IdentityClient::class)->authenticate(loginCallback())->id)->toBe('user-1');
+
+    // Inside the TTL the issuer can vanish and nothing notices: no fetch is attempted.
+    $down = true;
+    $before = jwksRequestCount();
+
+    expect(app(IdentityClient::class)->authenticate(loginCallback())->id)->toBe('user-1');
+    expect(jwksRequestCount())->toBe($before);
+
+    // Past the TTL it is a hard failure. The token is still valid and the cached keys would
+    // still verify it — what broke is only the ability to REFILL a cache the client had a
+    // good copy of. There is no stale-on-error grace, and this is where a claim about
+    // surviving an outage has to stop.
+    Cache::flush();
+
+    expect(fn () => app(IdentityClient::class)->authenticate(loginCallback()))
+        ->toThrow(ClientConfigurationException::class);
+});
+
+/**
+ * USERINFO MUST NOT BE ABLE TO REPLACE THE VERIFIED IDENTITY.
+ *
+ * OIDC Core §5.3.2: "The sub Claim in the UserInfo Response MUST be verified to exactly
+ * match the sub Claim in the ID Token; if they do not match, the UserInfo Response values
+ * MUST NOT be used."
+ *
+ * `array_merge($claims, $this->userinfo(...))` put UserInfo SECOND, so its `sub` overwrote
+ * the one that arrived inside a signature — and `$sub` was read after the merge. The whole
+ * point of verifying the id_token is that its claims are bound to a key; an unsigned,
+ * bearer-authenticated response overriding them gives that away. The refusal message even
+ * said "The verified token carried no subject", which by then was not what had happened.
+ */
+it('refuses a UserInfo response whose subject differs from the verified id_token', function (): void {
+    // ONE fake, not fakeCbox() plus an override: `Http::fake()` accumulates stubs and the
+    // first match wins, so a later call cannot change an endpoint fakeCbox() already
+    // stubbed. (That trap produced four vacuous green tests earlier in this session.)
+    Http::fake([
+        '*/.well-known/openid-configuration' => Http::response([
+            'issuer' => 'https://id.test',
+            'token_endpoint' => 'https://id.test/oauth/token',
+            'userinfo_endpoint' => 'https://id.test/oauth/userinfo',
+            'jwks_uri' => 'https://id.test/.well-known/jwks.json',
+        ]),
+        '*/.well-known/jwks.json' => Http::response(rsaKeypair()['jwks']),
+        '*/oauth/token' => Http::response([
+            'access_token' => 'at_1',
+            'id_token' => idToken([
+                'iss' => 'https://id.test', 'aud' => 'client_1', 'sub' => 'user-1',
+                'nonce' => 'nonce_1', 'iat' => time(), 'exp' => time() + 900,
+            ]),
+            'expires_in' => 900,
+        ]),
+        // The signature says user-1; UserInfo answers for somebody else entirely.
+        '*/oauth/userinfo' => Http::response(['sub' => 'user-2', 'email' => 'mallory@id.test']),
+    ]);
+
+    expect(fn () => app(IdentityClient::class)->authenticate(loginCallback()))
+        ->toThrow(AuthenticationFailed::class);
+})->group('security');
 
 it('refetches at most once per cooldown when the kid is unknown', function (): void {
     // A kid the instance never advertised: refetch once, then back off, so a bogus
