@@ -81,6 +81,30 @@ return [
      * secret into `CBOX_ID_WEBHOOK_SECRET`. This is the low-ceremony alternative to
      * standing up a full SCIM server — no token round-trip, react out-of-band.
      */
+    /*
+    |---------------------------------------------------------------------------
+    | Migrating off an old login
+    |---------------------------------------------------------------------------
+    |
+    | While you move users to Cbox ID, it can ask YOUR system whether an email and
+    | password it has never seen are good — and import that person on the yes.
+    | Mount the handler yourself, so the path and middleware are yours:
+    |
+    |     Route::post('/cbox-legacy', LegacyLogin::using(
+    |         fn (string $email, string $password) => ...
+    |     ));
+    |
+    | No route is registered for you, deliberately: unlike webhooks, this endpoint
+    | receives PASSWORDS, and where it lives and what sits in front of it should be
+    | a decision somebody made rather than a default they inherited.
+    |
+    */
+    'migration' => [
+        // At least 32 characters. It is the only thing proving a request came from
+        // Cbox ID, and `LegacyLogin::using()` refuses to build a handler without it.
+        'secret' => env('CBOX_ID_LEGACY_SECRET'),
+    ],
+
     'webhooks' => [
         'secret' => env('CBOX_ID_WEBHOOK_SECRET'),
 

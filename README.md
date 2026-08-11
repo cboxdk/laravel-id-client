@@ -13,6 +13,38 @@ verification**).
 
 Part of **Cbox ID** — the self-hostable, Laravel-native identity platform. MIT licensed.
 
+## Migrating off an old login
+
+While you move users to Cbox ID, it can ask your system whether an email and password it
+has never seen are good — and import that person on the yes. You write the one function
+that knows your database; the handler owns the signature, the freshness window and the
+constant-time compare:
+
+```php
+use Cbox\Id\Client\Migration\{LegacyLogin, LegacyUser};
+
+Route::post('/cbox-legacy', LegacyLogin::using(function (string $email, string $password): ?LegacyUser {
+    $row = DB::connection('legacy')->table('users')->where('email', $email)->first();
+
+    return $row && Hash::check($password, $row->password)
+        ? new LegacyUser($row->email, $row->name, $row->confirmed_at !== null, $row->password)
+        : null;
+}));
+```
+
+Set `CBOX_ID_LEGACY_SECRET` to at least 32 characters. `LegacyLogin::using()` refuses to
+build without it — at boot, where somebody is looking, rather than as a 500 that reads as
+an outage.
+
+Return `null` for "wrong password". **Throwing is different**: it means your store could
+not decide, and is answered with 503 so Cbox ID refuses the sign-in rather than reading an
+outage as a bad credential. Returning the stored hash lets the person keep their password
+verbatim; omit it and Cbox ID hashes the one they just proved they know.
+
+No route is registered for you, deliberately: unlike webhooks, this endpoint receives
+passwords, so where it lives and what sits in front of it should be a decision somebody
+made rather than a default they inherited.
+
 ## Install
 
 ```bash
