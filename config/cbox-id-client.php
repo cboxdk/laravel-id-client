@@ -26,6 +26,25 @@ return [
     'redirect' => env('CBOX_ID_REDIRECT'),
 
     /*
+     * A PUBLISHABLE key, for reading the browser-facing Frontend API — the environment's
+     * public sign-in configuration and the current session. It is the opposite of the
+     * secret above: public on purpose, safe in a page, and useful only from the origins
+     * its owner listed against it in the console (Developers → Frontend keys).
+     *
+     * Optional. Set it when you render your own sign-in box and want it to carry the
+     * environment's own branding and social buttons rather than hard-coding them.
+     */
+    'publishable_key' => env('CBOX_ID_PUBLISHABLE_KEY'),
+
+    /*
+     * How long the public sign-in configuration is cached, in seconds. It decides layout
+     * and changes when somebody edits it in the console, so this is short: long enough
+     * that a page render is not a network call, short enough that flipping a provider on
+     * shows up while somebody is still looking at the console.
+     */
+    'frontend_cache_ttl' => env('CBOX_ID_FRONTEND_CACHE_TTL', 60),
+
+    /*
      * The scopes requested at login. `openid` is required for an id_token.
      *
      * @var list<string>

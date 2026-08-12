@@ -92,6 +92,44 @@ Route::get('/auth/callback', function (\Illuminate\Http\Request $request) {
 It throws `InvalidState` on a forged/stale callback and `AuthenticationFailed`
 otherwise.
 
+## Draw your own sign-in box
+
+Reading the environment's public configuration from PHP lets a Blade page render a sign-in
+box in the customer's own branding — with no JavaScript SDK, and no flash of unstyled form
+while one loads. A **publishable** key is the opposite of the client secret above: public on
+purpose, and useful only from the origins its owner listed against it.
+
+```php
+// config/cbox-id-client.php — CBOX_ID_PUBLISHABLE_KEY
+use Cbox\Id\Client\Frontend\FrontendClient;
+
+$config = app(FrontendClient::class)->config();
+
+$config->endpoint('authorization');  // where the form posts on to
+$config->social;                     // the buttons this environment has enabled
+$config->accent();                   // the customer's brand colour
+$config->isLive();                   // false for a pk_test_ key — draw the badge
+```
+
+And who is signed in, given a token you already hold:
+
+```php
+$session = app(FrontendClient::class)->session($accessToken);
+
+$session->signedIn();          // false is a state, not an error
+$session->user?->initials();   // 'AL' — for the avatar fallback
+```
+
+The key grants nothing on its own: `session()` is authorized by the token, and `config()`
+answers the same document to everybody. The configuration is cached for a minute
+(`CBOX_ID_FRONTEND_CACHE_TTL`) because it decides layout and a page render is not a good
+place for a network call.
+
+**Before it works:** an operator turns the Frontend API on (`CBOX_ID_FRONTEND_API=true` —
+it is off by default) and mints a key under **Developers → Frontend keys**, listing the
+origins allowed to use it. Exact matches only: `https://acme.com` does not cover
+`https://www.acme.com`.
+
 ## Send users to hosted profile management
 
 Let users manage their own password, MFA, passkeys and sessions on the instance's

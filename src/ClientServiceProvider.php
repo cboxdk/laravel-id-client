@@ -6,6 +6,8 @@ namespace Cbox\Id\Client;
 
 use Cbox\Id\Client\Authz\ManifestPublisher;
 use Cbox\Id\Client\Console\PublishManifestCommand;
+use Cbox\Id\Client\Exceptions\ClientConfigurationException;
+use Cbox\Id\Client\Frontend\FrontendClient;
 use Cbox\Id\Client\Http\WebhookController;
 use Cbox\Id\Client\Support\Discovery;
 use Cbox\Id\Client\Webhooks\WebhookHandlers;
@@ -55,6 +57,32 @@ class ClientServiceProvider extends ServiceProvider
             $timeout = is_numeric($config['http_timeout'] ?? null) ? (int) $config['http_timeout'] : 10;
 
             return new IdentityClient($config, new Discovery($issuer, $cacheTtl, $timeout));
+        });
+
+        // The browser-facing channel, resolvable only when a publishable key is
+        // configured. Bound rather than always-constructed: the key is optional — most
+        // applications never draw their own sign-in box — and a container entry that
+        // throws on resolution is friendlier than one that fails at a call site.
+        $this->app->singleton(FrontendClient::class, static function (): FrontendClient {
+            $issuer = config('cbox-id-client.issuer');
+            $key = config('cbox-id-client.publishable_key');
+
+            if (! is_string($key) || $key === '') {
+                throw ClientConfigurationException::because(
+                    'No Cbox ID publishable key is configured. Set CBOX_ID_PUBLISHABLE_KEY to the '.
+                    'pk_test_… or pk_live_… value from the console (Developers → Frontend keys).',
+                );
+            }
+
+            $cacheTtl = config('cbox-id-client.frontend_cache_ttl');
+            $timeout = config('cbox-id-client.http_timeout');
+
+            return new FrontendClient(
+                is_string($issuer) ? $issuer : '',
+                $key,
+                is_numeric($cacheTtl) ? (int) $cacheTtl : 60,
+                is_numeric($timeout) ? (int) $timeout : 10,
+            );
         });
     }
 
