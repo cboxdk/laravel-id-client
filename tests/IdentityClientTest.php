@@ -458,3 +458,50 @@ it('reports email verification from the claim, defaulting to false', function ()
     expect($verified->emailVerified())->toBeTrue()
         ->and($unverified->emailVerified())->toBeFalse();
 });
+
+/**
+ * A PER-CALL SCOPE OVERRIDE IS WHAT THE REDEMPTION MUST BE JUDGED AGAINST.
+ *
+ * `redirect(scopes: …)` is documented, and it authorized with exactly those scopes while
+ * `authenticate()` went on asking the CONFIG whether an `id_token` was owed. The two
+ * disagreed the moment anyone used the override — and once the server stopped returning
+ * an `id_token` to a request that never asked for `openid` (correctly: OIDC Core ties the
+ * two together), that disagreement turned a documented call into an unrecoverable throw
+ * on every sign-in.
+ */
+it('accepts a login that deliberately asked for no openid scope', function (): void {
+    fakeCbox();
+
+    // The documented override: a caller who wants a plain OAuth grant.
+    app(IdentityClient::class)->redirect(scopes: ['profile', 'email']);
+
+    expect(session('cbox-id-client.scopes'))->toBe(['profile', 'email']);
+
+    session(['cbox-id-client.state' => 'st_1', 'cbox-id-client.verifier' => 'ver_1']);
+
+    // No id_token in the response, because none was asked for.
+    fakeCbox(null);
+
+    $user = app(IdentityClient::class)->authenticate(
+        Request::create('https://app.test/callback', 'GET', ['state' => 'st_1', 'code' => 'code_1']),
+    );
+
+    expect($user->accessToken)->toBe('at_1');
+});
+
+/**
+ * And the refusal still stands where `openid` WAS asked for: a server that answers an
+ * OIDC request with no `id_token` is a server whose identity half stopped running, and
+ * failing loudly is the point.
+ */
+it('still refuses a missing id_token when openid was requested', function (): void {
+    fakeCbox();
+    app(IdentityClient::class)->redirect();
+
+    session(['cbox-id-client.state' => 'st_1', 'cbox-id-client.verifier' => 'ver_1']);
+    fakeCbox(null);
+
+    expect(fn () => app(IdentityClient::class)->authenticate(
+        Request::create('https://app.test/callback', 'GET', ['state' => 'st_1', 'code' => 'code_1']),
+    ))->toThrow(AuthenticationFailed::class);
+});

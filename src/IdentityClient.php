@@ -36,6 +36,18 @@ class IdentityClient
     private const NONCE_KEY = 'cbox-id-client.nonce';
 
     /**
+     * The scopes THIS authorization actually asked for.
+     *
+     * Stashed beside the state and the nonce because `redirect(scopes: …)` accepts a
+     * per-call override and the redemption half has to judge the answer against what was
+     * asked, not against what the config says. Without it, a caller who overrode the
+     * scopes was checked against a configuration they had deliberately stepped around —
+     * and once the server stopped returning an `id_token` to a request that never asked
+     * for `openid`, that mismatch turned a documented call into an unrecoverable throw.
+     */
+    private const SCOPES_KEY = 'cbox-id-client.scopes';
+
+    /**
      * The signature algorithm assumed for a JWKS key that omits `alg`. RFC 7517 §4.4
      * makes `alg` optional, so verification must not depend on the instance emitting
      * it on every key — but the value is pinned here rather than taken from the token.
@@ -79,6 +91,7 @@ class IdentityClient
         session()->put(self::STATE_KEY, $state);
         session()->put(self::VERIFIER_KEY, $verifier);
         session()->put(self::NONCE_KEY, $nonce);
+        session()->put(self::SCOPES_KEY, $scopes ?? $this->scopes());
 
         $query = http_build_query(array_filter([
             'response_type' => 'code',
@@ -122,6 +135,11 @@ class IdentityClient
         $verifier = session()->pull(self::VERIFIER_KEY);
         $nonce = session()->pull(self::NONCE_KEY);
 
+        // What we ASKED for, falling back to the configured set for a session started
+        // before this key existed — an upgrade mid-flight must not fail a live sign-in.
+        $requested = session()->pull(self::SCOPES_KEY);
+        $requested = is_array($requested) ? array_values(array_filter($requested, 'is_string')) : $this->scopes();
+
         if (! is_string($state) || ! is_string($expected) || ! hash_equals($expected, $state)) {
             throw InvalidState::because('The login state did not match — the request may be forged or stale.');
         }
@@ -158,7 +176,7 @@ class IdentityClient
         // Asked of the SCOPES WE REQUESTED rather than of the response: a deployment that
         // has deliberately configured a non-OIDC scope set gets the old behaviour, and one
         // that asked for `openid` gets what OIDC Core §3.1.3.3 promises it.
-        if (! is_string($idToken) && in_array('openid', $this->scopes(), true)) {
+        if (! is_string($idToken) && in_array('openid', $requested, true)) {
             throw AuthenticationFailed::because('Cbox ID returned no id_token for an OpenID Connect request.');
         }
 
@@ -236,6 +254,14 @@ class IdentityClient
      * "you are signed out" page. `$idTokenHint` — the user's `id_token`, when you
      * still hold it — is the spec's other way to identify the client, and also
      * tells the server whose session is ending.
+     *
+     * PASS THE HINT IF YOU WANT "SIGN OUT EVERYWHERE". Cbox ID revokes every session
+     * the person holds only when a hint it can VERIFY names the subject holding the
+     * browser; with no hint it signs this browser out and leaves their other devices
+     * alone. That is deliberate rather than an omission: this endpoint is
+     * unauthenticated and reached by a redirect, so a request carrying no proof of who
+     * it concerns could otherwise be forged into ending anyone's sessions everywhere.
+     * `CboxUser::$idToken` is the value to pass. See laravel-id UPGRADING.md for 1.8.0.
      */
     public function logoutUrl(?string $returnTo = null, ?string $idTokenHint = null): ?string
     {
