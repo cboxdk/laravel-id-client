@@ -505,3 +505,82 @@ it('still refuses a missing id_token when openid was requested', function (): vo
         Request::create('https://app.test/callback', 'GET', ['state' => 'st_1', 'code' => 'code_1']),
     ))->toThrow(AuthenticationFailed::class);
 });
+
+/**
+ * The clients that most need revocation were the ones that could not call it.
+ *
+ * `clientSecret()` is `requiredString()`, so a deployment configured without one — which
+ * is what a first-party app shipping no secret IS — threw `ClientConfigurationException`
+ * before the request left the process. Every sign-out left the refresh token valid for
+ * its whole lifetime, silently, because the throw happens inside a logout path nobody
+ * watches.
+ *
+ * Cbox ID's revocation endpoint accepts a public client and advertises `none` among its
+ * revocation auth methods. RFC 7009 §2.1 scopes each revocation to the calling client, so
+ * the only capability opened is destroying a token you are already holding.
+ */
+it('revokes for a public client, naming itself in the body instead of a Basic header', function (): void {
+    config()->set('cbox-id-client.client_secret', null);
+    fakeCbox();
+
+    app(IdentityClient::class)->revoke('rt_1', 'refresh_token');
+
+    Http::assertSent(function ($request): bool {
+        if ($request->url() !== 'https://id.test/oauth/revoke') {
+            return false;
+        }
+
+        // No secret to build one from, and an empty Basic header would authenticate as a
+        // confidential client with a blank password — which the server must refuse.
+        return $request['token'] === 'rt_1'
+            && $request['client_id'] === 'client_1'
+            && ! $request->hasHeader('Authorization');
+    });
+});
+
+/**
+ * The RFC 6749 §5.2 code survives the boundary.
+ *
+ * Every back-channel failure collapsed into one message string, and the two that matter
+ * most demand opposite responses: `invalid_grant` on a refresh means the session is over
+ * and the person must sign in again; a 503 means the same token is still good shortly.
+ */
+it('carries the OAuth error code and description off a failed exchange', function (): void {
+    Http::fake(['*/oauth/token' => Http::response(
+        ['error' => 'invalid_grant', 'error_description' => 'Authorization code expired.'],
+        400,
+    )]);
+    fakeCbox();
+
+    $caught = null;
+
+    try {
+        app(IdentityClient::class)->machineToken(['api.read']);
+    } catch (AuthenticationFailed $e) {
+        $caught = $e;
+    }
+
+    expect($caught)->not->toBeNull()
+        ->and($caught->error)->toBe('invalid_grant')
+        ->and($caught->errorDescription)->toBe('Authorization code expired.')
+        ->and($caught->status)->toBe(400);
+});
+
+it('does not invent an error code when the body is not an OAuth error', function (): void {
+    // A proxy or captive portal answering HTML. The caller still needs the exception —
+    // and `$e->error === 'invalid_grant'` must stay false.
+    Http::fake(['*/oauth/token' => Http::response('<html>502 Bad Gateway</html>', 502)]);
+    fakeCbox();
+
+    $caught = null;
+
+    try {
+        app(IdentityClient::class)->machineToken(['api.read']);
+    } catch (AuthenticationFailed $e) {
+        $caught = $e;
+    }
+
+    expect($caught)->not->toBeNull()
+        ->and($caught->error)->toBeNull()
+        ->and($caught->status)->toBe(502);
+});

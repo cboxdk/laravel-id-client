@@ -309,7 +309,7 @@ class IdentityClient
         $response = Http::asForm()->timeout($this->timeout())->post($this->discovery->endpoint('token_endpoint'), $params);
 
         if (! $response->successful()) {
-            throw AuthenticationFailed::because('Machine token request failed: '.$response->body());
+            throw AuthenticationFailed::fromResponse('Machine token request failed', $response);
         }
 
         $token = $response->json('access_token');
@@ -331,7 +331,7 @@ class IdentityClient
         $response = Http::withToken($accessToken)->timeout($this->timeout())->get($this->discovery->endpoint('userinfo_endpoint'));
 
         if (! $response->successful()) {
-            throw AuthenticationFailed::because('Userinfo request failed.');
+            throw AuthenticationFailed::fromResponse('Userinfo request failed', $response);
         }
 
         return $this->asArray($response->json());
@@ -351,7 +351,7 @@ class IdentityClient
             ->post($this->discovery->endpoint('introspection_endpoint'), ['token' => $token]);
 
         if (! $response->successful()) {
-            throw AuthenticationFailed::because('Introspection request failed.');
+            throw AuthenticationFailed::fromResponse('Introspection request failed', $response);
         }
 
         return $this->asArray($response->json());
@@ -369,19 +369,30 @@ class IdentityClient
      */
     public function revoke(string $token, ?string $tokenTypeHint = null): void
     {
-        $params = ['token' => $token];
+        // PUBLIC CLIENTS TOO. `clientSecret()` is `requiredString()`, so a deployment
+        // configured without one — which is what a first-party app shipping no secret IS —
+        // threw before the request left the process, and every sign-out left the refresh
+        // token valid for its whole lifetime. Cbox ID's revocation endpoint accepts a
+        // public client and advertises `none` among its revocation auth methods; RFC 7009
+        // §2.1 scopes each revocation to the calling client, so the only capability this
+        // opens is destroying a token you are already holding.
+        $params = ['token' => $token, 'client_id' => $this->clientId()];
 
         if ($tokenTypeHint !== null && $tokenTypeHint !== '') {
             $params['token_type_hint'] = $tokenTypeHint;
         }
 
-        $response = Http::asForm()
-            ->withBasicAuth($this->clientId(), $this->clientSecret())
-            ->timeout($this->timeout())
-            ->post($this->discovery->endpoint('revocation_endpoint'), $params);
+        $request = Http::asForm()->timeout($this->timeout());
+        $secret = $this->config['client_secret'] ?? null;
+
+        if (is_string($secret) && $secret !== '') {
+            $request = $request->withBasicAuth($this->clientId(), $secret);
+        }
+
+        $response = $request->post($this->discovery->endpoint('revocation_endpoint'), $params);
 
         if (! $response->successful()) {
-            throw AuthenticationFailed::because('Revocation request failed.');
+            throw AuthenticationFailed::fromResponse('Revocation request failed', $response);
         }
     }
 
@@ -432,7 +443,7 @@ class IdentityClient
         ]);
 
         if (! $response->successful()) {
-            throw AuthenticationFailed::because('Token exchange failed: '.$response->body());
+            throw AuthenticationFailed::fromResponse('Token exchange failed', $response);
         }
 
         return $this->asArray($response->json());
