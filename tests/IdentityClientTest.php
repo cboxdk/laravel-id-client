@@ -584,3 +584,48 @@ it('does not invent an error code when the body is not an OAuth error', function
         ->and($caught->error)->toBeNull()
         ->and($caught->status)->toBe(502);
 });
+
+it('carries Retry-After off a 429 so a caller can back off for the stated time', function (): void {
+    Http::fake(['*/oauth/token' => Http::response(
+        ['message' => 'Too Many Requests'],
+        429,
+        ['Retry-After' => '42'],
+    )]);
+    fakeCbox();
+
+    $caught = null;
+
+    try {
+        app(IdentityClient::class)->machineToken(['api.read']);
+    } catch (AuthenticationFailed $e) {
+        $caught = $e;
+    }
+
+    // A 429 is the only back-channel failure where the same request succeeds unchanged
+    // if you wait. Dropping the header left a retry loop hammering a limiter that was
+    // already telling it exactly how long to stop.
+    expect($caught?->status)->toBe(429)
+        ->and($caught?->retryAfter)->toBe(42)
+        ->and($caught?->isRateLimited())->toBeTrue();
+});
+
+it('leaves retryAfter null when Retry-After is an HTTP-date rather than seconds', function (): void {
+    Http::fake(['*/oauth/token' => Http::response(
+        ['message' => 'slow down'],
+        429,
+        ['Retry-After' => 'Wed, 21 Oct 2026 07:28:00 GMT'],
+    )]);
+    fakeCbox();
+
+    $caught = null;
+
+    try {
+        app(IdentityClient::class)->machineToken(['api.read']);
+    } catch (AuthenticationFailed $e) {
+        $caught = $e;
+    }
+
+    // Legal per RFC 9110 and deliberately not parsed — isRateLimited() still says back off.
+    expect($caught?->retryAfter)->toBeNull()
+        ->and($caught?->isRateLimited())->toBeTrue();
+});
