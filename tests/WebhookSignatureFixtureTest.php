@@ -150,3 +150,34 @@ it('delivers a fixture-shaped payload through the receiver end to end', function
         'CONTENT_TYPE' => 'application/json',
     ], (string) $case['body'])->assertOk()->assertJson(['received' => true]);
 });
+
+/**
+ * The wire format, stated once as a constant.
+ *
+ * This package verifies against its OWN copy of the fixture, as each SDK does, so a copy
+ * that drifts is silent: this suite stays green against the drifted bytes while every
+ * delivery from the server 401s in the field. The docblock at the top calls the copies
+ * "shared byte-for-byte" and nothing enforced it — the templates were the one field no
+ * test read.
+ *
+ * Deliberately NOT derived from the file it guards. `{timestamp}.{body}` is the contract
+ * with the sender; if a copy here says otherwise, this package is wrong and should say so
+ * loudly rather than agree with itself.
+ */
+it('pins the signed-payload order this package must agree with the server on', function (): void {
+    $document = webhookSignatureFixture();
+
+    expect($document['signed_payload_template'])->toBe('{timestamp}.{body}')
+        ->and($document['header_template'])->toBe('t={timestamp},v1={signature}');
+});
+
+it('builds each case literal from the templates it publishes', function (array $case): void {
+    $document = webhookSignatureFixture();
+
+    $signedPayload = strtr($document['signed_payload_template'], [
+        '{timestamp}' => (string) $case['timestamp'],
+        '{body}' => $case['body'],
+    ]);
+
+    expect($signedPayload)->toBe($case['signed_payload'], 'the signed-payload template disagrees with the case it published');
+})->with(webhookSignatureFixtureCases());
