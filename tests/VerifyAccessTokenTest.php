@@ -77,6 +77,23 @@ it('answers 403 and names the scope when one is missing', function () {
     expect($response->headers->get('WWW-Authenticate'))->toContain('scope="tax.assess"');
 });
 
+// THE ONE THIS SUITE MISSED. Every bad-token case above uses the unscoped route, so
+// they all passed while the middleware was deciding the error from what the ROUTE
+// required rather than from why the token failed — reporting a forged signature on a
+// scoped route as insufficient_scope, with a 403 that says "you are who you say you
+// are, but may not do this" about a token nobody signed.
+it('calls a bad token invalid even on a route that requires scopes', function () {
+    $response = $this->getJson('/assess', bearer(accessToken(['exp' => time() - 1, 'iat' => time() - 600])));
+
+    $response->assertStatus(401)->assertJsonPath('error.type', 'invalid_token');
+
+    expect($response->headers->get('WWW-Authenticate'))
+        ->toContain('error="invalid_token"')
+        // Nothing about scopes: the caller's grant is not the problem, and sending
+        // them chasing a broader one is the wrong remedy.
+        ->not->toContain('scope=');
+});
+
 it('lets a token carrying the required scope through', function () {
     $this->getJson('/assess', bearer(accessToken()))->assertOk();
 });

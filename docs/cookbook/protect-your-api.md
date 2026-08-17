@@ -68,6 +68,10 @@ than reaching for the nullable property and forgetting the null.
 | Signature, issuer, audience or expiry failed | 401 | `invalid_token` |
 | Valid token, missing scope | 403 | `insufficient_scope` |
 
+Which of the two a rejection is comes from the token, never from the route. A route
+that declares a scope still answers 401 `invalid_token` for a forged or expired one —
+sending that caller after a broader grant would be advice that cannot work.
+
 Every rejection carries a `WWW-Authenticate` header per RFC 6750 §3, so a
 conformant client acts on the header without parsing prose. **None of them is a
 500** — the distinction decides what the caller does next. A 401 saying the token

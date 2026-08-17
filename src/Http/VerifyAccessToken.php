@@ -47,11 +47,17 @@ class VerifyAccessToken
         try {
             $verified = $this->verifier->verify($token, $required);
         } catch (TokenRejected $e) {
-            return $this->challenge(
-                $required === [] ? 'invalid_token' : 'insufficient_scope',
-                $e->getMessage(),
-                $required,
-            );
+            // The exception says which of the two happened, and the ROUTE does not get
+            // a vote. Deciding this from whether the route declared scopes reported a
+            // forged signature on a scoped route as `insufficient_scope` with a 403 —
+            // telling the caller to go ask for a broader grant, and telling every
+            // client that reads 403 as "authenticated but not permitted" that a token
+            // nobody signed was authentic.
+            return $e->isInsufficientScope()
+                // RFC 6750 §3.1: `scope` names what is NECESSARY to access the
+                // resource, not what is absent. The message names what is absent.
+                ? $this->challenge('insufficient_scope', $e->getMessage(), $required)
+                : $this->challenge('invalid_token', $e->getMessage());
         }
 
         // Bound rather than stuffed onto the request, so a handler asks the container

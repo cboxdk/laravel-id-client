@@ -96,7 +96,7 @@ readonly class AccessTokenVerifier
         $missing = array_values(array_diff($requiredScopes, $scopes));
 
         if ($missing !== []) {
-            throw TokenRejected::because('The token is missing required scope(s): '.implode(', ', $missing));
+            throw TokenRejected::missingScopes($missing);
         }
 
         $subject = $claims['sub'] ?? null;
