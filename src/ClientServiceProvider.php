@@ -8,9 +8,11 @@ use Cbox\Id\Client\Authz\ManifestPublisher;
 use Cbox\Id\Client\Console\PublishManifestCommand;
 use Cbox\Id\Client\Exceptions\ClientConfigurationException;
 use Cbox\Id\Client\Frontend\FrontendClient;
+use Cbox\Id\Client\Http\VerifyAccessToken;
 use Cbox\Id\Client\Http\WebhookController;
 use Cbox\Id\Client\Support\Discovery;
 use Cbox\Id\Client\Webhooks\WebhookHandlers;
+use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -59,6 +61,25 @@ class ClientServiceProvider extends ServiceProvider
             return new IdentityClient($config, new Discovery($issuer, $cacheTtl, $timeout));
         });
 
+        // Verifying a token presented TO this application, as opposed to one minted
+        // for it at the end of a login. The audience is the API's own resource
+        // identifier and defaults to the issuer, because Cbox ID mints a token with
+        // the issuer as `aud` when no resource was requested (RFC 9068 §2.2) — so an
+        // application that has not thought about resources still verifies rather than
+        // rejecting everything.
+        $this->app->singleton(AccessTokenVerifier::class, static function (): AccessTokenVerifier {
+            $issuer = is_string(config('cbox-id-client.issuer')) ? config('cbox-id-client.issuer') : '';
+            $audience = config('cbox-id-client.audience');
+            $cacheTtl = is_numeric(config('cbox-id-client.cache_ttl')) ? (int) config('cbox-id-client.cache_ttl') : 3600;
+            $timeout = is_numeric(config('cbox-id-client.http_timeout')) ? (int) config('cbox-id-client.http_timeout') : 10;
+
+            return new AccessTokenVerifier(
+                new Discovery($issuer, $cacheTtl, $timeout),
+                $issuer,
+                is_string($audience) && $audience !== '' ? $audience : $issuer,
+            );
+        });
+
         // The browser-facing channel, resolvable only when a publishable key is
         // configured. Bound rather than always-constructed: the key is optional — most
         // applications never draw their own sign-in box — and a container entry that
@@ -97,6 +118,10 @@ class ClientServiceProvider extends ServiceProvider
         }
 
         $this->registerWebhookRoute();
+
+        // Aliased so a route reads `cbox-id.token:tax.quote` and states its own
+        // requirement where anyone reading the route can see it.
+        $this->app->make(Router::class)->aliasMiddleware('cbox-id.token', VerifyAccessToken::class);
     }
 
     /**

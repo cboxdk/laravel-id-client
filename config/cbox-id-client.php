@@ -13,6 +13,28 @@ return [
     'issuer' => env('CBOX_ID_ISSUER'),
 
     /*
+    |---------------------------------------------------------------------------
+    | Audience — this API's own resource identifier
+    |---------------------------------------------------------------------------
+    |
+    | What an access token must be addressed to before this application will
+    | accept it. Cbox ID binds every access token to a resource (RFC 8707/9068),
+    | so a token minted to be spent elsewhere is refused here rather than honoured
+    | because both services trust the same issuer.
+    |
+    | Give production and sandbox DIFFERENT values and the separation is enforced
+    | by the signature instead of by a convention beside it: a sandbox token
+    | simply cannot be spent against production.
+    |
+    | Left empty it falls back to the issuer, which is what Cbox ID stamps when no
+    | resource was requested — so an application that has not thought about this
+    | still verifies rather than rejecting everything.
+    |
+    */
+
+    'audience' => env('CBOX_ID_AUDIENCE'),
+
+    /*
      * Your OAuth client credentials, registered on the Cbox ID instance. The secret
      * is required for confidential clients (server-side apps) and for machine tokens,
      * introspection and revocation.
