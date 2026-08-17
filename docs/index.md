@@ -49,7 +49,8 @@ organizations, or issue tokens — those live on the platform
 - **[Quickstart](quickstart.md)** — a working login in five minutes.
 - **[Requirements](requirements.md)** — PHP, Laravel and package versions.
 - **[Getting started](getting-started/_index.md)** — install and configure.
-- **[Cookbook](cookbook/_index.md)** — log in, hosted profile, API calls, webhooks.
+- **[Cookbook](cookbook/_index.md)** — log in, hosted profile, API calls, webhooks,
+  and protecting your own API.
 - **[Core concepts](core-concepts/_index.md)** — how the login flow works.
 - **[Security](security/_index.md)** — what the SDK verifies, and the honest limits.
 
