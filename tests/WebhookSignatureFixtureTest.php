@@ -181,3 +181,56 @@ it('builds each case literal from the templates it publishes', function (array $
 
     expect($signedPayload)->toBe($case['signed_payload'], 'the signed-payload template disagrees with the case it published');
 })->with(webhookSignatureFixtureCases());
+
+/**
+ * A signature is accepted only in full, and only at its exact length.
+ *
+ * `hash_equals()` gives both properties for free — which is precisely why nothing here
+ * asserted them, and why a rewrite could quietly lose them. Verified: replacing the
+ * comparison with an 8-character prefix match left all 99 tests in this package green.
+ *
+ * The same gap existed in all four SDKs, and in the one that hand-rolls its comparison
+ * (`@cboxdk/id-js`, which cannot use a Node API in a browser) deleting the length check
+ * really does accept a valid signature with anything appended.
+ */
+it('rejects a signature truncated to a valid prefix', function (): void {
+    $case = webhookSignatureCase('envelope');
+
+    // Every character present is correct — there are just fewer of them. This is exactly
+    // what a prefix comparison accepts and a full one refuses.
+    $truncated = 't='.$case['timestamp'].',v1='.substr((string) $case['signature'], 0, 32);
+
+    expect(app(IdentityClient::class)->verifyWebhook(
+        $case['body'],
+        $truncated,
+        $case['secret'],
+        toleranceReaching((int) $case['timestamp']),
+    ))->toBeFalse();
+});
+
+it('rejects a valid signature with anything appended', function (): void {
+    $case = webhookSignatureCase('envelope');
+
+    // The digest is intact and complete; there is simply more after it.
+    expect(app(IdentityClient::class)->verifyWebhook(
+        $case['body'],
+        (string) $case['header'].'00',
+        $case['secret'],
+        toleranceReaching((int) $case['timestamp']),
+    ))->toBeFalse();
+});
+
+it('rejects a signature that differs only in its last character', function (): void {
+    $case = webhookSignatureCase('envelope');
+
+    $signature = (string) $case['signature'];
+    $flipped = substr($signature, 0, -1).(str_ends_with($signature, '0') ? '1' : '0');
+
+    // The far end of the digest, where a comparison that stops early never looks.
+    expect(app(IdentityClient::class)->verifyWebhook(
+        $case['body'],
+        't='.$case['timestamp'].',v1='.$flipped,
+        $case['secret'],
+        toleranceReaching((int) $case['timestamp']),
+    ))->toBeFalse();
+});
