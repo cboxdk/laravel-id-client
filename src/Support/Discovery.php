@@ -25,7 +25,46 @@ class Discovery
         private readonly string $issuer,
         private readonly int $cacheTtl,
         private readonly int $timeout,
-    ) {}
+    ) {
+        self::assertSecureIssuer($issuer);
+    }
+
+    /**
+     * An issuer must be HTTPS.
+     *
+     * Every request this package makes to the issuer carries a credential — the
+     * authorization code, the PKCE verifier, the client secret — and over `http` a
+     * network attacker reads all of them. Worse, the same attacker replaces the
+     * discovery document and the JWKS this class fetches, after which a forged id_token
+     * verifies cleanly and none of the verification downstream proves anything.
+     *
+     * Loopback stays allowed: `php artisan serve` against a local instance runs there,
+     * and RFC 8252 makes loopback the native-app callback by definition.
+     *
+     * An empty issuer is left alone: that is "not configured yet", and the callers
+     * already answer it with a message naming the config key.
+     */
+    private static function assertSecureIssuer(string $issuer): void
+    {
+        if ($issuer === '') {
+            return;
+        }
+
+        $scheme = strtolower((string) parse_url($issuer, PHP_URL_SCHEME));
+        $host = strtolower((string) parse_url($issuer, PHP_URL_HOST));
+
+        if ($scheme === 'https') {
+            return;
+        }
+
+        if ($scheme === 'http' && in_array($host, ['localhost', '127.0.0.1', '::1', '[::1]'], true)) {
+            return;
+        }
+
+        throw ClientConfigurationException::because(
+            "The Cbox ID issuer must be https (config `cbox-id-client.issuer` is '{$issuer}').",
+        );
+    }
 
     public function endpoint(string $key): string
     {
@@ -54,6 +93,19 @@ class Discovery
 
             /** @var array<string, mixed> $json */
             $json = $response->json();
+
+            // RFC 8414 §3.3: the document's `issuer` MUST be the one it was fetched for.
+            // Without this a host answering with another tenant's document silently
+            // redirects the whole flow — the authorization code and client secret to that
+            // tenant's token endpoint, id_token verification against its JWKS — while this
+            // application still believes it is talking to the issuer it configured.
+            $claimed = $json['issuer'] ?? null;
+
+            if (! is_string($claimed) || rtrim($claimed, '/') !== rtrim($this->issuer, '/')) {
+                throw ClientConfigurationException::because(
+                    'The Cbox ID discovery document is for a different issuer than '.$this->issuer.'.',
+                );
+            }
 
             return $json;
         });

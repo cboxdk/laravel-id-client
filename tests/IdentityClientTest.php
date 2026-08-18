@@ -533,3 +533,53 @@ it('leaves retryAfter null when Retry-After is an HTTP-date rather than seconds'
     expect($caught?->retryAfter)->toBeNull()
         ->and($caught?->isRateLimited())->toBeTrue();
 });
+
+it('refuses an issuer that is not https', function (): void {
+    // Everything this package sends the issuer carries a credential: the authorization
+    // code, the PKCE verifier, the client secret. Over http a network attacker reads all
+    // of them — and replaces the discovery document and JWKS, after which a forged
+    // id_token verifies cleanly and none of the verification below it proves anything.
+    config()->set('cbox-id-client.issuer', 'http://id.test');
+
+    expect(fn () => app(IdentityClient::class)->redirect())
+        ->toThrow(ClientConfigurationException::class, 'must be https');
+});
+
+it('allows a loopback issuer over http, for local development', function (): void {
+    // RFC 8252 makes loopback the native-app callback by definition, and `artisan serve`
+    // against a local instance runs there.
+    config()->set('cbox-id-client.issuer', 'http://127.0.0.1:8000');
+    Http::fake(['*/.well-known/openid-configuration' => Http::response([
+        'issuer' => 'http://127.0.0.1:8000',
+        'authorization_endpoint' => 'http://127.0.0.1:8000/oauth/authorize',
+    ])]);
+
+    expect(app(IdentityClient::class)->redirect()->getTargetUrl())
+        ->toStartWith('http://127.0.0.1:8000/oauth/authorize?');
+});
+
+it('refuses a discovery document that is for a different issuer', function (): void {
+    // RFC 8414 §3.3. Without the check, a host answering with another tenant's document
+    // redirects the whole flow — the code and client secret to that tenant's token
+    // endpoint, id_token verification against its JWKS — while this application still
+    // believes it is talking to the issuer it configured.
+    Http::fake(['*/.well-known/openid-configuration' => Http::response([
+        'issuer' => 'https://evil.test',
+        'authorization_endpoint' => 'https://evil.test/oauth/authorize',
+        'token_endpoint' => 'https://evil.test/oauth/token',
+        'jwks_uri' => 'https://evil.test/.well-known/jwks.json',
+    ])]);
+
+    expect(fn () => app(IdentityClient::class)->redirect())
+        ->toThrow(ClientConfigurationException::class, 'different issuer');
+});
+
+it('accepts a discovery issuer that differs only by a trailing slash', function (): void {
+    Http::fake(['*/.well-known/openid-configuration' => Http::response([
+        'issuer' => 'https://id.test/',
+        'authorization_endpoint' => 'https://id.test/oauth/authorize',
+    ])]);
+
+    expect(app(IdentityClient::class)->redirect()->getTargetUrl())
+        ->toStartWith('https://id.test/oauth/authorize?');
+});
