@@ -54,12 +54,17 @@ php artisan vendor:publish --tag=cbox-id-client-config
 
 Requires PHP `^8.4` and Laravel 12 or 13.
 
+> **Where do these values come from?** Register an app in your environment console and
+> answer **"Web app"** to *what kind of app is this?* — a Laravel app runs on a server and
+> can keep a secret, so that is the kind that gets one. See
+> [Integrate your app](https://github.com/cboxdk/cbox-id/blob/main/docs/getting-started/integrate-your-app.md).
+
 Configure the instance and your OAuth client (registered on the Cbox ID instance):
 
 ```dotenv
 CBOX_ID_ISSUER=https://acme.cboxid.com
-CBOX_ID_CLIENT_ID=client_...
-CBOX_ID_CLIENT_SECRET=secret_...
+CBOX_ID_CLIENT_ID=cid_...
+CBOX_ID_CLIENT_SECRET=csec_...
 CBOX_ID_REDIRECT=https://app.acme.com/auth/callback
 ```
 
