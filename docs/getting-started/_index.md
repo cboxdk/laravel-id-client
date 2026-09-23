@@ -6,9 +6,11 @@ weight: 4
 
 # Getting started
 
-Two short steps before the [cookbook](../cookbook/_index.md):
+Three short pages before the [cookbook](../cookbook/_index.md):
 
 - **[Installation](installation.md)** — Composer install, config publish, and what
   you need from the instance.
 - **[Configuration](configuration.md)** — every config key and its environment
   variable.
+- **[Testing](testing.md)** — `CboxId::fake()`: act as a user in an organization, sign
+  in through your real callback, and call your API with real tokens.

@@ -26,6 +26,10 @@ so you don't hand-roll any of it:
 - **Back-channel calls** — machine (client-credentials) tokens, UserInfo, RFC 7662
   introspection.
 - **Webhook / action verification** — confirm an inbound `X-Cbox-Signature`.
+- **Tenancy and authorization** — the organization, its tier, your app's roles and
+  permissions, read off the token; middleware and a Laravel gate that enforce them;
+  organization switching; a typed client for the environment management API; your
+  customers' API keys; and `CboxId::fake()` for your tests.
 
 Every endpoint is discovered from the issuer's `/.well-known/openid-configuration`,
 so the issuer URL is usually the only thing you configure.
@@ -39,10 +43,11 @@ so the issuer URL is usually the only thing you configure.
 
 ## Scope — what this package is, and isn't
 
-This is a **client**. It authenticates users and calls a Cbox ID instance's standard
-endpoints. It does **not** configure SSO connections, run SCIM, manage
-organizations, or issue tokens — those live on the platform
-(`cboxdk/laravel-id`). Keep that boundary in mind when reading the recipes.
+This is a **client**. It authenticates users, calls a Cbox ID instance's standard
+endpoints, and calls its environment management API with a key you provide. It does
+**not** configure SSO connections, run SCIM, store organizations, or issue tokens —
+those live on the platform (`cboxdk/laravel-id`); the management client only asks the
+platform to do them. Keep that boundary in mind when reading the recipes.
 
 ## Sections
 
@@ -50,7 +55,7 @@ organizations, or issue tokens — those live on the platform
 - **[Requirements](requirements.md)** — PHP, Laravel and package versions.
 - **[Getting started](getting-started/_index.md)** — install and configure.
 - **[Cookbook](cookbook/_index.md)** — log in, hosted profile, API calls, webhooks,
-  and protecting your own API.
+  protecting your own API, and multi-tenant apps.
 - **[Core concepts](core-concepts/_index.md)** — how the login flow works.
 - **[Security](security/_index.md)** — what the SDK verifies, and the honest limits.
 
