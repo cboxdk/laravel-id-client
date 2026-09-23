@@ -61,6 +61,7 @@ class WebhookController
             organizationId: is_string($payload['organization_id'] ?? null) ? $payload['organization_id'] : null,
             deliveryId: is_string($data['delivery_id'] ?? null) ? $data['delivery_id'] : null,
             deliveredAt: is_numeric($ts = $request->header('X-Cbox-Timestamp')) ? (int) $ts : time(),
+            sequence: is_int($data['sequence'] ?? null) ? $data['sequence'] : null,
         );
 
         // Enqueue only when something will handle it — skip a no-op job otherwise. The
