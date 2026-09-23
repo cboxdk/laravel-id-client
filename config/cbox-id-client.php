@@ -173,6 +173,38 @@ return [
     ],
 
     /*
+    |---------------------------------------------------------------------------
+    | Back-channel logout (OpenID Connect Back-Channel Logout 1.0)
+    |---------------------------------------------------------------------------
+    |
+    | When a person signs out of Cbox ID — or an admin ends their sessions, or
+    | they lose access — Cbox ID POSTs a signed logout token to this app and the
+    | SDK ends their local sessions. Turn it on, then register
+    | `{app_url}{path}` as the app's back-channel logout URI in the console.
+    |
+    | `cache_store` must be shared by every web server (redis, database,
+    | memcached): it holds the replay cache, the sid→session index and the
+    | revocation list. Sessions are destroyed immediately on the database,
+    | redis and cache-backed session drivers (and `file` on ONE server); with
+    | the `cookie` driver they end on the browser's next request instead.
+    |
+    | `remember_tokens` — Laravel's remember-me cookie is per user, not per
+    | session: `subject` (default) cycles it when a logout ends every session
+    | of a person, `always` also for a single-session logout, `never` leaves
+    | it alone.
+    |
+    */
+
+    'backchannel_logout' => [
+        'enabled' => (bool) env('CBOX_ID_BACKCHANNEL_LOGOUT', false),
+        'path' => env('CBOX_ID_BACKCHANNEL_LOGOUT_PATH', '/cbox-id/backchannel-logout'),
+        'cache_store' => env('CBOX_ID_BACKCHANNEL_LOGOUT_CACHE'),
+        'max_age' => (int) env('CBOX_ID_BACKCHANNEL_LOGOUT_MAX_AGE', 300),
+        'destroy_sessions' => true,
+        'remember_tokens' => env('CBOX_ID_BACKCHANNEL_LOGOUT_REMEMBER_TOKENS', 'subject'),
+    ],
+
+    /*
      * The path of the hosted account / profile page on the Cbox ID instance that
      * `profileUrl()` / `redirectToProfile()` send a signed-in user to (self-service
      * password, MFA, passkeys, sessions). A `return_to` is appended so the page can

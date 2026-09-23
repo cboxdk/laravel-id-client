@@ -12,6 +12,8 @@ use Illuminate\Foundation\Auth\User;
  */
 class LocalUser extends User
 {
+    protected $table = 'users';
+
     protected $guarded = [];
 
     public static function withId(int|string $id): self

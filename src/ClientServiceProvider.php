@@ -6,11 +6,15 @@ namespace Cbox\Id\Client;
 
 use Cbox\Id\Client\ApiKeys\ApiKeyVerifier;
 use Cbox\Id\Client\Authz\ManifestPublisher;
+use Cbox\Id\Client\BackchannelLogout\LogoutTokenVerifier;
+use Cbox\Id\Client\BackchannelLogout\SessionRegistry;
 use Cbox\Id\Client\Console\PublishManifestCommand;
 use Cbox\Id\Client\Contracts\Management;
 use Cbox\Id\Client\Contracts\VerifiesApiKeys;
 use Cbox\Id\Client\Exceptions\ClientConfigurationException;
 use Cbox\Id\Client\Frontend\FrontendClient;
+use Cbox\Id\Client\Http\BackchannelLogoutController;
+use Cbox\Id\Client\Http\EnforceBackchannelLogout;
 use Cbox\Id\Client\Http\RequireConfiguredIdentity;
 use Cbox\Id\Client\Http\RequireOrganization;
 use Cbox\Id\Client\Http\RequirePermission;
@@ -27,7 +31,10 @@ use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Contracts\Auth\Access\Gate;
 use Illuminate\Contracts\Container\Container;
+use Illuminate\Contracts\Http\Kernel as HttpKernel;
+use Illuminate\Foundation\Http\Kernel as FoundationHttpKernel;
 use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -91,6 +98,35 @@ class ClientServiceProvider extends ServiceProvider
                 rtrim($url !== '' ? $url : ($issuer !== '' ? rtrim($issuer, '/').'/api/v1' : ''), '/'),
                 self::configString('cbox-id-client.management.key'),
                 self::configInt('cbox-id-client.http_timeout', 10),
+            );
+        });
+
+        // Back-channel logout. The cache must be one every web server shares: it holds the
+        // replay cache, the session index and the revocation list.
+        $this->app->singleton(SessionRegistry::class, static function (): SessionRegistry {
+            $store = self::configString('cbox-id-client.backchannel_logout.cache_store');
+            $remember = self::configString('cbox-id-client.backchannel_logout.remember_tokens');
+
+            return new SessionRegistry(
+                Cache::store($store !== '' ? $store : null),
+                // The session lifetime (minutes), plus the logout token's own life: an
+                // older local session has expired anyway.
+                self::configInt('session.lifetime', 120) * 60 + 300,
+                config('cbox-id-client.backchannel_logout.destroy_sessions', true) !== false,
+                in_array($remember, ['subject', 'always', 'never'], true) ? $remember : 'subject',
+            );
+        });
+
+        $this->app->singleton(LogoutTokenVerifier::class, static function (): LogoutTokenVerifier {
+            $issuer = self::configString('cbox-id-client.issuer');
+            $store = self::configString('cbox-id-client.backchannel_logout.cache_store');
+
+            return new LogoutTokenVerifier(
+                new Discovery($issuer, self::configInt('cbox-id-client.cache_ttl', 3600), self::configInt('cbox-id-client.http_timeout', 10)),
+                $issuer,
+                self::configString('cbox-id-client.client_id'),
+                Cache::store($store !== '' ? $store : null),
+                self::configInt('cbox-id-client.backchannel_logout.max_age', 300),
             );
         });
 
@@ -168,12 +204,55 @@ class ClientServiceProvider extends ServiceProvider
         $router->aliasMiddleware('cbox-id.org', RequireOrganization::class);
         $router->aliasMiddleware('cbox-id.permission', RequirePermission::class);
         $router->aliasMiddleware('cbox-id.configured', RequireConfiguredIdentity::class);
+        $router->aliasMiddleware('cbox-id.session', EnforceBackchannelLogout::class);
+
+        $this->registerBackchannelLogout($router);
 
         $this->bindSessionIdentityToLocalLogin();
 
         if (config('cbox-id-client.authorization.gate') === true) {
             PermissionGate::register($this->app->make(Gate::class), $this->app->make(CurrentPrincipal::class));
         }
+    }
+
+    /**
+     * Opt-in: the receiver route, and the enforcement middleware in the `web` group so a
+     * browser whose session was ended is signed out on its next request.
+     *
+     * The route is a bare POST outside the `web` group — no session, no CSRF check,
+     * because the caller is Cbox ID's server and the token's signature is its
+     * authentication. (Excluding a `web` route from CSRF with `withoutMiddleware()` does
+     * nothing on Laravel 11+, which is why it is not mounted that way.)
+     */
+    private function registerBackchannelLogout(Router $router): void
+    {
+        if (config('cbox-id-client.backchannel_logout.enabled') !== true) {
+            return;
+        }
+
+        $path = self::configString('cbox-id-client.backchannel_logout.path');
+
+        Route::post($path !== '' ? $path : '/cbox-id/backchannel-logout', BackchannelLogoutController::class)
+            ->name('cbox-id.backchannel-logout');
+
+        // Through the HTTP kernel, not the router: the kernel owns the groups and writes
+        // them to the router when it is built, so a group pushed onto the router directly
+        // is overwritten whenever the kernel is constructed after this provider boots.
+        $kernel = $this->httpKernel();
+
+        if ($kernel instanceof FoundationHttpKernel && array_key_exists('web', $kernel->getMiddlewareGroups())) {
+            $kernel->appendMiddlewareToGroup('web', EnforceBackchannelLogout::class);
+
+            return;
+        }
+
+        $router->pushMiddlewareToGroup('web', EnforceBackchannelLogout::class);
+    }
+
+    /** The HTTP kernel, as its contract: an application may bind its own. */
+    private function httpKernel(): HttpKernel
+    {
+        return $this->app->make(HttpKernel::class);
     }
 
     /**

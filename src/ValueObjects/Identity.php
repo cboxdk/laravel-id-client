@@ -34,6 +34,8 @@ readonly class Identity implements Principal
         'sub', 'email', 'email_verified', 'name',
         'org', 'org_name', 'org_role', 'organizations',
         'roles', 'permissions', 'groups', 'act',
+        // The Cbox ID session this sign-in came from — what a back-channel logout names.
+        'sid',
     ];
 
     /**

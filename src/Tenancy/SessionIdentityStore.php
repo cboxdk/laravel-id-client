@@ -8,6 +8,7 @@ use Cbox\Id\Client\IdentityClient;
 use Cbox\Id\Client\Support\Claims;
 use Cbox\Id\Client\ValueObjects\Identity;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Support\Carbon;
 
 /**
  * Remembers who signed in through Cbox ID, in the Laravel session, between requests.
@@ -43,7 +44,9 @@ class SessionIdentityStore
             ? $previous['bound_to']
             : null;
 
-        session()->put(self::KEY, ['claims' => $identity->toArray(), 'bound_to' => $boundTo]);
+        // When Cbox ID last vouched for this person. A back-channel logout of the whole
+        // person ends every session remembered no later than its `iat`, and none after.
+        session()->put(self::KEY, ['claims' => $identity->toArray(), 'bound_to' => $boundTo, 'remembered_at' => Carbon::now()->getTimestamp()]);
     }
 
     /**
@@ -91,7 +94,19 @@ class SessionIdentityStore
             return;
         }
 
-        session()->put(self::KEY, ['claims' => $stored['identity']->toArray(), 'bound_to' => $id]);
+        session()->put(self::KEY, ['claims' => $stored['identity']->toArray(), 'bound_to' => $id, 'remembered_at' => $stored['remembered_at']]);
+    }
+
+    /** The local user id the remembered identity is bound to, if any. */
+    public function boundTo(): ?string
+    {
+        return $this->stored()['bound_to'] ?? null;
+    }
+
+    /** When the identity was remembered (unix time), or null for one stored before 0.13. */
+    public function rememberedAt(): ?int
+    {
+        return $this->stored()['remembered_at'] ?? null;
     }
 
     public function forget(): void
@@ -100,7 +115,7 @@ class SessionIdentityStore
     }
 
     /**
-     * @return array{identity: Identity, bound_to: string|null}|null
+     * @return array{identity: Identity, bound_to: string|null, remembered_at: int|null}|null
      */
     private function stored(): ?array
     {
@@ -116,7 +131,7 @@ class SessionIdentityStore
             return null;
         }
 
-        return ['identity' => $identity, 'bound_to' => Claims::string($raw, 'bound_to')];
+        return ['identity' => $identity, 'bound_to' => Claims::string($raw, 'bound_to'), 'remembered_at' => Claims::int($raw, 'remembered_at')];
     }
 
     private static function idOf(Authenticatable $user): ?string
