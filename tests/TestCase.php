@@ -13,4 +13,13 @@ abstract class TestCase extends Orchestra
     {
         return [ClientServiceProvider::class];
     }
+
+    /**
+     * An application key, because routes in the `web` group encrypt cookies — the
+     * tenancy middleware is exercised the way a browser reaches it.
+     */
+    protected function defineEnvironment($app): void
+    {
+        $app['config']->set('app.key', 'base64:'.base64_encode(str_repeat('k', 32)));
+    }
 }
