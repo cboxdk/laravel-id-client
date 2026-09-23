@@ -6,6 +6,7 @@ namespace Cbox\Id\Client\Http;
 
 use Cbox\Id\Client\AccessTokenVerifier;
 use Cbox\Id\Client\Exceptions\TokenRejected;
+use Cbox\Id\Client\Tenancy\CurrentPrincipal;
 use Cbox\Id\Client\ValueObjects\VerifiedToken;
 use Closure;
 use Illuminate\Http\JsonResponse;
@@ -64,7 +65,7 @@ class VerifyAccessToken
         // for a VerifiedToken and gets one that provably passed through here. There is
         // no way to obtain the type otherwise — an unverified string cannot become one.
         app()->instance(VerifiedToken::class, $verified);
-        $request->attributes->set('cbox_id_token', $verified);
+        $request->attributes->set(CurrentPrincipal::TOKEN_ATTRIBUTE, $verified);
 
         $response = $next($request);
 
