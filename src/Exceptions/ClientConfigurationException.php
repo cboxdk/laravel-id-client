@@ -4,12 +4,10 @@ declare(strict_types=1);
 
 namespace Cbox\Id\Client\Exceptions;
 
-use RuntimeException;
-
 /**
  * The Cbox ID client is not configured.
  */
-class ClientConfigurationException extends RuntimeException
+class ClientConfigurationException extends CboxIdException
 {
     public static function because(string $reason): self
     {

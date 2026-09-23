@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cbox\Id\Client\Support;
 
 use Cbox\Id\Client\Exceptions\ClientConfigurationException;
+use Cbox\Id\Client\Exceptions\NotConfigured;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
@@ -41,8 +42,9 @@ class Discovery
      * Loopback stays allowed: `php artisan serve` against a local instance runs there,
      * and RFC 8252 makes loopback the native-app callback by definition.
      *
-     * An empty issuer is left alone: that is "not configured yet", and the callers
-     * already answer it with a message naming the config key.
+     * An empty issuer is left alone here: that is "not configured yet", and it is
+     * refused with {@see NotConfigured} at the first call that needs it — so an app
+     * whose login is not set up yet can still boot and serve its other pages.
      */
     private static function assertSecureIssuer(string $issuer): void
     {
@@ -83,6 +85,13 @@ class Discovery
      */
     public function document(): array
     {
+        // Named, before any request. An empty issuer used to reach Guzzle as a bare path
+        // and come back as "URI must include a scheme" — a 500 that says nothing about
+        // the environment variable that is actually missing.
+        if (trim($this->issuer) === '') {
+            throw NotConfigured::key('issuer', 'discover the Cbox ID endpoints');
+        }
+
         /** @var array<string, mixed> $doc */
         $doc = Cache::remember('cbox-id-client:discovery:'.md5($this->issuer), $this->cacheTtl, function (): array {
             $response = Http::timeout($this->timeout)->get(rtrim($this->issuer, '/').'/.well-known/openid-configuration');

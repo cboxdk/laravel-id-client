@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Cbox\Id\Client\Exceptions;
 
-use RuntimeException;
-
 /**
  * A presented access token was not accepted.
  *
@@ -25,7 +23,7 @@ use RuntimeException;
  * inferring it from what the ROUTE happened to require gets it wrong every time a
  * scoped route is handed a forged token.
  */
-class TokenRejected extends RuntimeException
+class TokenRejected extends CboxIdException
 {
     /**
      * @param  list<string>  $missingScopes  empty when verification itself failed
