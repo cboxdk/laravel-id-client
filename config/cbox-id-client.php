@@ -204,6 +204,13 @@ return [
         'roles' => [
             // ['key' => 'billing-admin', 'name' => 'Billing Admin', 'description' => 'Full billing access',
             //     'permissions' => ['invoices:create', 'invoices:read']],
+            //
+            // A STAFF role — yours, not your customers': `tenant_assignable => false` keeps it
+            // out of every organization's role picker; it can only be granted
+            // environment-wide (CboxIdManagement::grantEnvironmentRole()). Strictly a
+            // boolean — anything else refuses the whole manifest.
+            // ['key' => 'support', 'name' => 'Support', 'tenant_assignable' => false,
+            //     'permissions' => ['invoices:read', 'support:impersonate']],
         ],
     ],
 
