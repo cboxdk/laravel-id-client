@@ -23,6 +23,8 @@ container if you prefer constructor injection.
 - **[Multi-tenant apps](multi-tenant-apps.md)** — teams, tiers, roles and
   permissions, switching organizations, invitations, staff and support sessions, and
   your customers' API keys.
+- **[Back-channel logout](back-channel-logout.md)** — end a person's sessions in your
+  app when they sign out of Cbox ID.
 - **[Protect your API](protect-your-api.md)** — verify a token presented *to* you,
   and gate routes on scopes.
 - **[Integration prompt (for AI agents)](integration-prompt.md)** — a self-contained

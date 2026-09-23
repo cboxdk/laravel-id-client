@@ -130,6 +130,15 @@ Switch teams with `CboxId::switchOrganization($id)` (or `selectOrganization()` /
 `cbox-id.api-key:reports:read`. The whole walkthrough is
 [Multi-tenant apps](docs/cookbook/multi-tenant-apps.md).
 
+## Back-channel logout
+
+Set `CBOX_ID_BACKCHANNEL_LOGOUT=true` and register `/cbox-id/backchannel-logout` as your
+app's back-channel logout URI: when a person signs out of Cbox ID, their sessions here end
+too. Logout tokens are validated strictly (signature, issuer, audience, freshness, events,
+no nonce, replay). Sessions are deleted at once on the database and redis drivers, and end
+on the next request on the cookie driver. See
+[Back-channel logout](docs/cookbook/back-channel-logout.md).
+
 ## Refresh tokens
 
 Ask for `offline_access` (in `CBOX_ID_SCOPES`), then:

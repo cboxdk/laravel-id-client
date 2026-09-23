@@ -41,12 +41,23 @@ The tenancy and authorization layer: what every consuming app was writing by han
 - **Config**: `CBOX_ID_SCOPES`, `session.remember`, `authorization.gate`,
   `organizations.picker`, `management.key` / `management.url`, `api_keys.cache_ttl`.
 - `Exceptions\CboxIdException`, the base of everything the SDK throws.
+- **Back-channel logout** (OIDC Back-Channel Logout 1.0, opt-in with
+  `CBOX_ID_BACKCHANNEL_LOGOUT=true`): a receiver that validates logout tokens strictly
+  (§2.6) and ends the matching local sessions — destroyed at once on database/redis/
+  cache-backed drivers, signed out on the next request everywhere else — plus the
+  `cbox-id.session` middleware and the `BackchannelLogoutReceived` event.
+- **Staff roles** in the manifest: `'tenant_assignable' => false` on a role.
+- `ManifestPublisher::checksum()` — the canonical checksum Cbox ID computes, asserted
+  against the shared cross-SDK fixture.
 
 ### Fixed
 
 - An empty issuer surfaced as Guzzle's "URI must include a scheme" 500. It is now
   `NotConfigured` — naming the key and its environment variable — rendered as a 503.
 - The callback dropped `error_description`; `AuthenticationFailed` now carries it.
+- The manifest `version` was a hash of the config as written, so it changed when the
+  config was reordered and matched no other SDK. It is now the canonical checksum's first
+  16 characters, the same as every other SDK.
 - `VerifiedToken::organizationOrFail()` threw a bare `RuntimeException` (a 500); it now
   throws `OrganizationRequired`, a 403 with a reason.
 

@@ -34,6 +34,20 @@ log in, and `Logout` removes it. If you keep this yourself, set
 If `redirect(organization: …)` / `switchOrganization()` asked for an organization,
 `authenticate()` refuses a token bound to any other one. Plain logins are unaffected.
 
+### The manifest version changes once
+
+`cbox-id:publish-manifest` now sends a `version` derived from the canonical checksum
+every Cbox ID SDK uses. The first publish after upgrading reports a new version for an
+unchanged manifest; Cbox ID decides whether anything changed from its own checksum, which
+is unaffected, so nothing is re-synced. A role's `tenant_assignable` must be a boolean —
+a string is now refused before publishing.
+
+### Back-channel logout is off until you turn it on
+
+Nothing changes unless you set `CBOX_ID_BACKCHANNEL_LOGOUT=true`. Sessions remembered by
+0.12 carry no `sid` or sign-in time: they cannot be ended by `sid`, and a sign-out of the
+whole person ends them (unknown age counts as older).
+
 ### Published config files
 
 New keys have defaults and need nothing. To read scopes from `CBOX_ID_SCOPES`, replace

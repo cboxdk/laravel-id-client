@@ -155,15 +155,53 @@ CboxIdWebhooks::on(EventType::ApiKeyRevoked,     fn ($e) => /* forget any cached
 still in flight or was lost, and it lets you put retried deliveries back in order. See
 [verify webhooks](verify-webhooks.md) for the receiver itself.
 
-## 6. Staff and support sessions
+## 6. Staff roles and support sessions
 
-Declare staff-only roles in your manifest with `"tenant_assignable": false` — they can
-be held environment-wide but are never offered inside a customer's organization. Grant
-one to a member of your team:
+### Staff roles: yours, not your customers'
+
+Some roles belong to **your** team, not to anyone in a customer's organization — support,
+billing operations, trust & safety. Declare them in your manifest as staff-only:
 
 ```php
-CboxIdManagement::grantEnvironmentRole($staffUserId, $roleId);
+// config/cbox-id-client.php
+'authz' => [
+    'permissions' => [
+        ['key' => 'parcels:read', 'description' => 'View parcels'],
+        ['key' => 'support:impersonate', 'description' => 'Act as a customer'],
+    ],
+    'roles' => [
+        ['key' => 'viewer', 'name' => 'Viewer', 'permissions' => ['parcels:read']],
+        ['key' => 'support', 'name' => 'Support', 'tenant_assignable' => false,
+            'permissions' => ['parcels:read', 'support:impersonate']],
+    ],
+],
 ```
+
+and publish (`php artisan cbox-id:publish-manifest`). A staff role is:
+
+- **never offered or accepted inside an organization** — a customer's admin cannot hand
+  it out, and the management API refuses to assign it there;
+- **held environment-wide** — granted to a person across the whole environment rather
+  than in one organization:
+
+  ```php
+  CboxIdManagement::grantEnvironmentRole($staffUserId, $supportRoleId);
+  CboxIdManagement::hasEnvironmentRole($staffUserId, $supportRoleId);
+  CboxIdManagement::revokeEnvironmentRole($staffUserId, $supportRoleId);
+  ```
+
+- **per app** — a role your app declared, granted environment-wide, shows up only in
+  YOUR app's tokens, never in another app's in the same environment.
+
+`tenant_assignable` must be a real boolean: the SDK refuses to publish `"false"` as a
+string, because Cbox ID would reject the manifest and, read leniently, it would make a
+staff role assignable by every tenant. Declaring no staff role leaves your manifest's
+checksum exactly what it was, so existing apps do not re-sync.
+
+In your app, a staff member's roles and permissions arrive in the token like anyone
+else's, so `hasPermission('support:impersonate')` and `@can` work unchanged.
+
+### Support sessions
 
 A staff member holding your app's `support:impersonate` permission can start a support
 session for a customer — reason required, an hour at most, no refresh token, audited on
@@ -219,6 +257,11 @@ $store->put($tokens->refreshToken);   // ALWAYS — Cbox ID rotates and detects 
 `remember: true` re-reads the person's organization tier, roles and permissions into the
 session. `AuthenticationFailed::isInvalidGrant()` means the session is over and they
 must sign in again; anything else is worth retrying.
+
+## 9. Signing out everywhere
+
+When a person signs out of Cbox ID, or loses access, Cbox ID can tell your app to end
+their sessions too — see [Back-channel logout](back-channel-logout.md).
 
 ## Testing all of it
 
