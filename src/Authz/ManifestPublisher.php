@@ -53,8 +53,9 @@ class ManifestPublisher
      * SDK asserts): permissions `{key, description}` sorted by key; roles `{key, name,
      * description, permissions}` sorted by key with their permissions de-duplicated and
      * sorted; an empty description is null; PHP's default JSON encoding. A staff-only
-     * role adds `"tenant_assignable": false` — and ONLY a staff-only role, so every
-     * manifest that declares none hashes exactly as it always has and no app re-syncs for
+     * role adds `"tenant_assignable": false` and a tenant self-serve permission adds
+     * `"tenant_assignable": true` — each ONLY in its non-default state, so every manifest
+     * that declares neither hashes exactly as it always has and no app re-syncs for
      * nothing. It used to be a hash of the config as written, which changed with the
      * ORDER of the config and matched no other SDK.
      *
@@ -68,10 +69,18 @@ class ManifestPublisher
         $permissions = [];
 
         foreach ($this->permissions as $permission) {
-            $permissions[] = [
+            $canonical = [
                 'key' => Claims::requiredString($permission, 'key'),
                 'description' => Claims::string($permission, 'description'),
             ];
+
+            // Permissions are deny-by-default: only a literal `true` makes one tenant
+            // self-serve, exactly as Cbox ID parses it, and only then is it marked.
+            if (($permission['tenant_assignable'] ?? false) === true) {
+                $canonical['tenant_assignable'] = true;
+            }
+
+            $permissions[] = $canonical;
         }
 
         usort($permissions, static fn (array $a, array $b): int => strcmp($a['key'], $b['key']));
