@@ -4,12 +4,24 @@ declare(strict_types=1);
 
 namespace Cbox\Id\Client;
 
+use Cbox\Id\Client\ApiKeys\ApiKeyVerifier;
+use Cbox\Id\Client\Contracts\Principal;
+use Cbox\Id\Client\Contracts\VerifiesApiKeys;
+use Cbox\Id\Client\Enums\Prompt;
+use Cbox\Id\Client\Exceptions\ApiKeyRejected;
+use Cbox\Id\Client\Exceptions\ApiKeyVerificationUnavailable;
 use Cbox\Id\Client\Exceptions\AuthenticationFailed;
-use Cbox\Id\Client\Exceptions\ClientConfigurationException;
 use Cbox\Id\Client\Exceptions\InvalidState;
+use Cbox\Id\Client\Exceptions\NotConfigured;
 use Cbox\Id\Client\Support\Discovery;
 use Cbox\Id\Client\Support\Pkce;
+use Cbox\Id\Client\Tenancy\CurrentPrincipal;
+use Cbox\Id\Client\Tenancy\SessionIdentityStore;
 use Cbox\Id\Client\ValueObjects\CboxUser;
+use Cbox\Id\Client\ValueObjects\Identity;
+use Cbox\Id\Client\ValueObjects\Organization;
+use Cbox\Id\Client\ValueObjects\RefreshedTokens;
+use Cbox\Id\Client\ValueObjects\VerifiedApiKey;
 use Firebase\JWT\JWK;
 use Firebase\JWT\JWT;
 use Illuminate\Http\RedirectResponse;
@@ -48,6 +60,17 @@ class IdentityClient
     private const SCOPES_KEY = 'cbox-id-client.scopes';
 
     /**
+     * The organization THIS authorization asked to be bound to, when it asked.
+     *
+     * Checked against the `org` the tokens come back with. Cbox ID refuses with
+     * `access_denied` when the person is not a member, so a mismatch is not a refusal it
+     * forgot — it is a response for a different request than the one this browser made,
+     * and a switch to organization B that silently lands in A is exactly the confusion a
+     * tenant boundary exists to prevent.
+     */
+    private const ORGANIZATION_KEY = 'cbox-id-client.organization';
+
+    /**
      * The signature algorithm assumed for a JWKS key that omits `alg`. RFC 7517 §4.4
      * makes `alg` optional, so verification must not depend on the instance emitting
      * it on every key — but the value is pinned here rather than taken from the token.
@@ -60,29 +83,34 @@ class IdentityClient
     public function __construct(
         private readonly array $config,
         private readonly Discovery $discovery,
+        private readonly SessionIdentityStore $sessions = new SessionIdentityStore,
     ) {}
 
     /**
-     * Begin login: redirect the user to Cbox ID's authorize endpoint. Stashes the
-     * PKCE verifier, CSRF state and nonce in the session for {@see authenticate()}.
+     * Start a login: redirect the user to Cbox ID's authorize endpoint. Stashes the PKCE
+     * verifier, CSRF state and nonce in the session for {@see authenticate()}.
      *
-     * @param  list<string>|null  $scopes  overrides the configured default scopes
-     */
-    /**
-     * Start a login. `prompt` maps to OIDC `prompt` — pass `login` to force a fresh
-     * sign-in (so the user can authenticate as a different account, à la Notion/Slack
-     * "add account"), `select_account` for an account chooser, or `none` for silent
-     * auth. `maxAge` forces re-auth if the instance session is older than N seconds;
+     * `prompt` maps to OIDC `prompt` — `login` forces a fresh sign-in (so the user can
+     * authenticate as a different account), `select_account` shows an account chooser,
+     * `none` is silent auth — plus Cbox ID's own `select_organization` (always show the
+     * hosted organization picker) and `create_organization` (the hosted "create a team"
+     * step). `maxAge` forces re-auth if the instance session is older than N seconds;
      * `loginHint` pre-fills the identifier.
      *
-     * @param  list<string>|null  $scopes
+     * `organization` binds the grant to that organization: the person must be an active
+     * member, or the callback comes back with `access_denied`. `organizationHint` only
+     * preselects it in the picker.
+     *
+     * @param  list<string>|null  $scopes  overrides the configured default scopes
      */
     public function redirect(
         ?array $scopes = null,
         ?string $state = null,
-        ?string $prompt = null,
+        string|Prompt|null $prompt = null,
         ?int $maxAge = null,
         ?string $loginHint = null,
+        ?string $organization = null,
+        ?string $organizationHint = null,
     ): RedirectResponse {
         $verifier = Pkce::verifier();
         $state ??= bin2hex(random_bytes(16));
@@ -93,6 +121,13 @@ class IdentityClient
         session()->put(self::NONCE_KEY, $nonce);
         session()->put(self::SCOPES_KEY, $scopes ?? $this->scopes());
 
+        if ($organization !== null && $organization !== '') {
+            session()->put(self::ORGANIZATION_KEY, $organization);
+        } else {
+            // A leftover from an abandoned switch must not judge this unrelated login.
+            session()->forget(self::ORGANIZATION_KEY);
+        }
+
         $query = http_build_query(array_filter([
             'response_type' => 'code',
             'client_id' => $this->clientId(),
@@ -102,12 +137,51 @@ class IdentityClient
             'nonce' => $nonce,
             'code_challenge' => Pkce::challenge($verifier),
             'code_challenge_method' => 'S256',
-            'prompt' => $prompt,
+            'prompt' => $prompt instanceof Prompt ? $prompt->value : $prompt,
             'max_age' => $maxAge !== null ? (string) $maxAge : null,
             'login_hint' => $loginHint,
+            'organization' => $organization,
+            'organization_hint' => $organizationHint,
         ], static fn (?string $v): bool => $v !== null && $v !== ''));
 
         return new RedirectResponse($this->discovery->endpoint('authorization_endpoint').'?'.$query);
+    }
+
+    /**
+     * Switch the signed-in person to another organization they belong to.
+     *
+     * A new authorization bound to that organization rather than a local flag, because
+     * the organization is IN the token: `org`, `org_role`, and the roles and permissions
+     * resolved there all change with it, and only Cbox ID can re-issue them. With a live
+     * Cbox ID session this is a round trip the person does not see. Once your callback
+     * runs {@see authenticate()}, the session remembers the new organization.
+     *
+     * @param  list<string>|null  $scopes
+     */
+    public function switchOrganization(string $organizationId, ?array $scopes = null, string|Prompt|null $prompt = null): RedirectResponse
+    {
+        return $this->redirect($scopes, prompt: $prompt, organization: $organizationId);
+    }
+
+    /**
+     * Send the person to Cbox ID's hosted organization picker.
+     *
+     * @param  list<string>|null  $scopes
+     */
+    public function selectOrganization(?array $scopes = null, ?string $organizationHint = null): RedirectResponse
+    {
+        return $this->redirect($scopes, prompt: Prompt::SelectOrganization, organizationHint: $organizationHint);
+    }
+
+    /**
+     * Send the person to Cbox ID's hosted "create an organization" step. They become its
+     * Owner, and the authorization continues bound to the new organization.
+     *
+     * @param  list<string>|null  $scopes
+     */
+    public function createOrganization(?array $scopes = null): RedirectResponse
+    {
+        return $this->redirect($scopes, prompt: Prompt::CreateOrganization);
     }
 
     /**
@@ -139,13 +213,21 @@ class IdentityClient
         // before this key existed — an upgrade mid-flight must not fail a live sign-in.
         $requested = session()->pull(self::SCOPES_KEY);
         $requested = is_array($requested) ? array_values(array_filter($requested, 'is_string')) : $this->scopes();
+        $requestedOrganization = session()->pull(self::ORGANIZATION_KEY);
 
         if (! is_string($state) || ! is_string($expected) || ! hash_equals($expected, $state)) {
             throw InvalidState::because('The login state did not match — the request may be forged or stale.');
         }
 
         if ($request->has('error')) {
-            throw AuthenticationFailed::because('Cbox ID returned an error: '.$request->string('error')->toString());
+            // After the state check, deliberately: an error nobody's browser asked for is
+            // a forged callback, and it gets the same answer as any other.
+            $description = $request->query('error_description');
+
+            throw AuthenticationFailed::fromCallback(
+                $request->string('error')->toString(),
+                is_string($description) ? $description : null,
+            );
         }
 
         $code = $request->query('code');
@@ -214,7 +296,11 @@ class IdentityClient
             throw AuthenticationFailed::because('The verified token carried no subject.');
         }
 
-        return new CboxUser(
+        if (is_string($requestedOrganization) && $requestedOrganization !== '' && ($claims['org'] ?? null) !== $requestedOrganization) {
+            throw AuthenticationFailed::because('Cbox ID bound this sign-in to a different organization than the one requested.');
+        }
+
+        $user = new CboxUser(
             id: $sub,
             email: is_string($claims['email'] ?? null) ? $claims['email'] : null,
             name: is_string($claims['name'] ?? null) ? $claims['name'] : null,
@@ -225,6 +311,130 @@ class IdentityClient
             idToken: is_string($idToken) ? $idToken : null,
             expiresIn: is_numeric($tokens['expires_in'] ?? null) ? (int) $tokens['expires_in'] : 0,
         );
+
+        if ($this->remembersIdentity()) {
+            $this->sessions->remember(Identity::fromPrincipal($user));
+        }
+
+        return $user;
+    }
+
+    /**
+     * Exchange a refresh token for fresh tokens (OAuth 2.0 `refresh_token` grant).
+     *
+     * Cbox ID rotates refresh tokens and detects reuse, so ALWAYS persist the returned
+     * `refreshToken` and discard the one you passed — presenting a rotated token again
+     * revokes the whole family. Cbox ID only issues a refresh token when the login asked
+     * for `offline_access`.
+     *
+     * A returned id_token is verified (signature, issuer, audience, expiry) before it is
+     * handed back; the nonce is not re-checked, because RFC 6749 has none on this leg and
+     * OIDC Core §12.2 says a refreshed id_token need not carry one.
+     *
+     * `remember: true` also refreshes what the session remembers about the person —
+     * their organization tier, roles and permissions as they are NOW — by reading
+     * UserInfo with the new access token. It refuses to overwrite a different subject.
+     *
+     * @throws AuthenticationFailed `isInvalidGrant()` when the person must sign in again
+     */
+    public function refresh(string $refreshToken, bool $remember = false): RefreshedTokens
+    {
+        $params = [
+            'grant_type' => 'refresh_token',
+            'client_id' => $this->clientId(),
+            'refresh_token' => $refreshToken,
+        ];
+
+        // Public clients too, like revocation: a first-party app with no secret still
+        // holds refresh tokens, and the token endpoint accepts it without one.
+        $secret = $this->config['client_secret'] ?? null;
+
+        if (is_string($secret) && $secret !== '') {
+            $params['client_secret'] = $secret;
+        }
+
+        $response = Http::asForm()->timeout($this->timeout())->post($this->discovery->endpoint('token_endpoint'), $params);
+
+        if (! $response->successful()) {
+            // `invalid_grant` means the token is spent, revoked or replayed; a 5xx means
+            // the same token is still good in a moment. The exception keeps which.
+            throw AuthenticationFailed::fromResponse('Token refresh failed', $response);
+        }
+
+        $tokens = $this->asArray($response->json());
+        $accessToken = $tokens['access_token'] ?? null;
+
+        if (! is_string($accessToken) || $accessToken === '') {
+            throw AuthenticationFailed::because('The refresh response carried no access token.');
+        }
+
+        $idToken = is_string($tokens['id_token'] ?? null) && $tokens['id_token'] !== '' ? $tokens['id_token'] : null;
+        $claims = $idToken !== null ? $this->verifyIdToken($idToken, null) : [];
+
+        $refreshed = new RefreshedTokens(
+            accessToken: $accessToken,
+            refreshToken: is_string($tokens['refresh_token'] ?? null) && $tokens['refresh_token'] !== '' ? $tokens['refresh_token'] : $refreshToken,
+            idToken: $idToken,
+            expiresIn: is_numeric($tokens['expires_in'] ?? null) ? (int) $tokens['expires_in'] : 0,
+            scope: is_string($tokens['scope'] ?? null) ? $tokens['scope'] : null,
+            claims: $claims,
+        );
+
+        if ($remember) {
+            $this->rememberRefreshed($refreshed);
+        }
+
+        return $refreshed;
+    }
+
+    /**
+     * Whoever is acting in this request: a verified bearer token or API key when the
+     * route checked one, otherwise the person this session signed in (and only while the
+     * same local user is logged in), otherwise null.
+     */
+    public function principal(): ?Principal
+    {
+        $request = request();
+
+        return app(CurrentPrincipal::class)->resolve($request->user(), $request);
+    }
+
+    /**
+     * Ask Cbox ID whether a customer API key is live for this application, and that it
+     * carries every permission named. Cached briefly; see {@see ApiKeyVerifier}.
+     *
+     * @param  list<string>  $requiredPermissions
+     *
+     * @throws ApiKeyRejected
+     * @throws ApiKeyVerificationUnavailable
+     */
+    public function verifyApiKey(string $key, array $requiredPermissions = []): VerifiedApiKey
+    {
+        return app(VerifiesApiKeys::class)->verify($key, $requiredPermissions);
+    }
+
+    /** The organization the current principal acts for, or null. */
+    public function currentOrganization(): ?Organization
+    {
+        return $this->principal()?->organization();
+    }
+
+    /**
+     * Remember a principal in the session as the signed-in identity. {@see authenticate()}
+     * does this for you unless `cbox-id-client.session.remember` is off.
+     */
+    public function rememberIdentity(Principal $principal): void
+    {
+        $this->sessions->remember(Identity::fromPrincipal($principal));
+    }
+
+    /**
+     * Forget the remembered identity. Laravel's `Logout` event already does this; call
+     * it yourself if your application signs people out some other way.
+     */
+    public function forgetIdentity(): void
+    {
+        $this->sessions->forget();
     }
 
     /**
@@ -560,6 +770,33 @@ class IdentityClient
         return $out;
     }
 
+    private function rememberRefreshed(RefreshedTokens $tokens): void
+    {
+        $current = $this->sessions->identity();
+        $claims = array_merge($this->userinfo($tokens->accessToken), $tokens->claims);
+        $subject = $claims['sub'] ?? null;
+
+        // The same person or nobody. A refresh token that answers for someone else is
+        // not a refresh of this session, and adopting it would swap identities under a
+        // logged-in local user.
+        if (! is_string($subject) || ($current !== null && ! hash_equals($current->subject, $subject))) {
+            throw AuthenticationFailed::because('The refreshed tokens are for a different subject than this session.');
+        }
+
+        $identity = Identity::fromClaims($claims);
+
+        if ($identity !== null) {
+            $this->sessions->remember($identity);
+        }
+    }
+
+    private function remembersIdentity(): bool
+    {
+        $session = $this->config['session'] ?? null;
+
+        return ! is_array($session) || ($session['remember'] ?? true) !== false;
+    }
+
     private function issuer(): string
     {
         return $this->requiredString('issuer');
@@ -594,11 +831,15 @@ class IdentityClient
     {
         $scopes = $this->config['scopes'] ?? null;
 
-        if (! is_array($scopes) || $scopes === []) {
-            return ['openid', 'profile', 'email'];
+        // A string too — `CBOX_ID_SCOPES="openid profile email organizations"` — for a
+        // published config file that predates the env variable and passes it straight on.
+        if (is_string($scopes)) {
+            $scopes = preg_split('/[\s,]+/', $scopes, -1, PREG_SPLIT_NO_EMPTY);
         }
 
-        return array_values(array_filter($scopes, 'is_string'));
+        $scopes = is_array($scopes) ? array_values(array_filter($scopes, static fn (mixed $s): bool => is_string($s) && $s !== '')) : [];
+
+        return $scopes === [] ? ['openid', 'profile', 'email'] : $scopes;
     }
 
     private function timeout(): int
@@ -613,7 +854,7 @@ class IdentityClient
         $value = $this->config[$key] ?? null;
 
         if (! is_string($value) || $value === '') {
-            throw ClientConfigurationException::because("Cbox ID client config '{$key}' is not set.");
+            throw NotConfigured::key($key);
         }
 
         return $value;
