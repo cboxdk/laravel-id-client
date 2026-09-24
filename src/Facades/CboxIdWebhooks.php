@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Facade;
  *     CboxIdWebhooks::on('organization.member_added', fn ($e) => Seat::allocate($e->string('user_id')));
  *     CboxIdWebhooks::on('role.assigned',             fn ($e) => …);
  *
- * @method static void on(string $eventType, callable $handler)
+ * @method static void on(\Cbox\Id\Client\Webhooks\EventType|string $eventType, callable $handler)
  * @method static int dispatch(\Cbox\Id\Client\Webhooks\WebhookEvent $event)
  * @method static list<string> subscribedTypes()
  *

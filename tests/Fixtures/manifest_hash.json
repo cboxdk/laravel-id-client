@@ -1,0 +1,157 @@
+{
+    "cases": [
+        {
+            "name": "empty",
+            "permissions": [],
+            "roles": [],
+            "canonical_json": "{\"permissions\":[],\"roles\":[]}",
+            "sha256": "0d1152d7f8bb231b10af8f84c60d2630f94c3c8a0ad8f4fa58eb3b50165b4a1d",
+            "version": "0d1152d7f8bb231b"
+        },
+        {
+            "name": "basic",
+            "permissions": [
+                {
+                    "key": "invoices:read",
+                    "description": "View invoices"
+                },
+                {
+                    "key": "invoices:create",
+                    "description": "Create invoices"
+                },
+                {
+                    "key": "invoices:refund",
+                    "description": "Refund invoices"
+                }
+            ],
+            "roles": [
+                {
+                    "key": "viewer",
+                    "name": "Viewer",
+                    "description": "Read-only",
+                    "permissions": [
+                        "invoices:read"
+                    ]
+                },
+                {
+                    "key": "billing-admin",
+                    "name": "Billing Admin",
+                    "description": "Full billing access",
+                    "permissions": [
+                        "invoices:refund",
+                        "invoices:create",
+                        "invoices:read"
+                    ]
+                }
+            ],
+            "canonical_json": "{\"permissions\":[{\"key\":\"invoices:create\",\"description\":\"Create invoices\"},{\"key\":\"invoices:read\",\"description\":\"View invoices\"},{\"key\":\"invoices:refund\",\"description\":\"Refund invoices\"}],\"roles\":[{\"key\":\"billing-admin\",\"name\":\"Billing Admin\",\"description\":\"Full billing access\",\"permissions\":[\"invoices:create\",\"invoices:read\",\"invoices:refund\"]},{\"key\":\"viewer\",\"name\":\"Viewer\",\"description\":\"Read-only\",\"permissions\":[\"invoices:read\"]}]}",
+            "sha256": "d3f48d571dd697b60eb72e656dee724f8550639f80e7a6c1a659346d06f00179",
+            "version": "d3f48d571dd697b6"
+        },
+        {
+            "name": "edge_cases",
+            "permissions": [
+                {
+                    "key": "reports:export",
+                    "description": "Export reports as CSV/PDF"
+                },
+                {
+                    "key": "reports:read",
+                    "description": null
+                },
+                {
+                    "key": "accounts:read",
+                    "description": "Se konti — 日本語 café 😀"
+                }
+            ],
+            "roles": [
+                {
+                    "key": "analyst",
+                    "name": "Analyst",
+                    "description": null,
+                    "permissions": [
+                        "reports:read",
+                        "reports:export",
+                        "accounts:read"
+                    ]
+                },
+                {
+                    "key": "admin",
+                    "name": "Administrator",
+                    "description": "Everything, incl. I/O",
+                    "permissions": [
+                        "reports:export"
+                    ]
+                }
+            ],
+            "canonical_json": "{\"permissions\":[{\"key\":\"accounts:read\",\"description\":\"Se konti \\u2014 \\u65e5\\u672c\\u8a9e caf\\u00e9 \\ud83d\\ude00\"},{\"key\":\"reports:export\",\"description\":\"Export reports as CSV\\/PDF\"},{\"key\":\"reports:read\",\"description\":null}],\"roles\":[{\"key\":\"admin\",\"name\":\"Administrator\",\"description\":\"Everything, incl. I\\/O\",\"permissions\":[\"reports:export\"]},{\"key\":\"analyst\",\"name\":\"Analyst\",\"description\":null,\"permissions\":[\"accounts:read\",\"reports:export\",\"reports:read\"]}]}",
+            "sha256": "b4dd2edc5c58332a5444378e4d0663b7eac219aa31bc126e52811ea887aa9d07",
+            "version": "b4dd2edc5c58332a"
+        },
+        {
+            "name": "staff_role",
+            "permissions": [
+                {
+                    "key": "support:impersonate",
+                    "description": "Act as a customer"
+                },
+                {
+                    "key": "parcels:read",
+                    "description": "View parcels"
+                }
+            ],
+            "roles": [
+                {
+                    "key": "support",
+                    "name": "Support",
+                    "description": "Vendor staff",
+                    "permissions": [
+                        "support:impersonate",
+                        "parcels:read"
+                    ],
+                    "tenant_assignable": false
+                },
+                {
+                    "key": "viewer",
+                    "name": "Viewer",
+                    "description": null,
+                    "permissions": [
+                        "parcels:read"
+                    ],
+                    "tenant_assignable": true
+                }
+            ],
+            "canonical_json": "{\"permissions\":[{\"key\":\"parcels:read\",\"description\":\"View parcels\"},{\"key\":\"support:impersonate\",\"description\":\"Act as a customer\"}],\"roles\":[{\"key\":\"support\",\"name\":\"Support\",\"description\":\"Vendor staff\",\"permissions\":[\"parcels:read\",\"support:impersonate\"],\"tenant_assignable\":false},{\"key\":\"viewer\",\"name\":\"Viewer\",\"description\":null,\"permissions\":[\"parcels:read\"]}]}",
+            "sha256": "44eff5ebd93eb552f1b65c7ce71379f08f835be1ca3ddcaff2a5a45f7915151a",
+            "version": "44eff5ebd93eb552"
+        },
+        {
+            "name": "self_serve_permission",
+            "permissions": [
+                {
+                    "key": "reports:read",
+                    "description": "Read reports",
+                    "tenant_assignable": true
+                },
+                {
+                    "key": "reports:purge",
+                    "description": "Purge reports"
+                }
+            ],
+            "roles": [
+                {
+                    "key": "reporter",
+                    "name": "Reporter",
+                    "description": null,
+                    "permissions": [
+                        "reports:read",
+                        "reports:purge"
+                    ]
+                }
+            ],
+            "canonical_json": "{\"permissions\":[{\"key\":\"reports:purge\",\"description\":\"Purge reports\"},{\"key\":\"reports:read\",\"description\":\"Read reports\",\"tenant_assignable\":true}],\"roles\":[{\"key\":\"reporter\",\"name\":\"Reporter\",\"description\":null,\"permissions\":[\"reports:purge\",\"reports:read\"]}]}",
+            "sha256": "1dbb45f12bf0c9905954d129af11542a0026ed46d53f7d869a3cdba95a656fe0",
+            "version": "1dbb45f12bf0c990"
+        }
+    ]
+}

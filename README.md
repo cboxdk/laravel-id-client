@@ -95,7 +95,72 @@ Route::get('/auth/callback', function (\Illuminate\Http\Request $request) {
 `authenticate()` returns a `CboxUser` — `id` (subject), `email`, `name`,
 `organizationId`, the full verified `claims`, and the `accessToken` / `refreshToken`.
 It throws `InvalidState` on a forged/stale callback and `AuthenticationFailed`
-otherwise.
+otherwise — with the server's `error` and `error_description` on it. Everything the SDK
+throws extends `Cbox\Id\Client\Exceptions\CboxIdException`.
+
+An empty `CBOX_ID_ISSUER` (or client id, or redirect) is refused with `NotConfigured`,
+which names the missing environment variable and renders as a **503**, not a 500. Put
+`cbox-id.configured:issuer,client_id,redirect` in front of your login routes to refuse
+before anything runs.
+
+## Teams, roles and permissions
+
+The organization a person acts for, their tier in it, and your app's roles and
+permissions arrive in the token. Read them off any principal — a sign-in, a bearer
+token, a customer API key:
+
+```php
+$principal = CboxId::principal();
+
+$principal->organization()?->role;             // OrganizationRole::Admin
+$principal->hasPermission('invoices:create');
+$principal->isSupportSession();                // staff acting as this person
+```
+
+Enforce them on routes, or through Laravel's own `@can` with `CBOX_ID_GATE=true`:
+
+```php
+Route::middleware(['auth', 'cbox-id.org:admin'])->get('/team/settings', …);
+Route::middleware(['auth', 'cbox-id.permission:invoices:create'])->post('/invoices', …);
+```
+
+Switch teams with `CboxId::switchOrganization($id)` (or `selectOrganization()` /
+`createOrganization()` for Cbox ID's hosted steps), provision with `CboxIdManagement`
+(an environment API key), and protect your API with your customers' own keys via
+`cbox-id.api-key:reports:read`. The whole walkthrough is
+[Multi-tenant apps](docs/cookbook/multi-tenant-apps.md).
+
+## Back-channel logout
+
+Set `CBOX_ID_BACKCHANNEL_LOGOUT=true` and register `/cbox-id/backchannel-logout` as your
+app's back-channel logout URI: when a person signs out of Cbox ID, their sessions here end
+too. Logout tokens are validated strictly (signature, issuer, audience, freshness, events,
+no nonce, replay). Sessions are deleted at once on the database and redis drivers, and end
+on the next request on the cookie driver. See
+[Back-channel logout](docs/cookbook/back-channel-logout.md).
+
+## Refresh tokens
+
+Ask for `offline_access` (in `CBOX_ID_SCOPES`), then:
+
+```php
+$tokens = CboxId::refresh($refreshToken);   // persist $tokens->refreshToken — it rotates
+```
+
+`AuthenticationFailed::isInvalidGrant()` means the person must sign in again.
+
+## Testing
+
+```php
+$cbox = CboxId::fake();
+
+$cbox->actingAs('user_1', organization: 'org_1', permissions: ['invoices:create']);
+$this->withToken((string) $cbox->token()->permissions(['reports:read']))->getJson('/api/reports');
+$cbox->management()->assertInvited('ada@example.com');
+```
+
+No fake issuer: tokens are really signed and really verified. See
+[Testing](docs/getting-started/testing.md).
 
 ## Draw your own sign-in box
 
@@ -182,6 +247,10 @@ CboxIdWebhooks::on('organization.member_removed', fn ($e) => Seat::release($e->s
 CboxIdWebhooks::on('role.assigned', fn ($e) => /* … */);
 CboxIdWebhooks::on('*', fn ($e) => Log::info('cbox event', ['type' => $e->type]));
 ```
+
+`Cbox\Id\Client\Webhooks\EventType` names every catalogued event
+(`CboxIdWebhooks::on(EventType::MembershipCreated, …)`), and `$event->sequence` goes up by
+one per delivery to your endpoint, so a gap is visible.
 
 The SDK mounts a signed receiver at `POST /cbox-id/webhooks` (configurable). Register
 that URL as a webhook endpoint on your Cbox ID instance (Developers → Webhooks),

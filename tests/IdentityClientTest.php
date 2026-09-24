@@ -90,7 +90,8 @@ it('builds a hosted profile URL with a return link', function (): void {
 
     $url = app(IdentityClient::class)->profileUrl('https://app.test/account');
 
-    expect($url)->toBe('https://id.test/settings?return_to='.urlencode('https://app.test/account'));
+    // `/account` is the person's own area; `/settings` on Cbox ID is the ORGANIZATION's.
+    expect($url)->toBe('https://id.test/account?return_to='.urlencode('https://app.test/account'));
 });
 
 // Cbox ID validates post_logout_redirect_uri against the requesting client's
@@ -582,4 +583,30 @@ it('accepts a discovery issuer that differs only by a trailing slash', function 
 
     expect(app(IdentityClient::class)->redirect()->getTargetUrl())
         ->toStartWith('https://id.test/oauth/authorize?');
+});
+
+it('links to the hosted API-keys page for this app, coming back to where the person was', function (): void {
+    $this->app->instance('request', Request::create('https://app.test/developers?tab=keys'));
+
+    $url = app(IdentityClient::class)->apiKeysUrl();
+    parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+
+    expect(strtok($url, '?'))->toBe('https://id.test/account/api-keys')
+        ->and($query)->toBe(['client_id' => 'client_1', 'return_to' => 'https://app.test/developers?tab=keys']);
+});
+
+it('passes an explicit app, return link and organization to the API-keys page', function (): void {
+    $url = app(IdentityClient::class)->apiKeysUrl('cid_other', 'https://app.test/back', 'org_2');
+    parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+
+    expect($query)->toBe(['client_id' => 'cid_other', 'return_to' => 'https://app.test/back', 'organization' => 'org_2'])
+        ->and(app(IdentityClient::class)->redirectToApiKeys('cid_other', 'https://app.test/back')->getTargetUrl())
+        ->toStartWith('https://id.test/account/api-keys?client_id=cid_other');
+});
+
+it('builds the API-keys page under a custom account path', function (): void {
+    config(['cbox-id-client.account_path' => '/me/']);
+    $this->app->forgetInstance(IdentityClient::class);
+
+    expect(app(IdentityClient::class)->apiKeysUrl(returnTo: 'https://app.test'))->toStartWith('https://id.test/me/api-keys?');
 });

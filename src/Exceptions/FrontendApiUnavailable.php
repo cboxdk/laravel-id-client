@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Cbox\Id\Client\Exceptions;
 
-use RuntimeException;
 use Throwable;
 
 /**
@@ -15,7 +14,7 @@ use Throwable;
  * degrade gracefully. `status` is the HTTP status when there was a response at all — null
  * means the request never got one.
  */
-class FrontendApiUnavailable extends RuntimeException
+class FrontendApiUnavailable extends CboxIdException
 {
     private function __construct(string $message, public readonly ?int $status = null, ?Throwable $previous = null)
     {

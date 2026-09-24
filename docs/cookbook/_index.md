@@ -1,6 +1,6 @@
 ---
 title: Cookbook
-description: Task-oriented recipes — log in, hosted profile management, back-channel API calls, webhook verification, and protecting your own API.
+description: Task-oriented recipes — log in, hosted profile management, back-channel API calls, webhook verification, protecting your own API, and multi-tenant apps.
 weight: 5
 ---
 
@@ -18,6 +18,13 @@ container if you prefer constructor injection.
   7662 introspection.
 - **[Verify webhooks](verify-webhooks.md)** — validate an inbound
   `X-Cbox-Signature`.
+- **[Protect your API](protect-your-api.md)** — verify a bearer token presented to
+  your own API, locally.
+- **[Multi-tenant apps](multi-tenant-apps.md)** — teams, tiers, roles and
+  permissions, switching organizations, invitations, staff and support sessions, and
+  your customers' API keys.
+- **[Back-channel logout](back-channel-logout.md)** — end a person's sessions in your
+  app when they sign out of Cbox ID.
 - **[Protect your API](protect-your-api.md)** — verify a token presented *to* you,
   and gate routes on scopes.
 - **[Integration prompt (for AI agents)](integration-prompt.md)** — a self-contained

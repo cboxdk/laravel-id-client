@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Cbox\Id\Client\Exceptions;
 
 use Illuminate\Http\Client\Response;
-use RuntimeException;
 
 /**
  * Login could not be completed.
@@ -17,7 +16,7 @@ use RuntimeException;
  * moment. Code reduced to matching on prose either retries what can never succeed, or
  * signs out somebody who did not need to be.
  */
-class AuthenticationFailed extends RuntimeException
+class AuthenticationFailed extends CboxIdException
 {
     public ?string $error = null;
 
@@ -44,6 +43,53 @@ class AuthenticationFailed extends RuntimeException
     public static function because(string $reason): self
     {
         return new self($reason);
+    }
+
+    /**
+     * The authorization server sent the browser back with `?error=` (RFC 6749 §4.1.2.1).
+     *
+     * The description used to be dropped here, so "invalid_scope" reached the log while
+     * "this application is not registered for the requested scope(s): groups" did not —
+     * and that sentence is the difference between reading a log and walking the OAuth
+     * flow by hand. It is in the message, for the log, and on `$errorDescription`. It is
+     * NOT end-user copy: it describes how this deployment is registered.
+     *
+     * `access_denied` is also what Cbox ID answers when `organization=` names an
+     * organization the person is not an active member of.
+     */
+    public static function fromCallback(string $error, ?string $description = null): self
+    {
+        $description = $description !== null && $description !== '' ? $description : null;
+
+        $exception = new self('Cbox ID returned an error: '.$error.($description !== null ? ' ('.$description.')' : ''));
+        $exception->error = $error;
+        $exception->errorDescription = $description;
+
+        return $exception;
+    }
+
+    /** The person (or the authorization server on their behalf) declined. */
+    public function isAccessDenied(): bool
+    {
+        return $this->error === 'access_denied';
+    }
+
+    /**
+     * A `prompt=none` request could not complete silently — send the person through an
+     * interactive sign-in instead (OIDC Core §3.1.2.6).
+     */
+    public function requiresInteraction(): bool
+    {
+        return in_array($this->error, ['login_required', 'consent_required', 'interaction_required', 'account_selection_required'], true);
+    }
+
+    /**
+     * The refresh token is spent, revoked or replayed: the session is over and the
+     * person has to sign in again. Retrying cannot succeed.
+     */
+    public function isInvalidGrant(): bool
+    {
+        return $this->error === 'invalid_grant';
     }
 
     /**

@@ -67,19 +67,153 @@ return [
     'frontend_cache_ttl' => env('CBOX_ID_FRONTEND_CACHE_TTL', 60),
 
     /*
-     * The scopes requested at login. `openid` is required for an id_token.
-     *
-     * @var list<string>
-     */
-    'scopes' => ['openid', 'profile', 'email'],
+    |---------------------------------------------------------------------------
+    | Scopes requested at login
+    |---------------------------------------------------------------------------
+    |
+    | Space- (or comma-) separated in CBOX_ID_SCOPES. `openid` is required for an
+    | id_token. Add, when you need them — each must be allowed on your app in
+    | the console, or the login comes back with `invalid_scope`:
+    |
+    |   organizations   every organization the person belongs to, for a switcher
+    |                   (`$user->organizations()`). Not needed to act FOR one:
+    |                   `org`, `org_name` and `org_role` come with every token.
+    |   offline_access  a refresh token, so `CboxId::refresh()` can renew access
+    |                   without sending the person back through a login.
+    |   groups          your app's roles on the id_token too, for consumers that
+    |                   read only the id_token.
+    |
+    */
+
+    'scopes' => array_values(array_filter(preg_split('/[\s,]+/', (string) env('CBOX_ID_SCOPES', 'openid profile email')) ?: [])),
+
+    /*
+    |---------------------------------------------------------------------------
+    | Remembering who signed in
+    |---------------------------------------------------------------------------
+    |
+    | After `authenticate()`, the SDK keeps what the rest of the session needs —
+    | subject, organization and tier, roles, permissions, support actor — in the
+    | Laravel session (never the tokens). That is what `CboxId::principal()`,
+    | the permission gate and the `cbox-id.org` / `cbox-id.permission`
+    | middleware read. It is bound to the local user your callback logs in, and
+    | forgotten on logout. Turn off if you keep this yourself.
+    |
+    */
+
+    'session' => [
+        'remember' => (bool) env('CBOX_ID_REMEMBER_IDENTITY', true),
+    ],
+
+    /*
+    |---------------------------------------------------------------------------
+    | Authorization
+    |---------------------------------------------------------------------------
+    |
+    | `gate` — answer `feature:action` abilities from the principal's Cbox ID
+    | permissions, so `@can('invoices:create')`, `$user->can(…)` and
+    | `$this->authorize(…)` work with no policy per permission. It only ever
+    | GRANTS; your own gates and policies still decide everything else. Off by
+    | default, because it adds a before-callback to every check you make.
+    |
+    */
+
+    'authorization' => [
+        'gate' => (bool) env('CBOX_ID_GATE', false),
+    ],
+
+    /*
+    |---------------------------------------------------------------------------
+    | Organizations
+    |---------------------------------------------------------------------------
+    |
+    | `picker` — when a browser session reaches a `cbox-id.org` route without an
+    | organization, send it to Cbox ID's hosted organization picker (and back).
+    | Off, it is a plain 403 instead. JSON requests always get the 403.
+    |
+    */
+
+    'organizations' => [
+        'picker' => (bool) env('CBOX_ID_ORGANIZATION_PICKER', true),
+    ],
+
+    /*
+    |---------------------------------------------------------------------------
+    | Environment management API
+    |---------------------------------------------------------------------------
+    |
+    | `key` is an ENVIRONMENT API key (`cbid_env_…`, console → Developers → API
+    | keys) with the scopes your provisioning needs — `organizations:write`,
+    | `members:write`, `invitations:write`, `roles:write`, … It can provision
+    | every tenant in the environment: keep it server-side and out of logs.
+    | `url` defaults to `{issuer}/api/v1`; the key only works on the host of
+    | the environment it was minted for.
+    |
+    */
+
+    'management' => [
+        'key' => env('CBOX_ID_MANAGEMENT_KEY'),
+        'url' => env('CBOX_ID_MANAGEMENT_URL'),
+    ],
+
+    /*
+    |---------------------------------------------------------------------------
+    | Customer API keys
+    |---------------------------------------------------------------------------
+    |
+    | Keys YOUR customers mint for YOUR API, checked with `cbox-id.api-key` or
+    | `CboxId::verifyApiKey()`. A live answer is cached this many seconds (never
+    | past the key's expiry) — that is how long a revoked key keeps working.
+    | 0 asks Cbox ID on every request.
+    |
+    */
+
+    'api_keys' => [
+        'cache_ttl' => (int) env('CBOX_ID_API_KEY_CACHE_TTL', 60),
+    ],
+
+    /*
+    |---------------------------------------------------------------------------
+    | Back-channel logout (OpenID Connect Back-Channel Logout 1.0)
+    |---------------------------------------------------------------------------
+    |
+    | When a person signs out of Cbox ID — or an admin ends their sessions, or
+    | they lose access — Cbox ID POSTs a signed logout token to this app and the
+    | SDK ends their local sessions. Turn it on, then register
+    | `{app_url}{path}` as the app's back-channel logout URI in the console.
+    |
+    | `cache_store` must be shared by every web server (redis, database,
+    | memcached): it holds the replay cache, the sid→session index and the
+    | revocation list. Sessions are destroyed immediately on the database,
+    | redis and cache-backed session drivers (and `file` on ONE server); with
+    | the `cookie` driver they end on the browser's next request instead.
+    |
+    | `remember_tokens` — Laravel's remember-me cookie is per user, not per
+    | session: `subject` (default) cycles it when a logout ends every session
+    | of a person, `always` also for a single-session logout, `never` leaves
+    | it alone.
+    |
+    */
+
+    'backchannel_logout' => [
+        'enabled' => (bool) env('CBOX_ID_BACKCHANNEL_LOGOUT', false),
+        'path' => env('CBOX_ID_BACKCHANNEL_LOGOUT_PATH', '/cbox-id/backchannel-logout'),
+        'cache_store' => env('CBOX_ID_BACKCHANNEL_LOGOUT_CACHE'),
+        'max_age' => (int) env('CBOX_ID_BACKCHANNEL_LOGOUT_MAX_AGE', 300),
+        'destroy_sessions' => true,
+        'remember_tokens' => env('CBOX_ID_BACKCHANNEL_LOGOUT_REMEMBER_TOKENS', 'subject'),
+    ],
 
     /*
      * The path of the hosted account / profile page on the Cbox ID instance that
      * `profileUrl()` / `redirectToProfile()` send a signed-in user to (self-service
      * password, MFA, passkeys, sessions). A `return_to` is appended so the page can
      * offer a link back to your app.
+     *
+     * `/account` is the person's own account area. (Before 0.13 this defaulted to
+     * `/settings`, which on Cbox ID is the ORGANIZATION's settings page.)
      */
-    'account_path' => '/settings',
+    'account_path' => env('CBOX_ID_ACCOUNT_PATH', '/account'),
 
     /*
      * HTTP timeout (seconds) for back-channel calls, and how long the discovery
@@ -105,6 +239,13 @@ return [
         'roles' => [
             // ['key' => 'billing-admin', 'name' => 'Billing Admin', 'description' => 'Full billing access',
             //     'permissions' => ['invoices:create', 'invoices:read']],
+            //
+            // A STAFF role — yours, not your customers': `tenant_assignable => false` keeps it
+            // out of every organization's role picker; it can only be granted
+            // environment-wide (CboxIdManagement::grantEnvironmentRole()). Strictly a
+            // boolean — anything else refuses the whole manifest.
+            // ['key' => 'support', 'name' => 'Support', 'tenant_assignable' => false,
+            //     'permissions' => ['invoices:read', 'support:impersonate']],
         ],
     ],
 

@@ -43,9 +43,16 @@ $href = CboxId::profileUrl(returnTo: route('dashboard'));
 
 ## Where it points
 
-The target is `{issuer}{account_path}`, where `account_path` defaults to `/settings`
-(see [Configuration](../getting-started/configuration.md)). Change `account_path`
-only if your deployment serves its hosted profile at a different path.
+The target is `{issuer}{account_path}`, where `account_path` defaults to `/account` — the
+person's own account area (see [Configuration](../getting-started/configuration.md)).
+Change it (`CBOX_ID_ACCOUNT_PATH`) only if your deployment serves it elsewhere. Before
+0.13 the default was `/settings`, which on Cbox ID is the organization's settings page.
+
+## API keys for your API
+
+`CboxId::apiKeysUrl()` links to the hosted page under the same account area where a
+person creates and revokes API keys for your app — see
+[Multi-tenant apps](multi-tenant-apps.md#7-your-customers-api-keys).
 
 ## Scope note
 

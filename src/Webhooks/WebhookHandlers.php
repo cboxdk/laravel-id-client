@@ -25,9 +25,9 @@ class WebhookHandlers
     /**
      * @param  callable(WebhookEvent): void  $handler
      */
-    public function on(string $eventType, callable $handler): void
+    public function on(EventType|string $eventType, callable $handler): void
     {
-        $this->handlers[$eventType][] = $handler;
+        $this->handlers[$eventType instanceof EventType ? $eventType->value : $eventType][] = $handler;
     }
 
     /**

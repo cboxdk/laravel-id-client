@@ -4,15 +4,24 @@ declare(strict_types=1);
 
 namespace Cbox\Id\Client\ValueObjects;
 
+use Cbox\Id\Client\Concerns\ReadsAuthorizationClaims;
+use Cbox\Id\Client\Contracts\Principal;
+use Cbox\Id\Client\Exceptions\OrganizationRequired;
+
 /**
  * An access token whose signature, issuer and audience have been checked.
  *
  * Only ever constructed by {@see AccessTokenVerifier}. Holding one is the proof —
  * there is no path that produces one from an unverified string, which is what keeps
  * "did anyone check this?" from becoming a question anywhere downstream.
+ *
+ * The tenancy questions — `organization()`, `permissions()`, `hasPermission()`,
+ * `actor()` — are answered from the signed claims, so they carry the same proof.
  */
-readonly class VerifiedToken
+readonly class VerifiedToken implements Principal
 {
+    use ReadsAuthorizationClaims;
+
     /**
      * @param  list<string>  $scopes
      * @param  array<string, mixed>  $entitlements  coarse, Claims-mode only
@@ -31,6 +40,11 @@ readonly class VerifiedToken
         public array $claims,
     ) {}
 
+    public function subjectId(): string
+    {
+        return $this->subject;
+    }
+
     public function hasScope(string $scope): bool
     {
         return in_array($scope, $this->scopes, true);
@@ -43,10 +57,15 @@ readonly class VerifiedToken
      * a multi-tenant resource server that reads it as "any organization" has just
      * built a cross-tenant hole. Callers that need a tenant should ask for one here
      * rather than reaching for the nullable property and forgetting the null.
+     *
+     * The refusal is {@see OrganizationRequired}: a 403 with a reason when it goes
+     * uncaught. It was a bare RuntimeException, which every application rendered as a
+     * 500 — reporting the caller's situation as this server's fault.
+     *
+     * @throws OrganizationRequired
      */
     public function organizationOrFail(): string
     {
-        return $this->organizationId
-            ?? throw new \RuntimeException('This token acts for no organization; it cannot be used for tenant-scoped work.');
+        return $this->organizationId ?? throw OrganizationRequired::forToken();
     }
 }
