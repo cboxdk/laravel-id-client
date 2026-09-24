@@ -9,8 +9,9 @@ use Cbox\Id\Client\Support\Claims;
 use DateTimeImmutable;
 
 /**
- * A person's membership of an organization. `role` is the built-in tier; null when the
- * instance reported a tier this SDK does not know.
+ * A person's membership of an organization. Address it by `userId`; `membershipId` is
+ * the membership's own id. `role` is the built-in tier (null for one this SDK does not
+ * know); `status` is `active`, `invited` or `suspended`.
  */
 readonly class Member
 {
@@ -26,6 +27,7 @@ readonly class Member
         public ?string $status = null,
         public ?DateTimeImmutable $joinedAt = null,
         public array $attributes = [],
+        public ?string $membershipId = null,
     ) {}
 
     /** @param array<string, mixed> $data */
@@ -34,7 +36,7 @@ readonly class Member
         $role = Claims::string($data, 'role');
 
         return new self(
-            userId: Claims::string($data, 'user_id') ?? Claims::requiredString($data, 'id'),
+            userId: Claims::requiredString($data, 'user_id'),
             role: $role !== null ? OrganizationRole::tryFrom($role) : null,
             organizationId: Claims::string($data, 'organization_id'),
             email: Claims::string($data, 'email'),
@@ -42,6 +44,7 @@ readonly class Member
             status: Claims::string($data, 'status'),
             joinedAt: Claims::time($data, 'joined_at') ?? Claims::time($data, 'created_at'),
             attributes: $data,
+            membershipId: Claims::string($data, 'id'),
         );
     }
 }

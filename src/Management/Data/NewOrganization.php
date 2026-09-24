@@ -6,7 +6,10 @@ namespace Cbox\Id\Client\Management\Data;
 
 /**
  * `POST /v1/organizations`. Name `ownerUserId` to create the organization WITH its Owner
- * in one call — an organization nobody owns is one nobody can administer.
+ * in one call — an organization nobody owns is one nobody can administer. `slug` is
+ * derived from the name when left out; send your own if you retry creates, so a retry is
+ * a recognisable `422 slug_taken` rather than a second organization. `type` is
+ * `customer` (default) or `reseller`.
  */
 readonly class NewOrganization
 {
@@ -15,6 +18,7 @@ readonly class NewOrganization
         public ?string $slug = null,
         public ?string $parentId = null,
         public ?string $ownerUserId = null,
+        public ?string $type = null,
     ) {}
 
     /** @return array<string, string> */
@@ -25,6 +29,7 @@ readonly class NewOrganization
             'slug' => $this->slug,
             'parent_id' => $this->parentId,
             'owner_user_id' => $this->ownerUserId,
+            'type' => $this->type,
         ], static fn (?string $v): bool => $v !== null);
     }
 }

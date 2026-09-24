@@ -114,7 +114,7 @@ the server.
 ```php
 use Cbox\Id\Client\Facades\CboxIdManagement;
 use Cbox\Id\Client\Management\Data\{NewOrganization, NewInvitation};
-use Cbox\Id\Client\Enums\OrganizationRole;
+use Cbox\Id\Client\Enums\AssignableMemberRole;
 
 // Sign-up: the organization and its Owner in one call.
 $org = CboxIdManagement::createOrganization(new NewOrganization(
@@ -125,18 +125,27 @@ $org = CboxIdManagement::createOrganization(new NewOrganization(
 // Invite a colleague with your app's roles, and bring them back to your app after.
 CboxIdManagement::invite($org->id, new NewInvitation(
     email: 'ada@example.com',
-    role: OrganizationRole::Member,
-    roles: ['editor'],
+    role: AssignableMemberRole::Member,          // admin or member — never owner
+    roles: ['editor'],                           // your manifest keys, with clientId
     returnTo: route('welcome'),
     clientId: config('cbox-id-client.client_id'),
+    inviterName: $request->user()->name,
 ));
 
-CboxIdManagement::assignRole($org->id, $userId, $roleId);
-CboxIdManagement::transferOwnership($org->id, $newOwnerId);
+// A role by id — or by your manifest key plus the app that declared it.
+CboxIdManagement::assignRole($org->id, $userId, 'editor', config('cbox-id-client.client_id'));
+
+// Ownership only ever moves; the previous owner stays on as admin.
+CboxIdManagement::transferOwnership($org->id, $newOwnerId);   // organizations:write
 ```
 
-Every method names the scope it needs (`organizations:write`, `members:write`,
-`invitations:write`, `roles:write`, …). Refusals are typed: `ResourceNotFound`,
+Every method names the scope it needs (`organizations:write` — which also covers
+ownership transfer — `members:write`, `invitations:write`, `roles:write`, …). A few
+answers worth knowing: `resendInvitation()` returns a NEW invitation whose id replaces
+the old one; `archiveOrganization()` archives (status `deleted`) rather than erases;
+`updateApi()` with `scopes` replaces the whole set, and `unlinkClient: true` detaches the
+API from its app. The request and response shapes are checked against Cbox ID's own
+OpenAPI document in this package's test suite. Refusals are typed: `ResourceNotFound`,
 `ValidationFailed` (with `$e->errors` per field) or `ManagementApiException` with the
 stable `$e->error` code and `isForbidden()` / `isRateLimited()`.
 
@@ -179,15 +188,20 @@ billing operations, trust & safety. Declare them in your manifest as staff-only:
 
 and publish (`php artisan cbox-id:publish-manifest`). A staff role is:
 
-- **never offered or accepted inside an organization** — a customer's admin cannot hand
-  it out, and the management API refuses to assign it there;
+- **never offered to a customer** — an organization's own administrators, invitations
+  and directory mappings cannot hand it out. Your backend, with the environment's
+  authority, still can: `assignRole()` may grant a staff role at one customer (your
+  support lead at a key account);
 - **held environment-wide** — granted to a person across the whole environment rather
   than in one organization:
 
   ```php
-  CboxIdManagement::grantEnvironmentRole($staffUserId, $supportRoleId);
-  CboxIdManagement::hasEnvironmentRole($staffUserId, $supportRoleId);
-  CboxIdManagement::revokeEnvironmentRole($staffUserId, $supportRoleId);
+  $app = config('cbox-id-client.client_id');
+
+  CboxIdManagement::grantEnvironmentRole($staffUserId, 'support', $app);   // by manifest key
+  CboxIdManagement::hasEnvironmentRole($staffUserId, 'support', $app);
+  CboxIdManagement::environmentRoles($staffUserId);                       // everything they hold
+  CboxIdManagement::revokeEnvironmentRole($staffUserId, 'support', $app);
   ```
 
 - **per app** — a role your app declared, granted environment-wide, shows up only in
@@ -203,17 +217,26 @@ else's, so `hasPermission('support:impersonate')` and `@can` work unchanged.
 
 ### Support sessions
 
-A staff member holding your app's `support:impersonate` permission can start a support
-session for a customer — reason required, an hour at most, no refresh token, audited on
-both sides:
+A staff member holding your app's `support:impersonate` permission through an
+environment-wide grant can sign in to your app AS a customer's user — reason required
+(shown to the customer), an hour at most, no refresh token, audited on both sides. Send
+a registered `redirectUri` and a PKCE challenge to get the first authorization code back:
 
 ```php
 use Cbox\Id\Client\Management\Data\NewSupportSession;
 
-CboxIdManagement::startSupportSession(new NewSupportSession(
-    userId: $customerId, organizationId: $orgId, clientId: config('cbox-id-client.client_id'),
+$verifier = bin2hex(random_bytes(32));
+$session = CboxIdManagement::startSupportSession(new NewSupportSession(
+    userId: $customerId,
+    organizationId: $orgId,
+    clientId: config('cbox-id-client.client_id'),
+    actorUserId: $staff->cbox_id,
     reason: 'Ticket #4711: invoice totals look wrong',
+    redirectUri: route('auth.callback'),
+    codeChallenge: rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '='),
 ));
+
+// $session->code — redeem it at the token endpoint with $verifier and the redirect URI.
 ```
 
 Tokens minted for it carry the `act` claim. Show it, and refuse what support must never

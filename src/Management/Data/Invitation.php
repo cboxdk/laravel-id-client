@@ -8,10 +8,14 @@ use Cbox\Id\Client\Enums\OrganizationRole;
 use Cbox\Id\Client\Support\Claims;
 use DateTimeImmutable;
 
+/**
+ * An invitation to an organization. `roles` are the ids of the access roles granted when
+ * it is accepted. A re-send replaces it with a NEW invitation — a new `id`.
+ */
 readonly class Invitation
 {
     /**
-     * @param  list<string>  $roles  app roles granted on acceptance
+     * @param  list<string>  $roles
      * @param  array<string, mixed>  $attributes
      */
     public function __construct(
@@ -25,6 +29,7 @@ readonly class Invitation
         public ?string $clientId = null,
         public ?DateTimeImmutable $expiresAt = null,
         public array $attributes = [],
+        public ?DateTimeImmutable $invitedAt = null,
     ) {}
 
     /** @param array<string, mixed> $data */
@@ -43,6 +48,7 @@ readonly class Invitation
             clientId: Claims::string($data, 'client_id'),
             expiresAt: Claims::time($data, 'expires_at'),
             attributes: $data,
+            invitedAt: Claims::time($data, 'invited_at'),
         );
     }
 }

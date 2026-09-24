@@ -4,31 +4,36 @@ declare(strict_types=1);
 
 namespace Cbox\Id\Client\Management\Data;
 
-use Cbox\Id\Client\Contracts\Principal;
 use Cbox\Id\Client\Support\Claims;
 use DateTimeImmutable;
 
 /**
- * A support session: a member of staff acting as a customer in one app, for a stated
- * reason, for at most an hour. Tokens minted for it carry `act` (see
- * {@see Principal::actor()}) and no refresh token.
+ * A support session: a member of staff (`actorId`) signed in to one app AS a customer's
+ * user, for a stated reason, for at most an hour. Every token carries
+ * `act: {"sub": actorId}` and there is never a refresh token.
  *
- * `url` is where to send the member of staff to start it, when Cbox ID returns one.
+ * `code` is the first authorization code — present when the request sent `redirectUri`
+ * and a PKCE `codeChallenge`, and shown once. Redeem it at the token endpoint with the
+ * verifier and `redirectUri`.
  */
 readonly class SupportSession
 {
     /**
+     * @param  list<string>  $scopes
      * @param  array<string, mixed>  $attributes
      */
     public function __construct(
         public string $id,
-        public ?string $userId = null,
-        public ?string $organizationId = null,
-        public ?string $clientId = null,
-        public ?string $actorSubject = null,
-        public ?string $reason = null,
-        public ?string $url = null,
+        public string $userId,
+        public string $organizationId,
+        public string $clientId,
+        public string $actorId,
+        public string $reason,
+        public array $scopes = [],
         public ?DateTimeImmutable $expiresAt = null,
+        #[\SensitiveParameter]
+        public ?string $code = null,
+        public ?string $redirectUri = null,
         public array $attributes = [],
     ) {}
 
@@ -37,13 +42,15 @@ readonly class SupportSession
     {
         return new self(
             id: Claims::requiredString($data, 'id'),
-            userId: Claims::string($data, 'user_id'),
-            organizationId: Claims::string($data, 'organization_id'),
-            clientId: Claims::string($data, 'client_id'),
-            actorSubject: Claims::string($data, 'actor_id') ?? Claims::string(Claims::object($data, 'act'), 'sub'),
-            reason: Claims::string($data, 'reason'),
-            url: Claims::string($data, 'url'),
+            userId: Claims::requiredString($data, 'user_id'),
+            organizationId: Claims::requiredString($data, 'organization_id'),
+            clientId: Claims::requiredString($data, 'client_id'),
+            actorId: Claims::string($data, 'actor_id') ?? Claims::requiredString(Claims::object($data, 'act'), 'sub'),
+            reason: Claims::requiredString($data, 'reason'),
+            scopes: Claims::strings($data, 'scopes'),
             expiresAt: Claims::time($data, 'expires_at'),
+            code: Claims::string($data, 'code'),
+            redirectUri: Claims::string($data, 'redirect_uri'),
             attributes: $data,
         );
     }

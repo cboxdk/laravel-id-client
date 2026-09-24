@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cbox\Id\Client\Management\Data;
 
 use Cbox\Id\Client\Support\Claims;
+use DateTimeImmutable;
 
 /**
  * An API (resource server) registered in this environment.
@@ -27,6 +28,7 @@ readonly class Api
         public ?string $clientId = null,
         public array $scopes = [],
         public array $attributes = [],
+        public ?DateTimeImmutable $createdAt = null,
     ) {}
 
     /** @param array<string, mixed> $data */
@@ -40,6 +42,7 @@ readonly class Api
             clientId: Claims::string($data, 'client_id'),
             scopes: array_map(ApiScope::fromArray(...), Claims::objects($data, 'scopes')),
             attributes: $data,
+            createdAt: Claims::time($data, 'created_at'),
         );
     }
 }

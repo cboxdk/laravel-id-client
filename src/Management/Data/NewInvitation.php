@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 namespace Cbox\Id\Client\Management\Data;
 
-use Cbox\Id\Client\Enums\OrganizationRole;
+use Cbox\Id\Client\Enums\AssignableMemberRole;
 
 /**
  * `POST /v1/organizations/{id}/invitations`.
  *
- * `roles` are YOUR app's manifest roles, granted when the invitation is accepted, on top
- * of the built-in tier in `role`. `returnTo` sends the person back to your app after
- * accepting; Cbox ID validates it against the inviting app's registered redirect
- * origins, so name `clientId` (your app) when you set it.
+ * - `role` — `admin` or `member`; never `owner` (ownership moves by transfer).
+ * - `roles` — access roles granted on acceptance: role ids, or YOUR app's manifest keys
+ *   when `clientId` names the app that declared them. A staff role is refused here; grant
+ *   it after they join.
+ * - `clientId` + `returnTo` — after accepting, the person is sent to `returnTo`, which must
+ *   be on one of that app's registered redirect-URI origins.
+ * - `inviterName` — who the mail says it is from (defaults to the app's or environment's name).
  */
 readonly class NewInvitation
 {
@@ -21,10 +24,11 @@ readonly class NewInvitation
      */
     public function __construct(
         public string $email,
-        public OrganizationRole $role = OrganizationRole::Member,
+        public AssignableMemberRole $role = AssignableMemberRole::Member,
         public array $roles = [],
         public ?string $returnTo = null,
         public ?string $clientId = null,
+        public ?string $inviterName = null,
     ) {}
 
     /** @return array<string, mixed> */
@@ -36,6 +40,7 @@ readonly class NewInvitation
             'roles' => $this->roles,
             'return_to' => $this->returnTo,
             'client_id' => $this->clientId,
+            'inviter_name' => $this->inviterName,
         ], static fn (mixed $v): bool => $v !== null && $v !== []);
     }
 }

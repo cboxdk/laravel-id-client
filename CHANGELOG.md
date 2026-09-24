@@ -29,9 +29,10 @@ The tenancy and authorization layer: what every consuming app was writing by han
 - **`refresh()`** — the refresh-token grant, with the JavaScript SDK's behaviour.
 - **Environment management client** (`Contracts\Management`, `CboxIdManagement`):
   organizations, members, ownership transfer, invitations with roles and `return_to`,
-  role assignments, environment (staff) roles, apps and blueprints, APIs, API keys and
-  support sessions — typed request and response objects, typed errors
-  (`ManagementApiException`, `ResourceNotFound`, `ValidationFailed`).
+  role assignments (by id, or manifest key + client id), environment (staff) roles, apps
+  and blueprints, APIs, API keys and support sessions — typed request and response
+  objects, typed errors (`ManagementApiException`, `ResourceNotFound`,
+  `ValidationFailed`), and a contract test against cbox-id's OpenAPI document.
 - **Customer API keys**: `CboxId::verifyApiKey()` against `POST /oauth/api-keys/verify`,
   briefly cached (`CBOX_ID_API_KEY_CACHE_TTL`), and the `cbox-id.api-key` middleware.
 - **`CboxId::fake()`**: `actingAs()`, `signIn()`, real signed `token()`s, an in-memory

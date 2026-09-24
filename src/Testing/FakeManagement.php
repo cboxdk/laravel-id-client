@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Cbox\Id\Client\Testing;
 
 use Cbox\Id\Client\Contracts\Management;
+use Cbox\Id\Client\Enums\ApiKeyStatus;
+use Cbox\Id\Client\Enums\AssignableMemberRole;
 use Cbox\Id\Client\Enums\OrganizationRole;
 use Cbox\Id\Client\Exceptions\ManagementApiException;
 use Cbox\Id\Client\Exceptions\ResourceNotFound;
@@ -27,6 +29,7 @@ use Cbox\Id\Client\Management\Data\Role;
 use Cbox\Id\Client\Management\Data\RoleAssignment;
 use Cbox\Id\Client\Management\Data\SupportSession;
 use Closure;
+use DateTimeImmutable;
 use PHPUnit\Framework\Assert;
 
 /**
@@ -164,12 +167,12 @@ class FakeManagement implements Management
         );
     }
 
-    public function archiveOrganization(string $organizationId): void
+    public function archiveOrganization(string $organizationId): Organization
     {
         $this->record(__FUNCTION__, [$organizationId]);
         $current = $this->findOrganization($organizationId);
 
-        $this->organizations[$organizationId] = new Organization($current->id, $current->name, $current->slug, $current->type, 'archived', $current->parentId);
+        return $this->organizations[$organizationId] = new Organization($current->id, $current->name, $current->slug, $current->type, 'deleted', $current->parentId);
     }
 
     public function members(string $organizationId, ?string $after = null, int $limit = 50): Page
@@ -179,19 +182,19 @@ class FakeManagement implements Management
         return new Page(array_values($this->members[$organizationId] ?? []));
     }
 
-    public function addMember(string $organizationId, string $userId, OrganizationRole $role = OrganizationRole::Member): Member
+    public function addMember(string $organizationId, string $userId, AssignableMemberRole $role = AssignableMemberRole::Member): Member
     {
         $this->record(__FUNCTION__, [$organizationId, $userId, $role]);
 
-        return $this->members[$organizationId][$userId] = new Member($userId, $role, $organizationId);
+        return $this->members[$organizationId][$userId] = new Member($userId, $role->toOrganizationRole(), $organizationId, status: 'active');
     }
 
-    public function updateMember(string $organizationId, string $userId, OrganizationRole $role): Member
+    public function updateMember(string $organizationId, string $userId, AssignableMemberRole $role): Member
     {
         $this->record(__FUNCTION__, [$organizationId, $userId, $role]);
         $this->findMember($organizationId, $userId);
 
-        return $this->members[$organizationId][$userId] = new Member($userId, $role, $organizationId);
+        return $this->members[$organizationId][$userId] = new Member($userId, $role->toOrganizationRole(), $organizationId, status: 'active');
     }
 
     public function removeMember(string $organizationId, string $userId): void
@@ -202,7 +205,7 @@ class FakeManagement implements Management
         unset($this->members[$organizationId][$userId]);
     }
 
-    public function transferOwnership(string $organizationId, string $userId): void
+    public function transferOwnership(string $organizationId, string $userId): Member
     {
         $this->record(__FUNCTION__, [$organizationId, $userId]);
         $this->findMember($organizationId, $userId);
@@ -213,7 +216,7 @@ class FakeManagement implements Management
             }
         }
 
-        $this->members[$organizationId][$userId] = new Member($userId, OrganizationRole::Owner, $organizationId);
+        return $this->members[$organizationId][$userId] = new Member($userId, OrganizationRole::Owner, $organizationId, status: 'active');
     }
 
     public function invitations(string $organizationId, ?string $after = null, int $limit = 50): Page
@@ -230,7 +233,7 @@ class FakeManagement implements Management
         $created = new Invitation(
             id: $this->id('inv'),
             email: $invitation->email,
-            role: $invitation->role,
+            role: $invitation->role->toOrganizationRole(),
             roles: $invitation->roles,
             organizationId: $organizationId,
             status: 'pending',
@@ -249,10 +252,16 @@ class FakeManagement implements Management
         unset($this->invitations[$organizationId][$invitationId]);
     }
 
-    public function resendInvitation(string $organizationId, string $invitationId): void
+    public function resendInvitation(string $organizationId, string $invitationId): Invitation
     {
         $this->record(__FUNCTION__, [$organizationId, $invitationId]);
-        $this->findInvitation($organizationId, $invitationId);
+        $old = $this->findInvitation($organizationId, $invitationId);
+        unset($this->invitations[$organizationId][$invitationId]);
+
+        // A fresh link is a NEW invitation: the old id stops working, as on the server.
+        $new = new Invitation($this->id('inv'), $old->email, $old->role, $old->roles, $organizationId, 'pending', $old->returnTo, $old->clientId);
+
+        return $this->invitations[$organizationId][$new->id] = $new;
     }
 
     public function memberRoles(string $organizationId, string $userId): array
@@ -260,57 +269,70 @@ class FakeManagement implements Management
         $this->record(__FUNCTION__, [$organizationId, $userId]);
 
         return array_map(
-            fn (string $roleId): RoleAssignment => new RoleAssignment($roleId, $this->roles[$roleId]->key ?? null, $this->roles[$roleId]->name ?? null, $organizationId, $userId),
+            fn (string $roleId): RoleAssignment => $this->assignment($roleId, $userId, $organizationId),
             $this->assignments[$organizationId.'|'.$userId] ?? [],
         );
     }
 
-    public function assignRole(string $organizationId, string $userId, string $roleId): void
+    public function assignRole(string $organizationId, string $userId, string $roleId, ?string $clientId = null): RoleAssignment
     {
-        $this->record(__FUNCTION__, [$organizationId, $userId, $roleId]);
+        $this->record(__FUNCTION__, [$organizationId, $userId, $roleId, $clientId]);
+        $role = $this->resolveRole($roleId, $clientId);
         $key = $organizationId.'|'.$userId;
 
-        if (! in_array($roleId, $this->assignments[$key] ?? [], true)) {
-            $this->assignments[$key][] = $roleId;
+        if (! in_array($role, $this->assignments[$key] ?? [], true)) {
+            $this->assignments[$key][] = $role;
         }
+
+        return $this->assignment($role, $userId, $organizationId);
     }
 
-    public function unassignRole(string $organizationId, string $userId, string $roleId): void
+    public function unassignRole(string $organizationId, string $userId, string $roleId, ?string $clientId = null): void
     {
-        $this->record(__FUNCTION__, [$organizationId, $userId, $roleId]);
+        $this->record(__FUNCTION__, [$organizationId, $userId, $roleId, $clientId]);
         $key = $organizationId.'|'.$userId;
 
-        $this->assignments[$key] = array_values(array_diff($this->assignments[$key] ?? [], [$roleId]));
+        $this->assignments[$key] = array_values(array_diff($this->assignments[$key] ?? [], [$this->resolveRole($roleId, $clientId)]));
     }
 
-    public function roles(): array
+    public function roles(?string $clientId = null, ?string $organizationId = null): array
     {
-        $this->record(__FUNCTION__, []);
+        $this->record(__FUNCTION__, [$clientId, $organizationId]);
 
-        return array_values($this->roles);
+        return array_values(array_filter($this->roles, static fn (Role $r): bool => $clientId === null || $r->clientId === $clientId));
     }
 
-    public function hasEnvironmentRole(string $userId, string $roleId): bool
+    public function environmentRoles(string $userId): array
     {
-        $this->record(__FUNCTION__, [$userId, $roleId]);
+        $this->record(__FUNCTION__, [$userId]);
 
-        return in_array($roleId, $this->environmentRoles[$userId] ?? [], true);
+        return array_map(fn (string $roleId): RoleAssignment => $this->assignment($roleId, $userId, null), $this->environmentRoles[$userId] ?? []);
     }
 
-    public function grantEnvironmentRole(string $userId, string $roleId): void
+    public function hasEnvironmentRole(string $userId, string $roleId, ?string $clientId = null): bool
     {
-        $this->record(__FUNCTION__, [$userId, $roleId]);
+        $this->record(__FUNCTION__, [$userId, $roleId, $clientId]);
 
-        if (! in_array($roleId, $this->environmentRoles[$userId] ?? [], true)) {
-            $this->environmentRoles[$userId][] = $roleId;
+        return in_array($this->resolveRole($roleId, $clientId), $this->environmentRoles[$userId] ?? [], true);
+    }
+
+    public function grantEnvironmentRole(string $userId, string $roleId, ?string $clientId = null): RoleAssignment
+    {
+        $this->record(__FUNCTION__, [$userId, $roleId, $clientId]);
+        $role = $this->resolveRole($roleId, $clientId);
+
+        if (! in_array($role, $this->environmentRoles[$userId] ?? [], true)) {
+            $this->environmentRoles[$userId][] = $role;
         }
+
+        return $this->assignment($role, $userId, null);
     }
 
-    public function revokeEnvironmentRole(string $userId, string $roleId): void
+    public function revokeEnvironmentRole(string $userId, string $roleId, ?string $clientId = null): void
     {
-        $this->record(__FUNCTION__, [$userId, $roleId]);
+        $this->record(__FUNCTION__, [$userId, $roleId, $clientId]);
 
-        $this->environmentRoles[$userId] = array_values(array_diff($this->environmentRoles[$userId] ?? [], [$roleId]));
+        $this->environmentRoles[$userId] = array_values(array_diff($this->environmentRoles[$userId] ?? [], [$this->resolveRole($roleId, $clientId)]));
     }
 
     public function apps(?string $after = null, int $limit = 50): Page
@@ -324,8 +346,10 @@ class FakeManagement implements Management
     {
         $this->record(__FUNCTION__, [$app]);
         $id = $this->id('cid');
+        $blueprintName = $app->blueprint !== null ? ($app->blueprint->document['name'] ?? null) : null;
+        $name = $app->name ?? (is_string($blueprintName) ? $blueprintName : 'App');
 
-        return $this->apps[$id] = new App($id, $id, $app->name, $app->type, $app->redirectUris, 'csec_fake_'.$id);
+        return $this->apps[$id] = new App($id, $id, $name, $app->type, $app->redirectUris, 'csec_fake_'.$id, organizationId: $app->organizationId);
     }
 
     public function appBlueprint(string $appId): AppBlueprint
@@ -333,7 +357,7 @@ class FakeManagement implements Management
         $this->record(__FUNCTION__, [$appId]);
         $app = $this->apps[$appId] ?? throw $this->notFound('App');
 
-        return new AppBlueprint($appId, ['name' => $app->name, 'type' => $app->type, 'redirect_uris' => $app->redirectUris]);
+        return new AppBlueprint($appId, ['kind' => 'cbox-id.client-blueprint', 'version' => 1, 'name' => $app->name, 'client_type' => $app->clientType ?? 'confidential', 'redirect_uris' => $app->redirectUris]);
     }
 
     public function apis(?string $after = null, int $limit = 50): Page
@@ -341,6 +365,13 @@ class FakeManagement implements Management
         $this->record(__FUNCTION__, [$after, $limit]);
 
         return new Page(array_values($this->apis));
+    }
+
+    public function api(string $apiId): Api
+    {
+        $this->record(__FUNCTION__, [$apiId]);
+
+        return $this->apis[$apiId] ?? throw $this->notFound('API');
     }
 
     public function createApi(NewApi $api): Api
@@ -361,7 +392,7 @@ class FakeManagement implements Management
             $current->identifier,
             $changes->name ?? $current->name,
             $current->organizationId,
-            $changes->clientId ?? $current->clientId,
+            $changes->unlinkClient ? null : ($changes->clientId ?? $current->clientId),
             $changes->scopes ?? $current->scopes,
         );
     }
@@ -377,11 +408,12 @@ class FakeManagement implements Management
         unset($this->apis[$apiId]);
     }
 
-    public function apiKeys(string $organizationId, ?string $after = null, int $limit = 50): Page
+    public function apiKeys(string $organizationId, ?string $after = null, int $limit = 50, ?string $clientId = null): Page
     {
-        $this->record(__FUNCTION__, [$organizationId, $after, $limit]);
+        $this->record(__FUNCTION__, [$organizationId, $after, $limit, $clientId]);
 
-        return new Page(array_values(array_filter($this->apiKeys, static fn (ApiKey $k): bool => $k->organizationId === $organizationId)));
+        return new Page(array_values(array_filter($this->apiKeys, static fn (ApiKey $k): bool => $k->organizationId === $organizationId
+            && ($clientId === null || $k->clientId === $clientId))));
     }
 
     public function revokeApiKey(string $apiKeyId): void
@@ -389,21 +421,26 @@ class FakeManagement implements Management
         $this->record(__FUNCTION__, [$apiKeyId]);
         $key = $this->apiKeys[$apiKeyId] ?? throw $this->notFound('API key');
 
-        $this->apiKeys[$apiKeyId] = new ApiKey($key->id, $key->name, $key->prefix, $key->organizationId, $key->userId, $key->clientId, $key->permissions, $key->createdAt, $key->expiresAt, $key->lastUsedAt, true);
+        $this->apiKeys[$apiKeyId] = new ApiKey($key->id, $key->name, $key->prefix, $key->organizationId, $key->userId, $key->clientId, $key->permissions, $key->createdAt, $key->expiresAt, $key->lastUsedAt, true, status: ApiKeyStatus::Revoked, revokedAt: new DateTimeImmutable);
     }
 
     public function startSupportSession(NewSupportSession $session): SupportSession
     {
         $this->record(__FUNCTION__, [$session]);
 
+        $withCode = $session->redirectUri !== null && $session->codeChallenge !== null;
+
         return new SupportSession(
             id: $this->id('sup'),
             userId: $session->userId,
             organizationId: $session->organizationId,
             clientId: $session->clientId,
-            actorSubject: $session->actorUserId,
+            actorId: $session->actorUserId,
             reason: $session->reason,
-            expiresAt: (new \DateTimeImmutable)->modify('+'.min(60, $session->ttlMinutes ?? 60).' minutes'),
+            scopes: $session->scopes,
+            expiresAt: (new DateTimeImmutable)->modify('+'.min(60, $session->ttlMinutes ?? 60).' minutes'),
+            code: $withCode ? 'code_fake_'.bin2hex(random_bytes(8)) : null,
+            redirectUri: $withCode ? $session->redirectUri : null,
         );
     }
 
@@ -471,14 +508,14 @@ class FakeManagement implements Management
             && ($organizationId === null || $args[0] === $organizationId));
     }
 
-    public function assertMemberAdded(string $organizationId, string $userId, ?OrganizationRole $role = null): void
+    public function assertMemberAdded(string $organizationId, string $userId, ?AssignableMemberRole $role = null): void
     {
         $this->assertCalled('addMember', static fn (array $args): bool => $args[0] === $organizationId && $args[1] === $userId && ($role === null || $args[2] === $role));
     }
 
-    public function assertRoleAssigned(string $organizationId, string $userId, string $roleId): void
+    public function assertRoleAssigned(string $organizationId, string $userId, string $roleId, ?string $clientId = null): void
     {
-        $this->assertCalled('assignRole', static fn (array $args): bool => $args === [$organizationId, $userId, $roleId]);
+        $this->assertCalled('assignRole', static fn (array $args): bool => $args === [$organizationId, $userId, $roleId, $clientId]);
     }
 
     public function assertApiKeyRevoked(string $apiKeyId): void
@@ -505,6 +542,25 @@ class FakeManagement implements Management
 
             throw $exception;
         }
+    }
+
+    /** A role id, or a manifest key with its app — resolved to a seeded role's id when one matches. */
+    private function resolveRole(string $roleId, ?string $clientId): string
+    {
+        foreach ($this->roles as $role) {
+            if ($role->id === $roleId || ($clientId !== null && $role->key === $roleId && $role->clientId === $clientId)) {
+                return $role->id;
+            }
+        }
+
+        return $roleId;
+    }
+
+    private function assignment(string $roleId, string $userId, ?string $organizationId): RoleAssignment
+    {
+        $role = $this->roles[$roleId] ?? null;
+
+        return new RoleAssignment($roleId, $role?->key, $role?->name, $organizationId, $userId, [], $role?->clientId, $role->tenantAssignable ?? true, 'manual');
     }
 
     private function findOrganization(string $id): Organization

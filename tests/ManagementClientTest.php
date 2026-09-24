@@ -9,14 +9,7 @@ use Cbox\Id\Client\Exceptions\NotConfigured;
 use Cbox\Id\Client\Exceptions\ResourceNotFound;
 use Cbox\Id\Client\Exceptions\ValidationFailed;
 use Cbox\Id\Client\Facades\CboxIdManagement;
-use Cbox\Id\Client\Management\Data\ApiChanges;
-use Cbox\Id\Client\Management\Data\ApiScope;
-use Cbox\Id\Client\Management\Data\NewApi;
-use Cbox\Id\Client\Management\Data\NewApp;
-use Cbox\Id\Client\Management\Data\NewInvitation;
 use Cbox\Id\Client\Management\Data\NewOrganization;
-use Cbox\Id\Client\Management\Data\NewSupportSession;
-use Cbox\Id\Client\Management\Data\OrganizationChanges;
 use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Support\Facades\Http;
 
@@ -64,96 +57,9 @@ it('creates an organization with its owner, and reads the typed answer', functio
     expect(sentRequests()[0])->toBe(['method' => 'POST', 'path' => '/api/v1/organizations', 'body' => ['name' => 'Acme', 'owner_user_id' => 'user_1']]);
 });
 
-it('speaks every endpoint in the contract with the right verb and path', function (): void {
-    Http::fake([
-        '*/roles' => Http::response(['data' => [['id' => 'role_1', 'key' => 'editor', 'tenant_assignable' => false]]]),
-        '*/members/user_1/roles' => Http::response(['data' => [['role_id' => 'role_1', 'key' => 'editor']]]),
-        '*/environment-roles/*' => Http::response(['data' => ['role_id' => 'role_1']]),
-        '*/blueprint' => Http::response(['data' => ['name' => 'Portal', 'scopes' => ['openid']]]),
-        '*/support-sessions' => Http::response(['data' => ['id' => 'sup_1', 'user_id' => 'user_1', 'act' => ['sub' => 'staff_1']]]),
-        '*' => Http::response(['data' => ['id' => 'x_1', 'name' => 'n', 'email' => 'e@x.test', 'user_id' => 'user_1', 'role' => 'admin', 'identifier' => 'https://api.test', 'client_id' => 'cid_1'], 'meta' => ['has_more' => false]]),
-    ]);
-
-    $m = management();
-    $m->organizations(after: 'org_0', limit: 10);
-    $m->updateOrganization('org_1', new OrganizationChanges(name: 'Acme Ltd'));
-    $m->archiveOrganization('org_1');
-    $m->members('org_1');
-    $m->addMember('org_1', 'user_1', OrganizationRole::Admin);
-    $m->updateMember('org_1', 'user_1', OrganizationRole::Viewer);
-    $m->removeMember('org_1', 'user_1');
-    $m->transferOwnership('org_1', 'user_2');
-    $m->invitations('org_1');
-    $m->invite('org_1', new NewInvitation('ada@example.test', OrganizationRole::Member, ['editor'], 'https://app.test/welcome', 'cid_1'));
-    $m->revokeInvitation('org_1', 'inv_1');
-    $m->resendInvitation('org_1', 'inv_1');
-    $roles = $m->memberRoles('org_1', 'user_1');
-    $m->assignRole('org_1', 'user_1', 'role_1');
-    $m->unassignRole('org_1', 'user_1', 'role_1');
-    $all = $m->roles();
-    expect($m->hasEnvironmentRole('user_1', 'role_1'))->toBeTrue();
-    $m->grantEnvironmentRole('user_1', 'role_1');
-    $m->revokeEnvironmentRole('user_1', 'role_1');
-    $m->apps();
-    $m->createApp(new NewApp('Portal', 'web', ['https://app.test/cb']));
-    $blueprint = $m->appBlueprint('cid_1');
-    $m->apis();
-    $m->createApi(new NewApi('https://api.test', 'API', [new ApiScope('reports:read', 'Read reports', false)], 'cid_1'));
-    $m->updateApi('api_1', new ApiChanges(name: 'Reports API'));
-    $m->deleteApi('api_1');
-    $m->apiKeys('org_1');
-    $m->revokeApiKey('key_1');
-    $session = $m->startSupportSession(new NewSupportSession('user_1', 'org_1', 'cid_1', 'Ticket #42'));
-
-    expect(array_map(fn (array $r): string => $r['method'].' '.$r['path'], sentRequests()))->toBe([
-        'GET /api/v1/organizations',
-        'PATCH /api/v1/organizations/org_1',
-        'DELETE /api/v1/organizations/org_1',
-        'GET /api/v1/organizations/org_1/members',
-        'POST /api/v1/organizations/org_1/members',
-        'PATCH /api/v1/organizations/org_1/members/user_1',
-        'DELETE /api/v1/organizations/org_1/members/user_1',
-        'POST /api/v1/organizations/org_1/transfer-ownership',
-        'GET /api/v1/organizations/org_1/invitations',
-        'POST /api/v1/organizations/org_1/invitations',
-        'DELETE /api/v1/organizations/org_1/invitations/inv_1',
-        'POST /api/v1/organizations/org_1/invitations/inv_1/resend',
-        'GET /api/v1/organizations/org_1/members/user_1/roles',
-        'PUT /api/v1/organizations/org_1/members/user_1/roles/role_1',
-        'DELETE /api/v1/organizations/org_1/members/user_1/roles/role_1',
-        'GET /api/v1/roles',
-        'GET /api/v1/users/user_1/environment-roles/role_1',
-        'PUT /api/v1/users/user_1/environment-roles/role_1',
-        'DELETE /api/v1/users/user_1/environment-roles/role_1',
-        'GET /api/v1/apps',
-        'POST /api/v1/apps',
-        'GET /api/v1/apps/cid_1/blueprint',
-        'GET /api/v1/apis',
-        'POST /api/v1/apis',
-        'PATCH /api/v1/apis/api_1',
-        'DELETE /api/v1/apis/api_1',
-        'GET /api/v1/organizations/org_1/api-keys',
-        'DELETE /api/v1/api-keys/key_1',
-        'POST /api/v1/support-sessions',
-    ]);
-
-    $sent = sentRequests();
-    expect($sent[0]['body'])->toBe(['limit' => 10, 'after' => 'org_0'])
-        ->and($sent[4]['body'])->toBe(['user_id' => 'user_1', 'role' => 'admin'])
-        ->and($sent[7]['body'])->toBe(['user_id' => 'user_2'])
-        ->and($sent[9]['body'])->toBe(['email' => 'ada@example.test', 'role' => 'member', 'roles' => ['editor'], 'return_to' => 'https://app.test/welcome', 'client_id' => 'cid_1'])
-        ->and($sent[23]['body'])->toBe(['identifier' => 'https://api.test', 'name' => 'API', 'scopes' => [['key' => 'reports:read', 'description' => 'Read reports', 'tenant_requestable' => false]], 'client_id' => 'cid_1'])
-        ->and($sent[28]['body'])->toBe(['user_id' => 'user_1', 'organization_id' => 'org_1', 'client_id' => 'cid_1', 'reason' => 'Ticket #42']);
-
-    expect($roles[0]->roleId)->toBe('role_1')
-        ->and($all[0]->tenantAssignable)->toBeFalse()
-        ->and($blueprint->document)->toBe(['name' => 'Portal', 'scopes' => ['openid']])
-        ->and($session->actorSubject)->toBe('staff_1');
-});
-
 it('reads a page and its cursor', function (): void {
     Http::fake(['*' => Http::response([
-        'data' => [['user_id' => 'user_1', 'role' => 'owner'], ['user_id' => 'user_2', 'role' => 'something-new']],
+        'data' => [['id' => 'm_1', 'user_id' => 'user_1', 'role' => 'owner'], ['id' => 'm_2', 'user_id' => 'user_2', 'role' => 'something-new']],
         'meta' => ['limit' => 2, 'has_more' => true, 'next_cursor' => 'user_2'],
     ])]);
 

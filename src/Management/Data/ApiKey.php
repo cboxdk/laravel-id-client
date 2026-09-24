@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Cbox\Id\Client\Management\Data;
 
+use Cbox\Id\Client\Enums\ApiKeyStatus;
 use Cbox\Id\Client\Support\Claims;
 use DateTimeImmutable;
 
 /**
  * A customer API key, as listed for an organization. Never the key itself — Cbox ID shows
- * that once, to the person who created it.
+ * that once, to the person who created it. Revoked and expired keys are listed too;
+ * `status` says which.
  */
 readonly class ApiKey
 {
@@ -30,11 +32,15 @@ readonly class ApiKey
         public ?DateTimeImmutable $lastUsedAt = null,
         public bool $revoked = false,
         public array $attributes = [],
+        public ?ApiKeyStatus $status = null,
+        public ?DateTimeImmutable $revokedAt = null,
     ) {}
 
     /** @param array<string, mixed> $data */
     public static function fromArray(array $data): self
     {
+        $status = Claims::string($data, 'status');
+
         return new self(
             id: Claims::requiredString($data, 'id'),
             name: Claims::string($data, 'name'),
@@ -48,6 +54,14 @@ readonly class ApiKey
             lastUsedAt: Claims::time($data, 'last_used_at'),
             revoked: Claims::bool($data, 'revoked') || Claims::time($data, 'revoked_at') !== null,
             attributes: $data,
+            status: $status !== null ? ApiKeyStatus::tryFrom($status) : null,
+            revokedAt: Claims::time($data, 'revoked_at'),
         );
+    }
+
+    /** Whether it still verifies — `status` when the instance sent it. */
+    public function isActive(): bool
+    {
+        return $this->status !== null ? $this->status === ApiKeyStatus::Active : ! $this->revoked;
     }
 }

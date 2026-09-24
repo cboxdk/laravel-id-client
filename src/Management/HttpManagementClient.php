@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Cbox\Id\Client\Management;
 
 use Cbox\Id\Client\Contracts\Management;
-use Cbox\Id\Client\Enums\OrganizationRole;
+use Cbox\Id\Client\Enums\AssignableMemberRole;
 use Cbox\Id\Client\Exceptions\ManagementApiException;
 use Cbox\Id\Client\Exceptions\NotConfigured;
 use Cbox\Id\Client\Exceptions\ResourceNotFound;
@@ -72,9 +72,9 @@ class HttpManagementClient implements Management
         return Organization::fromArray($this->data($this->send('patch', '/organizations/'.$this->id($organizationId), $changes->toArray())));
     }
 
-    public function archiveOrganization(string $organizationId): void
+    public function archiveOrganization(string $organizationId): Organization
     {
-        $this->send('delete', '/organizations/'.$this->id($organizationId));
+        return Organization::fromArray($this->data($this->send('delete', '/organizations/'.$this->id($organizationId))));
     }
 
     public function members(string $organizationId, ?string $after = null, int $limit = 50): Page
@@ -82,7 +82,7 @@ class HttpManagementClient implements Management
         return Page::fromResponse($this->get($this->org($organizationId).'/members', $this->cursor($after, $limit)), Member::fromArray(...));
     }
 
-    public function addMember(string $organizationId, string $userId, OrganizationRole $role = OrganizationRole::Member): Member
+    public function addMember(string $organizationId, string $userId, AssignableMemberRole $role = AssignableMemberRole::Member): Member
     {
         return Member::fromArray($this->data($this->send('post', $this->org($organizationId).'/members', [
             'user_id' => $userId,
@@ -90,7 +90,7 @@ class HttpManagementClient implements Management
         ])));
     }
 
-    public function updateMember(string $organizationId, string $userId, OrganizationRole $role): Member
+    public function updateMember(string $organizationId, string $userId, AssignableMemberRole $role): Member
     {
         return Member::fromArray($this->data($this->send('patch', $this->org($organizationId).'/members/'.$this->id($userId), [
             'role' => $role->value,
@@ -102,9 +102,9 @@ class HttpManagementClient implements Management
         $this->send('delete', $this->org($organizationId).'/members/'.$this->id($userId));
     }
 
-    public function transferOwnership(string $organizationId, string $userId): void
+    public function transferOwnership(string $organizationId, string $userId): Member
     {
-        $this->send('post', $this->org($organizationId).'/transfer-ownership', ['user_id' => $userId]);
+        return Member::fromArray($this->data($this->send('post', $this->org($organizationId).'/transfer-ownership', ['user_id' => $userId])));
     }
 
     public function invitations(string $organizationId, ?string $after = null, int $limit = 50): Page
@@ -122,9 +122,9 @@ class HttpManagementClient implements Management
         $this->send('delete', $this->org($organizationId).'/invitations/'.$this->id($invitationId));
     }
 
-    public function resendInvitation(string $organizationId, string $invitationId): void
+    public function resendInvitation(string $organizationId, string $invitationId): Invitation
     {
-        $this->send('post', $this->org($organizationId).'/invitations/'.$this->id($invitationId).'/resend');
+        return Invitation::fromArray($this->data($this->send('post', $this->org($organizationId).'/invitations/'.$this->id($invitationId).'/resend')));
     }
 
     public function memberRoles(string $organizationId, string $userId): array
@@ -135,25 +135,32 @@ class HttpManagementClient implements Management
         );
     }
 
-    public function assignRole(string $organizationId, string $userId, string $roleId): void
+    public function assignRole(string $organizationId, string $userId, string $roleId, ?string $clientId = null): RoleAssignment
     {
-        $this->send('put', $this->org($organizationId).'/members/'.$this->id($userId).'/roles/'.$this->id($roleId));
+        return RoleAssignment::fromArray($this->data($this->send('put', $this->memberRole($organizationId, $userId, $roleId), [], $this->roleQuery($clientId))));
     }
 
-    public function unassignRole(string $organizationId, string $userId, string $roleId): void
+    public function unassignRole(string $organizationId, string $userId, string $roleId, ?string $clientId = null): void
     {
-        $this->send('delete', $this->org($organizationId).'/members/'.$this->id($userId).'/roles/'.$this->id($roleId));
+        $this->send('delete', $this->memberRole($organizationId, $userId, $roleId), [], $this->roleQuery($clientId));
     }
 
-    public function roles(): array
+    public function roles(?string $clientId = null, ?string $organizationId = null): array
     {
-        return array_map(Role::fromArray(...), Claims::objects($this->get('/roles'), 'data'));
+        $query = array_filter(['client_id' => $clientId, 'organization_id' => $organizationId], static fn (?string $v): bool => $v !== null && $v !== '');
+
+        return array_map(Role::fromArray(...), Claims::objects($this->get('/roles', $query), 'data'));
     }
 
-    public function hasEnvironmentRole(string $userId, string $roleId): bool
+    public function environmentRoles(string $userId): array
+    {
+        return array_map(RoleAssignment::fromArray(...), Claims::objects($this->get('/users/'.$this->id($userId).'/environment-roles'), 'data'));
+    }
+
+    public function hasEnvironmentRole(string $userId, string $roleId, ?string $clientId = null): bool
     {
         try {
-            $this->get($this->environmentRole($userId, $roleId));
+            $this->get($this->environmentRole($userId, $roleId), $this->roleQuery($clientId));
         } catch (ResourceNotFound) {
             return false;
         }
@@ -161,14 +168,14 @@ class HttpManagementClient implements Management
         return true;
     }
 
-    public function grantEnvironmentRole(string $userId, string $roleId): void
+    public function grantEnvironmentRole(string $userId, string $roleId, ?string $clientId = null): RoleAssignment
     {
-        $this->send('put', $this->environmentRole($userId, $roleId));
+        return RoleAssignment::fromArray($this->data($this->send('put', $this->environmentRole($userId, $roleId), [], $this->roleQuery($clientId))));
     }
 
-    public function revokeEnvironmentRole(string $userId, string $roleId): void
+    public function revokeEnvironmentRole(string $userId, string $roleId, ?string $clientId = null): void
     {
-        $this->send('delete', $this->environmentRole($userId, $roleId));
+        $this->send('delete', $this->environmentRole($userId, $roleId), [], $this->roleQuery($clientId));
     }
 
     public function apps(?string $after = null, int $limit = 50): Page
@@ -191,6 +198,11 @@ class HttpManagementClient implements Management
         return Page::fromResponse($this->get('/apis', $this->cursor($after, $limit)), Api::fromArray(...));
     }
 
+    public function api(string $apiId): Api
+    {
+        return Api::fromArray($this->data($this->get('/apis/'.$this->id($apiId))));
+    }
+
     public function createApi(NewApi $api): Api
     {
         return Api::fromArray($this->data($this->send('post', '/apis', $api->toArray())));
@@ -206,9 +218,11 @@ class HttpManagementClient implements Management
         $this->send('delete', '/apis/'.$this->id($apiId));
     }
 
-    public function apiKeys(string $organizationId, ?string $after = null, int $limit = 50): Page
+    public function apiKeys(string $organizationId, ?string $after = null, int $limit = 50, ?string $clientId = null): Page
     {
-        return Page::fromResponse($this->get($this->org($organizationId).'/api-keys', $this->cursor($after, $limit)), ApiKey::fromArray(...));
+        $query = $this->cursor($after, $limit) + ($clientId !== null && $clientId !== '' ? ['client_id' => $clientId] : []);
+
+        return Page::fromResponse($this->get($this->org($organizationId).'/api-keys', $query), ApiKey::fromArray(...));
     }
 
     public function revokeApiKey(string $apiKeyId): void
@@ -232,9 +246,10 @@ class HttpManagementClient implements Management
 
     /**
      * @param  array<string, mixed>  $payload  JSON body, or the query string on a GET
+     * @param  array<string, string>  $query  query string for a write (e.g. `?client_id=`)
      * @return array<string, mixed>
      */
-    private function send(string $method, string $path, array $payload = []): array
+    private function send(string $method, string $path, array $payload = [], array $query = []): array
     {
         if ($this->key === '') {
             throw NotConfigured::key('management.key', 'call the environment management API');
@@ -245,7 +260,7 @@ class HttpManagementClient implements Management
         }
 
         $request = Http::withToken($this->key)->acceptJson()->asJson()->timeout($this->timeout);
-        $url = $this->baseUrl.$path;
+        $url = $this->baseUrl.$path.($query !== [] ? '?'.http_build_query($query) : '');
 
         try {
             /** @var Response $response */
@@ -293,6 +308,21 @@ class HttpManagementClient implements Management
     private function org(string $organizationId): string
     {
         return '/organizations/'.$this->id($organizationId);
+    }
+
+    private function memberRole(string $organizationId, string $userId, string $roleId): string
+    {
+        return $this->org($organizationId).'/members/'.$this->id($userId).'/roles/'.$this->id($roleId);
+    }
+
+    /**
+     * `{roleId}` may be a manifest key, named together with the app that declared it.
+     *
+     * @return array<string, string>
+     */
+    private function roleQuery(?string $clientId): array
+    {
+        return $clientId !== null && $clientId !== '' ? ['client_id' => $clientId] : [];
     }
 
     private function environmentRole(string $userId, string $roleId): string
