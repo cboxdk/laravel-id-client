@@ -3,7 +3,7 @@
 All notable changes to `cboxdk/laravel-id-client`. Earlier releases are described on
 their GitHub release pages.
 
-## Unreleased (0.13.0)
+## [0.13.0] - 2026-09-24
 
 The tenancy and authorization layer: what every consuming app was writing by hand.
 
