@@ -22,6 +22,8 @@ use Illuminate\Support\Facades\Facade;
  * @method static void forgetIdentity()
  * @method static \Cbox\Id\Client\ValueObjects\VerifiedApiKey verifyApiKey(string $key, list<string> $requiredPermissions = [])
  * @method static string profileUrl(?string $returnTo = null)
+ * @method static string apiKeysUrl(?string $clientId = null, ?string $returnTo = null, ?string $organization = null)
+ * @method static \Illuminate\Http\RedirectResponse redirectToApiKeys(?string $clientId = null, ?string $returnTo = null, ?string $organization = null)
  * @method static \Illuminate\Http\RedirectResponse redirectToProfile(?string $returnTo = null)
  * @method static string|null logoutUrl(?string $returnTo = null, ?string $idTokenHint = null)
  * @method static string machineToken(list<string> $scopes = [], ?string $resource = null)

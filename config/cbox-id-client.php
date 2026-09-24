@@ -209,8 +209,11 @@ return [
      * `profileUrl()` / `redirectToProfile()` send a signed-in user to (self-service
      * password, MFA, passkeys, sessions). A `return_to` is appended so the page can
      * offer a link back to your app.
+     *
+     * `/account` is the person's own account area. (Before 0.13 this defaulted to
+     * `/settings`, which on Cbox ID is the ORGANIZATION's settings page.)
      */
-    'account_path' => '/settings',
+    'account_path' => env('CBOX_ID_ACCOUNT_PATH', '/account'),
 
     /*
      * HTTP timeout (seconds) for back-channel calls, and how long the discovery

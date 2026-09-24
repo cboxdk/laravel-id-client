@@ -252,7 +252,16 @@ if (CboxId::principal()?->isSupportSession()) {
 ## 7. Your customers' API keys
 
 Your customers mint keys for **your** API in Cbox ID's hosted UI, each bound to your
-app, their organization and a subset of their permissions. Protect the API:
+app, their organization and a subset of their permissions. Link them there:
+
+```blade
+<a href="{{ CboxId::apiKeysUrl() }}">Manage API keys</a>
+{{-- apiKeysUrl(clientId: …, returnTo: …, organization: …) — defaults: this app, this page --}}
+```
+
+`apiKeysUrl()` opens `{issuer}/account/api-keys` with your app preselected and a link back
+to the page the person was on (shown only for an origin your app registered). Then protect
+the API:
 
 ```php
 Route::middleware('cbox-id.api-key:reports:read')->get('/v1/reports', ReportIndex::class);
@@ -265,7 +274,8 @@ long a revoked key keeps working; set 0 to ask every time. A dead key is a 401, 
 missing permission a 403, and an unreachable Cbox ID a **503** with `Retry-After` —
 never a 401, which would tell a customer to rotate a key that works.
 
-Outside a route: `CboxId::verifyApiKey($key, ['reports:read'])`.
+Outside a route: `CboxId::verifyApiKey($key, ['reports:read'])` — the other half of
+`CboxId::apiKeysUrl()`: one sends people to make keys, the other checks what they send.
 
 ## 8. Keeping permissions fresh
 

@@ -42,6 +42,8 @@ The tenancy and authorization layer: what every consuming app was writing by han
 - **Config**: `CBOX_ID_SCOPES`, `session.remember`, `authorization.gate`,
   `organizations.picker`, `management.key` / `management.url`, `api_keys.cache_ttl`.
 - `Exceptions\CboxIdException`, the base of everything the SDK throws.
+- `CboxId::apiKeysUrl()` / `redirectToApiKeys()` — the hosted page where a person makes
+  API keys for your app (`/account/api-keys`, this app preselected, a link back).
 - **Back-channel logout** (OIDC Back-Channel Logout 1.0, opt-in with
   `CBOX_ID_BACKCHANNEL_LOGOUT=true`): a receiver that validates logout tokens strictly
   (§2.6) and ends the matching local sessions — destroyed at once on database/redis/
@@ -52,6 +54,9 @@ The tenancy and authorization layer: what every consuming app was writing by han
   against the shared cross-SDK fixture.
 
 ### Fixed
+
+- `account_path` defaulted to `/settings`, the organization's settings page on Cbox ID;
+  it is now `/account`, the person's own area (`CBOX_ID_ACCOUNT_PATH`).
 
 - An empty issuer surfaced as Guzzle's "URI must include a scheme" 500. It is now
   `NotConfigured` — naming the key and its environment variable — rendered as a 503.

@@ -48,6 +48,14 @@ Nothing changes unless you set `CBOX_ID_BACKCHANNEL_LOGOUT=true`. Sessions remem
 0.12 carry no `sid` or sign-in time: they cannot be ended by `sid`, and a sign-out of the
 whole person ends them (unknown age counts as older).
 
+### `account_path` now defaults to `/account`
+
+`profileUrl()` / `redirectToProfile()` sent people to `{issuer}/settings`, which on Cbox
+ID is the **organization's** settings page, not their own account. The default is now
+`/account`. A published `config/cbox-id-client.php` still says `'account_path' =>
+'/settings'` — change it to `'/account'` (or `env('CBOX_ID_ACCOUNT_PATH', '/account')`).
+`apiKeysUrl()` builds on the same path.
+
 ### Published config files
 
 New keys have defaults and need nothing. To read scopes from `CBOX_ID_SCOPES`, replace

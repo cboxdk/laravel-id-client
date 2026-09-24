@@ -455,6 +455,35 @@ class IdentityClient
     }
 
     /**
+     * The URL of Cbox ID's hosted page where a person creates and revokes API keys for YOUR
+     * API — `{issuer}{account_path}/api-keys`.
+     *
+     * `clientId` preselects the app (default: this app); `returnTo` becomes a link back
+     * (default: the current URL) — Cbox ID shows it only for an origin that app
+     * registered; `organization` picks which of the person's organizations the key acts
+     * in. Keys made there are verified with {@see verifyApiKey()} / `cbox-id.api-key`.
+     */
+    public function apiKeysUrl(?string $clientId = null, ?string $returnTo = null, ?string $organization = null): string
+    {
+        $configured = $this->config['client_id'] ?? null;
+
+        $query = array_filter([
+            'client_id' => $clientId ?? (is_string($configured) ? $configured : null),
+            'return_to' => $returnTo ?? request()->fullUrl(),
+            'organization' => $organization,
+        ], static fn (?string $v): bool => $v !== null && $v !== '');
+
+        $url = rtrim($this->issuer(), '/').$this->accountPath().'/api-keys';
+
+        return $query === [] ? $url : $url.'?'.http_build_query($query);
+    }
+
+    public function redirectToApiKeys(?string $clientId = null, ?string $returnTo = null, ?string $organization = null): RedirectResponse
+    {
+        return new RedirectResponse($this->apiKeysUrl($clientId, $returnTo, $organization));
+    }
+
+    /**
      * The RP-initiated logout URL, or null when the instance advertises none.
      *
      * `client_id` is always sent, even without a `$returnTo`: Cbox ID validates
@@ -819,9 +848,9 @@ class IdentityClient
 
     private function accountPath(): string
     {
-        $path = $this->config['account_path'] ?? '/settings';
+        $path = $this->config['account_path'] ?? '/account';
 
-        return is_string($path) && $path !== '' ? '/'.ltrim($path, '/') : '/settings';
+        return is_string($path) && $path !== '' ? '/'.rtrim(ltrim($path, '/'), '/') : '/account';
     }
 
     /**
