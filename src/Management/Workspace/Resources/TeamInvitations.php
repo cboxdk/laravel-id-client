@@ -26,7 +26,7 @@ class TeamInvitations
      *
      * Requires scope `team:read` and the `read-members` capability. The team's invitations nobody has accepted yet, newest first (at most 100).
      *
-     * `GET /workspace/invitations` · action `team.invitations.list` · scope `team:read`
+     * `GET /workspace/invitations` · action `team.invitations.list` · scope `team:read` · danger: read
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -45,7 +45,7 @@ class TeamInvitations
      * working and the invitation gets a new `id`. At most once a minute per address
      * (`429`, `too_soon`). If the mail server refuses, the earlier invitation is kept (`503`).
      *
-     * `POST /workspace/invitations/{id}/resend` · action `team.invitations.resend` · scope `team:write`
+     * `POST /workspace/invitations/{id}/resend` · action `team.invitations.resend` · scope `team:write` · danger: write
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -62,7 +62,7 @@ class TeamInvitations
      *
      * Requires scope `team:write` and the `manage-members` capability. The link stops working. An invitation that is not pending in this workspace is a `404`.
      *
-     * `DELETE /workspace/invitations/{id}` · action `team.invitations.revoke` · scope `team:write`
+     * `DELETE /workspace/invitations/{id}` · action `team.invitations.revoke` · scope `team:write` · danger: destructive
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.

@@ -48,7 +48,7 @@ class Users
      *
      * Password is optional — omit it to create a passwordless identity the user completes via an invite/magic-link.
      *
-     * `POST /users` · action `users.create` · scope `users:write`
+     * `POST /users` · action `users.create` · scope `users:write` · danger: write
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -69,7 +69,7 @@ class Users
      * revoked, which reactivating them does not bring back. Returns the user in its new
      * `disabled` state. Idempotent. The console's "Deactivate" is this action.
      *
-     * `DELETE /users/{id}` · action `users.deactivate` · scope `users:write`
+     * `DELETE /users/{id}` · action `users.deactivate` · scope `users:write` · danger: destructive
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -99,7 +99,7 @@ class Users
     /**
      * Get a user
      *
-     * `GET /users/{id}` · action `users.get` · scope `users:read`
+     * `GET /users/{id}` · action `users.get` · scope `users:read` · danger: read
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -118,7 +118,7 @@ class Users
      * look for somebody: `email` (exactly that address, case-insensitive), `q` (a fragment
      * of the address or the name) and `status`. Filters combine.
      *
-     * `GET /users` · action `users.list` · scope `users:read`
+     * `GET /users` · action `users.list` · scope `users:read` · danger: read
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.

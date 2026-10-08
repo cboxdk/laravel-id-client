@@ -45,7 +45,7 @@ class Apps
      * no secret, no key set, no owning organization. `POST /apps` with it as `blueprint`
      * creates the same app in another environment.
      *
-     * `GET /apps/{id}/blueprint` · action `apps.blueprint` · scope `apps:read`
+     * `GET /apps/{id}/blueprint` · action `apps.blueprint` · scope `apps:read` · danger: read
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -142,7 +142,7 @@ class Apps
      *
      * Never a secret.
      *
-     * `GET /apps` · action `apps.list` · scope `apps:read`
+     * `GET /apps` · action `apps.list` · scope `apps:read` · danger: read
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.

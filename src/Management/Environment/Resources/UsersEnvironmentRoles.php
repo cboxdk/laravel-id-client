@@ -25,7 +25,7 @@ class UsersEnvironmentRoles
      *
      * `200` with the grant, or `404` when it is not held.
      *
-     * `GET /users/{id}/environment-roles/{role_id}` · action `users.environment_roles.get` · scope `roles:read`
+     * `GET /users/{id}/environment-roles/{role_id}` · action `users.environment_roles.get` · scope `roles:read` · danger: read
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -48,7 +48,7 @@ class UsersEnvironmentRoles
      * grant that would form a segregation-of-duties conflict in any organization the
      * person belongs to with `409 role_conflict`.
      *
-     * `PUT /users/{id}/environment-roles/{role_id}` · action `users.environment_roles.grant` · scope `roles:write`
+     * `PUT /users/{id}/environment-roles/{role_id}` · action `users.environment_roles.grant` · scope `roles:write` · danger: critical
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -64,7 +64,7 @@ class UsersEnvironmentRoles
     /**
      * List the roles a user holds everywhere (staff)
      *
-     * `GET /users/{id}/environment-roles` · action `users.environment_roles.list` · scope `roles:read`
+     * `GET /users/{id}/environment-roles` · action `users.environment_roles.list` · scope `roles:read` · danger: read
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -81,7 +81,7 @@ class UsersEnvironmentRoles
      *
      * Idempotent.
      *
-     * `DELETE /users/{id}/environment-roles/{role_id}` · action `users.environment_roles.revoke` · scope `roles:write`
+     * `DELETE /users/{id}/environment-roles/{role_id}` · action `users.environment_roles.revoke` · scope `roles:write` · danger: destructive
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.

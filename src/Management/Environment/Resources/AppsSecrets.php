@@ -28,7 +28,7 @@ class AppsSecrets
      * dates — never a secret. `expires_at` is set on one a rotation replaced, still working
      * through its overlap. An app holds a handful at most, so there is no page to turn.
      *
-     * `GET /apps/{id}/secrets` · action `apps.secrets.list` · scope `apps:read`
+     * `GET /apps/{id}/secrets` · action `apps.secrets.list` · scope `apps:read` · danger: read
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.

@@ -62,7 +62,7 @@ class SupportSessions
      * `apps.manifest`) is left out. Scopes of two registered APIs cannot be audienced to
      * one token and are refused before the session starts (`422 invalid_target`).
      *
-     * `POST /support-sessions` · action `support_sessions.start` · scope `support:write`
+     * `POST /support-sessions` · action `support_sessions.start` · scope `support:write` · danger: critical
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.

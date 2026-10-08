@@ -35,7 +35,7 @@ class MembersRoles
      * Refusals: `422 role_not_assignable` (another organization's role, or one from an app
      * this organization cannot use), `409 role_conflict` (segregation of duties).
      *
-     * `PUT /organizations/{organization_id}/members/{user_id}/roles/{role_id}` · action `members.roles.grant` · scope `roles:write`
+     * `PUT /organizations/{organization_id}/members/{user_id}/roles/{role_id}` · action `members.roles.grant` · scope `roles:write` · danger: write
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -55,7 +55,7 @@ class MembersRoles
      * everywhere in the environment (staff) are listed under
      * `/users/{id}/environment-roles`.
      *
-     * `GET /organizations/{organization_id}/members/{user_id}/roles` · action `members.roles.list` · scope `roles:read`
+     * `GET /organizations/{organization_id}/members/{user_id}/roles` · action `members.roles.list` · scope `roles:read` · danger: read
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -72,7 +72,7 @@ class MembersRoles
      *
      * Idempotent — a role the member does not hold is a 204 too.
      *
-     * `DELETE /organizations/{organization_id}/members/{user_id}/roles/{role_id}` · action `members.roles.revoke` · scope `roles:write`
+     * `DELETE /organizations/{organization_id}/members/{user_id}/roles/{role_id}` · action `members.roles.revoke` · scope `roles:write` · danger: destructive
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.

@@ -30,7 +30,7 @@ class Projects
      *
      * Stand up another independently-billed IdP product. Requires scope `projects:write` and the `manage-environments` capability (owner/admin/developer).
      *
-     * `POST /workspace/projects` · action `projects.create` · scope `projects:write`
+     * `POST /workspace/projects` · action `projects.create` · scope `projects:write` · danger: write
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -48,7 +48,7 @@ class Projects
      *
      * Requires scope `workspace:read` (any role). The workspace's projects (IdP products). Each carries its own plan and environment allowance.
      *
-     * `GET /workspace/projects` · action `projects.list` · scope `workspace:read`
+     * `GET /workspace/projects` · action `projects.list` · scope `workspace:read` · danger: read
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.

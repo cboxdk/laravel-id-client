@@ -58,7 +58,7 @@ class OrganizationsDomains
      * Verified or not, each with the DNS TXT record
      * that proves it (`record_name`, `record_value`). A handful at most; not paged.
      *
-     * `GET /organizations/{organization_id}/domains` · action `organizations.domains.list` · scope `organizations:read`
+     * `GET /organizations/{organization_id}/domains` · action `organizations.domains.list` · scope `organizations:read` · danger: read
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.

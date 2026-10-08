@@ -55,7 +55,7 @@ class Team
      * earlier pending invitation for the same address is superseded. List, re-send and
      * withdraw it under `/workspace/invitations`.
      *
-     * `POST /workspace/members` · action `team.invite` · scope `team:write`
+     * `POST /workspace/members` · action `team.invite` · scope `team:write` · danger: write
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -73,7 +73,7 @@ class Team
      *
      * Requires scope `team:read` and the `read-members` capability (owner/admin/viewer). The roster is PII — a developer key is refused.
      *
-     * `GET /workspace/members` · action `team.list` · scope `team:read`
+     * `GET /workspace/members` · action `team.list` · scope `team:read` · danger: read
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.

@@ -28,7 +28,7 @@ class ApiKeys
      * Revoked and expired keys are included, marked by
      * `status`. Never the key itself. Narrow to one app with `?client_id=`.
      *
-     * `GET /organizations/{organization_id}/api-keys` · action `api_keys.list` · scope `api_keys:read`
+     * `GET /organizations/{organization_id}/api-keys` · action `api_keys.list` · scope `api_keys:read` · danger: read
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -59,7 +59,7 @@ class ApiKeys
      * already-revoked key is a 204 too. Recorded as `api_key.revoked`, with this
      * management key as the actor.
      *
-     * `DELETE /api-keys/{id}` · action `api_keys.revoke` · scope `api_keys:write`
+     * `DELETE /api-keys/{id}` · action `api_keys.revoke` · scope `api_keys:write` · danger: destructive
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.

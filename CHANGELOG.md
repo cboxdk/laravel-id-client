@@ -5,6 +5,8 @@ their GitHub release pages.
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-10-08
+
 ### Added
 
 - **Typed management clients, generated from the server's OpenAPI documents** —

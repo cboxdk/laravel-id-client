@@ -27,7 +27,7 @@ class Invitations
      *
      * Pending and unexpired only.
      *
-     * `GET /organizations/{organization_id}/invitations` · action `invitations.list` · scope `invitations:read`
+     * `GET /organizations/{organization_id}/invitations` · action `invitations.list` · scope `invitations:read` · danger: read
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -62,7 +62,7 @@ class Invitations
      * One re-send per address per minute (`429 too_soon`); `409 not_pending` for one that
      * was accepted, withdrawn or has expired; `503 mail_failed` keeps the invitation.
      *
-     * `POST /organizations/{organization_id}/invitations/{invitation_id}/resend` · action `invitations.resend` · scope `invitations:write`
+     * `POST /organizations/{organization_id}/invitations/{invitation_id}/resend` · action `invitations.resend` · scope `invitations:write` · danger: write
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -80,7 +80,7 @@ class Invitations
      * The link stops working, and the roles parked
      * for it go with it. `409 not_pending` for one already accepted, withdrawn or expired.
      *
-     * `DELETE /organizations/{organization_id}/invitations/{invitation_id}` · action `invitations.revoke` · scope `invitations:write`
+     * `DELETE /organizations/{organization_id}/invitations/{invitation_id}` · action `invitations.revoke` · scope `invitations:write` · danger: destructive
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -115,7 +115,7 @@ class Invitations
      * `422 return_without_app`, `422 return_to_malformed`, `422 return_to_not_registered`,
      * `503 mail_failed` (nothing was created — retry).
      *
-     * `POST /organizations/{organization_id}/invitations` · action `invitations.send` · scope `invitations:write`
+     * `POST /organizations/{organization_id}/invitations` · action `invitations.send` · scope `invitations:write` · danger: write
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.

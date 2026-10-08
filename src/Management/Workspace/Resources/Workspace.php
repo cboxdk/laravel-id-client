@@ -30,7 +30,7 @@ class Workspace
      *
      * Requires scope `workspace:read` (any role). Returns the workspace's identity. The `projects` block (each project's plan/allowance) is included only for keys whose role can read billing (owner/admin/viewer — not developer).
      *
-     * `GET /workspace` · action `workspace.get` · scope `workspace:read`
+     * `GET /workspace` · action `workspace.get` · scope `workspace:read` · danger: read
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.

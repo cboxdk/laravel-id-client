@@ -46,7 +46,7 @@ class Members
      * existing membership. A member on a *different* role is `409 already_member` — change
      * the role with `PATCH`.
      *
-     * `POST /organizations/{organization_id}/members` · action `members.add` · scope `members:write`
+     * `POST /organizations/{organization_id}/members` · action `members.add` · scope `members:write` · danger: write
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -64,7 +64,7 @@ class Members
      *
      * Every membership, whatever its status, oldest first.
      *
-     * `GET /organizations/{organization_id}/members` · action `members.list` · scope `members:read`
+     * `GET /organizations/{organization_id}/members` · action `members.list` · scope `members:read` · danger: read
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -94,7 +94,7 @@ class Members
      * The member's roles in the organization go with the
      * membership. Removing the only owner is refused with `409 last_owner`.
      *
-     * `DELETE /organizations/{organization_id}/members/{user_id}` · action `members.remove` · scope `members:write`
+     * `DELETE /organizations/{organization_id}/members/{user_id}` · action `members.remove` · scope `members:write` · danger: destructive
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -112,7 +112,7 @@ class Members
      * `role` is `admin` or `member`. Demoting the only
      * owner is refused with `409 last_owner` — transfer ownership first.
      *
-     * `PATCH /organizations/{organization_id}/members/{user_id}` · action `members.update` · scope `members:write`
+     * `PATCH /organizations/{organization_id}/members/{user_id}` · action `members.update` · scope `members:write` · danger: write
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.

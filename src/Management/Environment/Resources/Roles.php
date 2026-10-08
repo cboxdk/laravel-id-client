@@ -79,7 +79,7 @@ class Roles
      * with the permissions each carries. Not paginated. `?client_id=` narrows to one
      * app's roles; `?organization_id=` to what can be granted in that organization.
      *
-     * `GET /roles` · action `roles.list` · scope `roles:read`
+     * `GET /roles` · action `roles.list` · scope `roles:read` · danger: read
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.

@@ -37,7 +37,7 @@ class Apis
      * `organization_id` makes the API one organization's; left out, the environment owns
      * it. Refusals are `422 invalid_api` with the reason.
      *
-     * `POST /apis` · scope `apis:write`
+     * `POST /apis` · action `apis.create` · scope `apis:write` · danger: write
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -56,7 +56,7 @@ class Apis
      * Tokens already minted for it keep their `aud` until they
      * expire; apps holding its scope keys keep them as plain scopes.
      *
-     * `DELETE /apis/{id}` · scope `apis:write`
+     * `DELETE /apis/{id}` · action `apis.delete` · scope `apis:write` · danger: destructive
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -71,7 +71,7 @@ class Apis
     /**
      * Get an API
      *
-     * `GET /apis/{id}` · scope `apis:read`
+     * `GET /apis/{id}` · action `apis.get` · scope `apis:read` · danger: read
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -86,7 +86,7 @@ class Apis
     /**
      * List registered APIs
      *
-     * `GET /apis` · scope `apis:read`
+     * `GET /apis` · action `apis.list` · scope `apis:read` · danger: read
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -118,7 +118,7 @@ class Apis
      * updated, scopes left out are removed. All or nothing. The identifier never changes:
      * register a new API instead.
      *
-     * `PATCH /apis/{id}` · scope `apis:write`
+     * `PATCH /apis/{id}` · action `apis.update` · scope `apis:write` · danger: write
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.

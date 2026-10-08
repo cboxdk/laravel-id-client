@@ -34,7 +34,7 @@ class Organizations
     /**
      * Create an organization, optionally with its owner
      *
-     * `POST /organizations` · action `organizations.create` · scope `organizations:write`
+     * `POST /organizations` · action `organizations.create` · scope `organizations:write` · danger: write
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -58,7 +58,7 @@ class Organizations
      * Refused with `409 owns_products` for an organization that owns identity-provider
      * projects on this platform (a platform customer, not a tenant of your app).
      *
-     * `DELETE /organizations/{id}` · action `organizations.delete` · scope `organizations:write`
+     * `DELETE /organizations/{id}` · action `organizations.delete` · scope `organizations:write` · danger: destructive
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -73,7 +73,7 @@ class Organizations
     /**
      * Get an organization
      *
-     * `GET /organizations/{id}` · action `organizations.get` · scope `organizations:read`
+     * `GET /organizations/{id}` · action `organizations.get` · scope `organizations:read` · danger: read
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -91,7 +91,7 @@ class Organizations
      * A page at a time, archived ones included. Narrow
      * with `q` (a fragment of the name or slug) or `status`.
      *
-     * `GET /organizations` · action `organizations.list` · scope `organizations:read`
+     * `GET /organizations` · action `organizations.list` · scope `organizations:read` · danger: read
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -156,7 +156,7 @@ class Organizations
      *
      * Refusals: `422 not_a_member`, `409 not_active`, `409 already_owner`.
      *
-     * `POST /organizations/{id}/transfer-ownership` · action `organizations.transfer_ownership` · scope `organizations:write`
+     * `POST /organizations/{id}/transfer-ownership` · action `organizations.transfer_ownership` · scope `organizations:write` · danger: critical
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -177,7 +177,7 @@ class Organizations
      * A change is announced as the `organization.updated` webhook and recorded on the
      * organization's trail as `organization.renamed`, with the values before and after.
      *
-     * `PATCH /organizations/{id}` · action `organizations.update` · scope `organizations:write`
+     * `PATCH /organizations/{id}` · action `organizations.update` · scope `organizations:write` · danger: write
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.

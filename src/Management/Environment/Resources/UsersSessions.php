@@ -27,7 +27,7 @@ class UsersSessions
      * recognise a device and end one (`DELETE /users/{id}/sessions/{session_id}`), not a log.
      * `impersonation` marks a session somebody else opened as this person.
      *
-     * `GET /users/{id}/sessions` · action `users.sessions.list` · scope `users:read`
+     * `GET /users/{id}/sessions` · action `users.sessions.list` · scope `users:read` · danger: read
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.

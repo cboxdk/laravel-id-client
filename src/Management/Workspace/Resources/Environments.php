@@ -57,7 +57,7 @@ class Environments
      *
      * Requires scope `workspace:read` (any role).
      *
-     * `GET /workspace/environments` · action `environments.list` · scope `workspace:read`
+     * `GET /workspace/environments` · action `environments.list` · scope `workspace:read` · danger: read
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
