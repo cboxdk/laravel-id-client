@@ -31,6 +31,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static array<string, mixed> introspect(string $token)
  * @method static void revoke(string $token, ?string $tokenTypeHint = null)
  * @method static bool verifyWebhook(string $payload, ?string $signatureHeader, string $secret, int $toleranceSeconds = 300)
+ * @method static bool verifyStandardWebhook(string $payload, array<array-key, mixed> $headers, string $secret, int $toleranceSeconds = 300)
  *
  * @see IdentityClient
  */

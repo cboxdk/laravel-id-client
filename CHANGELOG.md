@@ -34,14 +34,18 @@ their GitHub release pages.
   `EnvironmentClient` / `WorkspaceClient` / `AuditLogger` container bindings, the
   `ManagementApprovalRequired` event, and `management.workspace_key`, `root_url`, `retries`,
   `timeout`, `approval_poll_interval` config (`CBOX_ID_WORKSPACE_KEY`, `CBOX_ID_ROOT_URL`, …).
+- **Standard Webhooks verification**: `CboxId::verifyStandardWebhook()` and
+  `Webhooks\StandardWebhookSignature` (`verify()`, `sign()`, `secretFor()`), tested against
+  the specification's vector. The webhook receiver accepts deliveries signed either way with
+  the one configured secret (a hex Cbox secret is converted as Cbox ID converts it).
 - `composer generate` (`bin/generate-management`, with `--check` and `--fetch plane=url`)
-  and the four specs vendored in `openapi/` from cbox-id `integration/wave-6`. The suite fails
+  and the four specs vendored in `openapi/` from cbox-id `integration/wave-7`. The suite fails
   when the generated code is stale, and snapshots the generated surface.
 
 ### Changed
 
 - The existing environment management client's contract test now reads the vendored
-  `openapi/environment.yaml` (wave-6) instead of its own older copy.
+  `openapi/environment.yaml` (wave-7) instead of its own older copy.
 
 ## [0.13.0] - 2026-09-24
 

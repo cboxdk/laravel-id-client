@@ -233,6 +233,10 @@ $ok = CboxId::verifyWebhook(
 abort_unless($ok, 400);
 ```
 
+For an endpoint on the Standard Webhooks scheme (`signature_scheme: standard_webhooks`), use
+`CboxId::verifyStandardWebhook($request->getContent(), $request->headers->all(), $secret)`
+with its `whsec_…` secret. The built-in receiver accepts either scheme.
+
 ## Receive provisioning webhooks (outbound provisioning)
 
 Instead of standing up a SCIM server, register a hook and let the SDK verify and
