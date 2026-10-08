@@ -33,7 +33,7 @@ readonly class SsoConnection implements JsonSerializable
         public ?string $provider = null,
         /** false for a draft created with pending_idp whose identity-provider details are still missing. Activation refuses it. */
         public ?bool $complete = null,
-        /** What to paste into the identity provider: this connection's own entity id and ACS URL (SAML), or its redirect URI (OIDC). null for a social sign-in connection. */
+        /** What to paste into the identity provider: this connection's own entity id, ACS URL and SP metadata URL (SAML), or its redirect URI (OIDC). null for a social sign-in connection. */
         public ?SsoConnectionServiceProvider $serviceProvider = null,
         public ?string $createdAt = null,
         public ?string $updatedAt = null,

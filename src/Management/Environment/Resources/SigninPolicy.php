@@ -21,7 +21,7 @@ class SigninPolicy
     public function __construct(private readonly ManagementTransport $transport) {}
 
     /**
-     * Read the sign-in rules (password, MFA, SSO, lockout): the environment baseline, or one organization's effective rules and override.
+     * Read the authentication policy (password, MFA, SSO, lockout): the environment baseline, or one organization's effective rules and override.
      *
      * `GET /sign-in/policy` · action `signin.policy.get` · scope `signin:read` · danger: read
      *
@@ -37,7 +37,7 @@ class SigninPolicy
     }
 
     /**
-     * Drop one organization's sign-in rules override, so it inherits the environment baseline again.
+     * Drop one organization's authentication policy override, so it inherits the environment baseline again.
      *
      * `DELETE /sign-in/policy/organizations/{organization_id}` · action `signin.policy.inherit` · scope `signin:write` · danger: critical
      *
@@ -52,7 +52,7 @@ class SigninPolicy
     }
 
     /**
-     * Change the sign-in rules of the environment baseline, or tighten one organization's override. Requiring SSO signs out password sessions.
+     * Change the authentication policy of the environment baseline, or tighten one organization's override. Requiring SSO signs out password sessions.
      *
      * `PATCH /sign-in/policy` · action `signin.policy.update` · scope `signin:write` · danger: critical
      *

@@ -8,6 +8,7 @@ namespace Cbox\Id\Client\Management\Environment\Resources;
 
 use Cbox\Id\Client\Management\Environment\Operations;
 use Cbox\Id\Client\Management\Environment\Schemas\LegacyLogin as LegacyLoginSchema;
+use Cbox\Id\Client\Management\Environment\Schemas\LegacyLoginProbe;
 use Cbox\Id\Client\Management\Transport\ApiResponse;
 use Cbox\Id\Client\Management\Transport\CallOptions;
 use Cbox\Id\Client\Management\Transport\ManagementTransport;
@@ -59,11 +60,11 @@ class LegacyLogin
      * `$options` is `CallOptions::returnPendingApproval()`.
      *
      * @param  array{email: string}  $body
-     * @return ($options is ReturnPendingApproval ? ApiResponse<array<string, mixed>>|PendingApprovalResult<ApiResponse<array<string, mixed>>> : ApiResponse<array<string, mixed>>)
+     * @return ($options is ReturnPendingApproval ? ApiResponse<LegacyLoginProbe>|PendingApprovalResult<ApiResponse<LegacyLoginProbe>> : ApiResponse<LegacyLoginProbe>)
      */
     public function probe(array $body, ?CallOptions $options = null): ApiResponse|PendingApprovalResult
     {
-        return $this->transport->call(Operations::spec('legacy_login.probe'), [], $body, $options, Value::object(...));
+        return $this->transport->call(Operations::spec('legacy_login.probe'), [], $body, $options, Value::dto(LegacyLoginProbe::fromArray(...)));
     }
 
     /**

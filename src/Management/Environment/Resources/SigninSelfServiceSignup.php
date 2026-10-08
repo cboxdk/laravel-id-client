@@ -7,6 +7,7 @@ declare(strict_types=1);
 namespace Cbox\Id\Client\Management\Environment\Resources;
 
 use Cbox\Id\Client\Management\Environment\Operations;
+use Cbox\Id\Client\Management\Environment\Schemas\SelfServiceSignup;
 use Cbox\Id\Client\Management\Transport\ApiResponse;
 use Cbox\Id\Client\Management\Transport\CallOptions;
 use Cbox\Id\Client\Management\Transport\ManagementTransport;
@@ -28,10 +29,10 @@ class SigninSelfServiceSignup
      * `$options` is `CallOptions::returnPendingApproval()`.
      *
      * @param  array{enabled: bool}  $body
-     * @return ($options is ReturnPendingApproval ? ApiResponse<array<string, mixed>>|PendingApprovalResult<ApiResponse<array<string, mixed>>> : ApiResponse<array<string, mixed>>)
+     * @return ($options is ReturnPendingApproval ? ApiResponse<SelfServiceSignup>|PendingApprovalResult<ApiResponse<SelfServiceSignup>> : ApiResponse<SelfServiceSignup>)
      */
     public function set(array $body, ?CallOptions $options = null): ApiResponse|PendingApprovalResult
     {
-        return $this->transport->call(Operations::spec('signin.self_service_signup.set'), [], $body, $options, Value::object(...));
+        return $this->transport->call(Operations::spec('signin.self_service_signup.set'), [], $body, $options, Value::dto(SelfServiceSignup::fromArray(...)));
     }
 }

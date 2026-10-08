@@ -23,7 +23,7 @@ class SamlApps
     public function __construct(private readonly ManagementTransport $transport) {}
 
     /**
-     * Register a SAML application that signs people in with their account here. Decides where assertions — and their attributes — are sent.
+     * Register a SAML app that signs people in with their account here. Decides where assertions — and their attributes — are sent.
      *
      * `POST /saml-apps` · action `saml_apps.create` · scope `saml_apps:write` · danger: critical
      *
@@ -39,7 +39,7 @@ class SamlApps
     }
 
     /**
-     * Remove a SAML application. People can no longer sign in to it with their account here.
+     * Remove a SAML app. People can no longer sign in to it with their account here.
      *
      * `DELETE /saml-apps/{id}` · action `saml_apps.delete` · scope `saml_apps:write` · danger: critical
      *
@@ -54,7 +54,7 @@ class SamlApps
     }
 
     /**
-     * Read one SAML application: its entity id, ACS URL, NameID and attribute mappings. Never its certificate.
+     * Read one SAML app: its entity id, ACS URL, NameID and attribute mappings. Never its certificate.
      *
      * `GET /saml-apps/{id}` · action `saml_apps.get` · scope `saml_apps:read` · danger: read
      *
@@ -69,7 +69,7 @@ class SamlApps
     }
 
     /**
-     * List the SAML applications that trust this environment as their identity provider.
+     * List the SAML apps that trust this environment as their identity provider.
      *
      * `GET /saml-apps` · action `saml_apps.list` · scope `saml_apps:read` · danger: read
      *
@@ -96,7 +96,7 @@ class SamlApps
     }
 
     /**
-     * Change a SAML application's entity id, ACS URL, NameID, attribute mappings, signing certificate or owning organization.
+     * Change a SAML app's entity id, ACS URL, NameID, attribute mappings, signing certificate or owning organization.
      *
      * `PATCH /saml-apps/{id}` · action `saml_apps.update` · scope `saml_apps:write` · danger: critical
      *

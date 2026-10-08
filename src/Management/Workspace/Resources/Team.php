@@ -49,7 +49,7 @@ class Team
      * Invite a member
      *
      * Requires scope `team:write` and the `manage-members` capability (owner/admin). Invites the address onto the
-     * organization's team — the same invitation the console's Team page sends: a mail naming
+     * workspace's team — the same invitation the console's Team page sends: a mail naming
      * this key as the inviter and the role, with a signed link on which the invitee sets a
      * password and is signed in. Owner is never invited; ownership is transferred. An
      * earlier pending invitation for the same address is superseded. List, re-send and
@@ -57,12 +57,15 @@ class Team
      *
      * `POST /workspace/members` · action `team.invite` · scope `team:write`
      *
+     * May be held for a person's approval (`202 approval_required`): waited on, unless
+     * `$options` is `CallOptions::returnPendingApproval()`.
+     *
      * @param  array{email: string, name?: string|null, role: 'admin'|'developer'|'member'|'viewer'}  $body
-     * @return ApiResponse<Member>
+     * @return ($options is ReturnPendingApproval ? ApiResponse<Member>|PendingApprovalResult<ApiResponse<Member>> : ApiResponse<Member>)
      */
-    public function invite(array $body, ?CallOptions $options = null): ApiResponse
+    public function invite(array $body, ?CallOptions $options = null): ApiResponse|PendingApprovalResult
     {
-        return $this->transport->callAndWait(Operations::spec('team.invite'), [], $body, $options, Value::dto(Member::fromArray(...)));
+        return $this->transport->call(Operations::spec('team.invite'), [], $body, $options, Value::dto(Member::fromArray(...)));
     }
 
     /**
@@ -72,12 +75,15 @@ class Team
      *
      * `GET /workspace/members` · action `team.list` · scope `team:read`
      *
+     * May be held for a person's approval (`202 approval_required`): waited on, unless
+     * `$options` is `CallOptions::returnPendingApproval()`.
+     *
      * @param  array{limit?: int, page?: int}  $query
-     * @return Page<Member>
+     * @return ($options is ReturnPendingApproval ? Page<Member>|PendingApprovalResult<Page<Member>> : Page<Member>)
      */
-    public function list(array $query = [], ?CallOptions $options = null): Page
+    public function list(array $query = [], ?CallOptions $options = null): Page|PendingApprovalResult
     {
-        return $this->transport->pageAndWait(Operations::spec('team.list'), [], $query, $options, Value::dto(Member::fromArray(...)));
+        return $this->transport->page(Operations::spec('team.list'), [], $query, $options, Value::dto(Member::fromArray(...)));
     }
 
     /**

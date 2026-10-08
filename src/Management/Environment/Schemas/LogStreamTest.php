@@ -15,9 +15,14 @@ readonly class LogStreamTest implements JsonSerializable
 {
     public function __construct(
         public string $id,
-        /** Whether the destination accepted the test entry. */
+        /** Whether the destination accepted the test event (action `siem.stream.test`). */
         public bool $delivered,
         public string $testedAt,
+        /**
+         * Why not: `transient` (unreachable, busy — retrying can help) or `authentication` / `configuration` (somebody has to fix the stream). null when delivered.
+         * One of `transient`, `authentication`, `configuration`.
+         */
+        public ?string $failure = null,
         /** The destination's refusal, scrubbed of the stream's secret. */
         public ?string $error = null,
     ) {}
@@ -29,6 +34,7 @@ readonly class LogStreamTest implements JsonSerializable
             id: Field::required($data, 'id', 'LogStreamTest', Value::string(...)),
             delivered: Field::required($data, 'delivered', 'LogStreamTest', Value::bool(...)),
             testedAt: Field::required($data, 'tested_at', 'LogStreamTest', Value::string(...)),
+            failure: Field::optional($data, 'failure', 'LogStreamTest', Value::string(...)),
             error: Field::optional($data, 'error', 'LogStreamTest', Value::string(...)),
         );
     }
@@ -39,6 +45,7 @@ readonly class LogStreamTest implements JsonSerializable
         return [
             'id' => $this->id,
             'delivered' => $this->delivered,
+            'failure' => $this->failure,
             'error' => $this->error,
             'tested_at' => $this->testedAt,
         ];

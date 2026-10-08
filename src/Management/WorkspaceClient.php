@@ -21,7 +21,7 @@ use Illuminate\Http\Client\Factory;
 /**
  * Cbox ID — Workspace Management API.
  *
- * The **global organization-management plane** — above every environment. Manage the
+ * The **workspace plane** — the customer's own Cbox account, above every environment it owns. Manage the
  * workspace, its **projects** (IdP products, each a billing anchor) and their
  * environments, its team, and its keys with a workspace key.
  *

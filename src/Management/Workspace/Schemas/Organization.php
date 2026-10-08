@@ -19,7 +19,7 @@ readonly class Organization implements JsonSerializable
         /** One of `active`, `suspended`. */
         public ?string $status = null,
         /**
-         * The organization's projects with each one's plan/allowance. Present only for billing-readers (plans are per project).
+         * The workspace's projects with each one's plan/allowance. Present only for billing-readers (plans are per project).
          *
          * @var list<Project>
          */

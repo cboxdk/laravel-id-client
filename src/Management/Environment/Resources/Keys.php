@@ -7,6 +7,7 @@ declare(strict_types=1);
 namespace Cbox\Id\Client\Management\Environment\Resources;
 
 use Cbox\Id\Client\Management\Environment\Operations;
+use Cbox\Id\Client\Management\Environment\Schemas\ManagementKey;
 use Cbox\Id\Client\Management\Transport\ApiResponse;
 use Cbox\Id\Client\Management\Transport\CallOptions;
 use Cbox\Id\Client\Management\Transport\ManagementTransport;
@@ -30,11 +31,11 @@ class Keys
      * `$options` is `CallOptions::returnPendingApproval()`.
      *
      * @param  array{name: string, scopes: list<string>, expires_at?: string|null, description?: string|null, require_approval?: array{min_danger?: 'write'|'destructive'|'critical'|null, actions?: list<string>}}  $body
-     * @return ($options is ReturnPendingApproval ? ApiResponse<array<string, mixed>>|PendingApprovalResult<ApiResponse<array<string, mixed>>> : ApiResponse<array<string, mixed>>)
+     * @return ($options is ReturnPendingApproval ? ApiResponse<ManagementKey>|PendingApprovalResult<ApiResponse<ManagementKey>> : ApiResponse<ManagementKey>)
      */
     public function create(array $body, ?CallOptions $options = null): ApiResponse|PendingApprovalResult
     {
-        return $this->transport->call(Operations::spec('keys.create'), [], $body, $options, Value::object(...));
+        return $this->transport->call(Operations::spec('keys.create'), [], $body, $options, Value::dto(ManagementKey::fromArray(...)));
     }
 
     /**
@@ -46,22 +47,22 @@ class Keys
      * `$options` is `CallOptions::returnPendingApproval()`.
      *
      * @param  array{limit?: int, after?: string}  $query
-     * @return ($options is ReturnPendingApproval ? Page<array<string, mixed>>|PendingApprovalResult<Page<array<string, mixed>>> : Page<array<string, mixed>>)
+     * @return ($options is ReturnPendingApproval ? Page<ManagementKey>|PendingApprovalResult<Page<ManagementKey>> : Page<ManagementKey>)
      */
     public function list(array $query = [], ?CallOptions $options = null): Page|PendingApprovalResult
     {
-        return $this->transport->page(Operations::spec('keys.list'), [], $query, $options, Value::object(...));
+        return $this->transport->page(Operations::spec('keys.list'), [], $query, $options, Value::dto(ManagementKey::fromArray(...)));
     }
 
     /**
      * Every item of `keys.list`, fetching pages lazily as the iteration reaches them — `after` is followed for you. An approval is always waited on.
      *
      * @param  array{limit?: int}  $query
-     * @return Generator<int, array<string, mixed>, mixed, void>
+     * @return Generator<int, ManagementKey, mixed, void>
      */
     public function listAll(array $query = [], ?CallOptions $options = null): Generator
     {
-        return $this->transport->paginate(Operations::spec('keys.list'), [], $query, $options, Value::object(...));
+        return $this->transport->paginate(Operations::spec('keys.list'), [], $query, $options, Value::dto(ManagementKey::fromArray(...)));
     }
 
     /**
@@ -88,10 +89,10 @@ class Keys
      * `$options` is `CallOptions::returnPendingApproval()`.
      *
      * @param  array{grace_hours?: int}  $body
-     * @return ($options is ReturnPendingApproval ? ApiResponse<array<string, mixed>>|PendingApprovalResult<ApiResponse<array<string, mixed>>> : ApiResponse<array<string, mixed>>)
+     * @return ($options is ReturnPendingApproval ? ApiResponse<ManagementKey>|PendingApprovalResult<ApiResponse<ManagementKey>> : ApiResponse<ManagementKey>)
      */
     public function rotate(string $id, array $body = [], ?CallOptions $options = null): ApiResponse|PendingApprovalResult
     {
-        return $this->transport->call(Operations::spec('keys.rotate'), [$id], $body, $options, Value::object(...));
+        return $this->transport->call(Operations::spec('keys.rotate'), [$id], $body, $options, Value::dto(ManagementKey::fromArray(...)));
     }
 }

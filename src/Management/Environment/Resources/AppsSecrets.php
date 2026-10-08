@@ -30,11 +30,14 @@ class AppsSecrets
      *
      * `GET /apps/{id}/secrets` · action `apps.secrets.list` · scope `apps:read`
      *
-     * @return ApiResponse<list<AppSecret>>
+     * May be held for a person's approval (`202 approval_required`): waited on, unless
+     * `$options` is `CallOptions::returnPendingApproval()`.
+     *
+     * @return ($options is ReturnPendingApproval ? ApiResponse<list<AppSecret>>|PendingApprovalResult<ApiResponse<list<AppSecret>>> : ApiResponse<list<AppSecret>>)
      */
-    public function list(string $id, ?CallOptions $options = null): ApiResponse
+    public function list(string $id, ?CallOptions $options = null): ApiResponse|PendingApprovalResult
     {
-        return $this->transport->callAndWait(Operations::spec('apps.secrets.list'), [$id], [], $options, Value::list(Value::dto(AppSecret::fromArray(...))));
+        return $this->transport->call(Operations::spec('apps.secrets.list'), [$id], [], $options, Value::list(Value::dto(AppSecret::fromArray(...))));
     }
 
     /**

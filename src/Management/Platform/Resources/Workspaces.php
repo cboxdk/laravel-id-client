@@ -22,7 +22,7 @@ class Workspaces
     public function __construct(private readonly ManagementTransport $transport) {}
 
     /**
-     * Create a customer workspace with its owner, first project and first environment; the owner is emailed a link to set their password.
+     * Create a workspace with its owner, first project and first environment; the owner is emailed a link to set their password.
      *
      * Requires scope `operator:workspaces:write` on an access token delegated by an active platform operator. No management key is accepted.
      *
@@ -40,7 +40,7 @@ class Workspaces
     }
 
     /**
-     * Suspend a customer workspace (its people can no longer sign in, its environments stop serving) or reactivate it.
+     * Suspend a workspace (its people can no longer sign in, its environments stop serving) or reactivate it.
      *
      * Requires scope `operator:workspaces:write` on an access token delegated by an active platform operator. No management key is accepted.
      *

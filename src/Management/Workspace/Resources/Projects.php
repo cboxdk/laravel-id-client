@@ -32,26 +32,32 @@ class Projects
      *
      * `POST /workspace/projects` · action `projects.create` · scope `projects:write`
      *
+     * May be held for a person's approval (`202 approval_required`): waited on, unless
+     * `$options` is `CallOptions::returnPendingApproval()`.
+     *
      * @param  array{name: string, environment_limit?: int}  $body
-     * @return ApiResponse<Project>
+     * @return ($options is ReturnPendingApproval ? ApiResponse<Project>|PendingApprovalResult<ApiResponse<Project>> : ApiResponse<Project>)
      */
-    public function create(array $body, ?CallOptions $options = null): ApiResponse
+    public function create(array $body, ?CallOptions $options = null): ApiResponse|PendingApprovalResult
     {
-        return $this->transport->callAndWait(Operations::spec('projects.create'), [], $body, $options, Value::dto(Project::fromArray(...)));
+        return $this->transport->call(Operations::spec('projects.create'), [], $body, $options, Value::dto(Project::fromArray(...)));
     }
 
     /**
      * List projects
      *
-     * Requires scope `workspace:read` (any role). The organization's projects (IdP products). Each carries its own plan and environment allowance.
+     * Requires scope `workspace:read` (any role). The workspace's projects (IdP products). Each carries its own plan and environment allowance.
      *
      * `GET /workspace/projects` · action `projects.list` · scope `workspace:read`
      *
-     * @return ApiResponse<list<Project>>
+     * May be held for a person's approval (`202 approval_required`): waited on, unless
+     * `$options` is `CallOptions::returnPendingApproval()`.
+     *
+     * @return ($options is ReturnPendingApproval ? ApiResponse<list<Project>>|PendingApprovalResult<ApiResponse<list<Project>>> : ApiResponse<list<Project>>)
      */
-    public function list(?CallOptions $options = null): ApiResponse
+    public function list(?CallOptions $options = null): ApiResponse|PendingApprovalResult
     {
-        return $this->transport->callAndWait(Operations::spec('projects.list'), [], [], $options, Value::list(Value::dto(Project::fromArray(...))));
+        return $this->transport->call(Operations::spec('projects.list'), [], [], $options, Value::list(Value::dto(Project::fromArray(...))));
     }
 
     /**

@@ -8,6 +8,7 @@ namespace Cbox\Id\Client\Management\Environment\Resources;
 
 use Cbox\Id\Client\Management\Environment\Operations;
 use Cbox\Id\Client\Management\Environment\Schemas\App;
+use Cbox\Id\Client\Management\Environment\Schemas\ManifestSync;
 use Cbox\Id\Client\Management\Transport\ApiResponse;
 use Cbox\Id\Client\Management\Transport\CallOptions;
 use Cbox\Id\Client\Management\Transport\ManagementTransport;
@@ -44,10 +45,10 @@ class AppsManifest
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
      *
-     * @return ($options is ReturnPendingApproval ? ApiResponse<array<string, mixed>>|PendingApprovalResult<ApiResponse<array<string, mixed>>> : ApiResponse<array<string, mixed>>)
+     * @return ($options is ReturnPendingApproval ? ApiResponse<ManifestSync>|PendingApprovalResult<ApiResponse<ManifestSync>> : ApiResponse<ManifestSync>)
      */
     public function sync(string $id, ?CallOptions $options = null): ApiResponse|PendingApprovalResult
     {
-        return $this->transport->call(Operations::spec('apps.manifest.sync'), [$id], [], $options, Value::object(...));
+        return $this->transport->call(Operations::spec('apps.manifest.sync'), [$id], [], $options, Value::dto(ManifestSync::fromArray(...)));
     }
 }

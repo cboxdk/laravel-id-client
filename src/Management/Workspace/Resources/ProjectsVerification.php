@@ -13,6 +13,7 @@ use Cbox\Id\Client\Management\Transport\PendingApprovalResult;
 use Cbox\Id\Client\Management\Transport\ReturnPendingApproval;
 use Cbox\Id\Client\Management\Transport\Value;
 use Cbox\Id\Client\Management\Workspace\Operations;
+use Cbox\Id\Client\Management\Workspace\Schemas\VerificationResend;
 
 /** `projects.verification.*` on the workspace plane. */
 class ProjectsVerification
@@ -29,10 +30,10 @@ class ProjectsVerification
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
      *
-     * @return ($options is ReturnPendingApproval ? ApiResponse<array<string, mixed>>|PendingApprovalResult<ApiResponse<array<string, mixed>>> : ApiResponse<array<string, mixed>>)
+     * @return ($options is ReturnPendingApproval ? ApiResponse<VerificationResend>|PendingApprovalResult<ApiResponse<VerificationResend>> : ApiResponse<VerificationResend>)
      */
     public function resend(?CallOptions $options = null): ApiResponse|PendingApprovalResult
     {
-        return $this->transport->call(Operations::spec('projects.verification.resend'), [], [], $options, Value::object(...));
+        return $this->transport->call(Operations::spec('projects.verification.resend'), [], [], $options, Value::dto(VerificationResend::fromArray(...)));
     }
 }

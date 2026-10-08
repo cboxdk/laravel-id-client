@@ -20,6 +20,15 @@ readonly class Webhook implements JsonSerializable
         public array $eventTypes,
         /** false while paused. */
         public bool $active,
+        /**
+         * How deliveries are signed. `cbox`: `X-Cbox-Timestamp` and
+         * `X-Cbox-Signature: t=<ts>,v1=<hex HMAC-SHA256 of "<ts>.<body>">`.
+         * `standard_webhooks`: `webhook-id`, `webhook-timestamp` and
+         * `webhook-signature: v1,<base64 HMAC-SHA256 of "<id>.<ts>.<body>">`, verifiable
+         * with any Standard Webhooks library. Only the chosen scheme's headers are sent.
+         * One of `cbox`, `standard_webhooks`.
+         */
+        public string $signatureScheme,
         /** null when the environment owns it: it receives EVERY organization's events. */
         public ?string $organizationId = null,
         public ?int $consecutiveFailures = null,
@@ -27,7 +36,8 @@ readonly class Webhook implements JsonSerializable
         public ?string $createdAt = null,
         /**
          * The signing secret, on the create and rotate answers only — shown once, never
-         * retrievable again. `null` on an idempotent replay of that answer.
+         * retrievable again. `null` on an idempotent replay of that answer. 64 hex
+         * characters under `cbox`; a `whsec_` secret under `standard_webhooks`.
          */
         public ?string $secret = null,
     ) {}
@@ -40,6 +50,7 @@ readonly class Webhook implements JsonSerializable
             url: Field::required($data, 'url', 'Webhook', Value::string(...)),
             eventTypes: Field::required($data, 'event_types', 'Webhook', Value::list(Value::string(...))),
             active: Field::required($data, 'active', 'Webhook', Value::bool(...)),
+            signatureScheme: Field::required($data, 'signature_scheme', 'Webhook', Value::string(...)),
             organizationId: Field::optional($data, 'organization_id', 'Webhook', Value::string(...)),
             consecutiveFailures: Field::optional($data, 'consecutive_failures', 'Webhook', Value::int(...)),
             lastSuccessAt: Field::optional($data, 'last_success_at', 'Webhook', Value::string(...)),
@@ -57,6 +68,7 @@ readonly class Webhook implements JsonSerializable
             'organization_id' => $this->organizationId,
             'event_types' => $this->eventTypes,
             'active' => $this->active,
+            'signature_scheme' => $this->signatureScheme,
             'consecutive_failures' => $this->consecutiveFailures,
             'last_success_at' => $this->lastSuccessAt,
             'created_at' => $this->createdAt,

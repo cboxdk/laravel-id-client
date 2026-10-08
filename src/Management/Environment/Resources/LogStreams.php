@@ -24,14 +24,14 @@ class LogStreams
     public function __construct(private readonly ManagementTransport $transport) {}
 
     /**
-     * Stream the audit trail to a SIEM (Splunk, Elastic, Graylog, CEF, JSON). A generated HMAC key is returned once.
+     * Stream the audit trail to a SIEM (Splunk, Elastic, Graylog, CEF, JSON), Datadog, or an S3 or GCS bucket. A generated HMAC key is returned once.
      *
      * `POST /log-streams` · action `log_streams.create` · scope `log_streams:write` · danger: critical
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
      *
-     * @param  array{name: string, destination: 'splunk_hec'|'elastic_ecs'|'graylog_gelf'|'cef_http'|'generic_json', endpoint_url: string, auth?: 'none'|'bearer'|'splunk'|'hmac', secret?: string|null, organization_id?: string|null, environment_wide?: bool}  $body
+     * @param  array{name: string, destination: 'splunk_hec'|'elastic_ecs'|'graylog_gelf'|'cef_http'|'generic_json'|'datadog'|'s3'|'gcs', endpoint_url?: string|null, auth?: 'none'|'bearer'|'splunk'|'hmac', secret?: string|null, options?: array{site?: 'datadoghq.com'|'us3.datadoghq.com'|'us5.datadoghq.com'|'datadoghq.eu'|'ap1.datadoghq.com'|'ap2.datadoghq.com'|'ddog-gov.com'|null, service?: string|null, source?: string|null, tags?: list<string>|null, hostname?: string|null, bucket?: string|null, region?: string|null, prefix?: string|null, access_key_id?: string|null, role_arn?: string|null, sse?: 'AES256'|'aws:kms'|null, kms_key_id?: string|null, path_style?: bool|null, gzip?: bool|null}, organization_id?: string|null, environment_wide?: bool}  $body
      * @return ($options is ReturnPendingApproval ? ApiResponse<LogStream>|PendingApprovalResult<ApiResponse<LogStream>> : ApiResponse<LogStream>)
      */
     public function create(array $body, ?CallOptions $options = null): ApiResponse|PendingApprovalResult
@@ -97,7 +97,7 @@ class LogStreams
     }
 
     /**
-     * Send one test entry to a log stream now and report whether the SIEM accepted it.
+     * Send one test event to a log stream now and report whether the destination accepted it, and if not, why.
      *
      * `POST /log-streams/{id}/test` · action `log_streams.test` · scope `log_streams:write` · danger: write
      *
@@ -112,17 +112,17 @@ class LogStreams
     }
 
     /**
-     * Disable (enabled: false) or resume (enabled: true) an audit log stream. Disabled, entries are kept and delivered on resume.
+     * Change an audit log stream's name, destination, endpoint, options or credential (re-validated; resets its circuit breaker), or disable (enabled: false) / resume (enabled: true) it.
      *
      * `PATCH /log-streams/{id}` · action `log_streams.update` · scope `log_streams:write` · danger: critical
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
      *
-     * @param  array{enabled: bool}  $body
+     * @param  array{name?: string, destination?: 'splunk_hec'|'elastic_ecs'|'graylog_gelf'|'cef_http'|'generic_json'|'datadog'|'s3'|'gcs', endpoint_url?: string|null, auth?: 'none'|'bearer'|'splunk'|'hmac', secret?: string|null, options?: array{site?: 'datadoghq.com'|'us3.datadoghq.com'|'us5.datadoghq.com'|'datadoghq.eu'|'ap1.datadoghq.com'|'ap2.datadoghq.com'|'ddog-gov.com'|null, service?: string|null, source?: string|null, tags?: list<string>|null, hostname?: string|null, bucket?: string|null, region?: string|null, prefix?: string|null, access_key_id?: string|null, role_arn?: string|null, sse?: 'AES256'|'aws:kms'|null, kms_key_id?: string|null, path_style?: bool|null, gzip?: bool|null}, enabled?: bool}  $body
      * @return ($options is ReturnPendingApproval ? ApiResponse<LogStream>|PendingApprovalResult<ApiResponse<LogStream>> : ApiResponse<LogStream>)
      */
-    public function update(string $id, array $body, ?CallOptions $options = null): ApiResponse|PendingApprovalResult
+    public function update(string $id, array $body = [], ?CallOptions $options = null): ApiResponse|PendingApprovalResult
     {
         return $this->transport->call(Operations::spec('log_streams.update'), [$id], $body, $options, Value::dto(LogStream::fromArray(...)));
     }

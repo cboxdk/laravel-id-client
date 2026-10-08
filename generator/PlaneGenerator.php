@@ -1016,7 +1016,7 @@ final class PlaneGenerator
 
         foreach ($object['properties'] as $key => $property) {
             $key = (string) $key;
-            $variable = self::variable($key);
+            $variable = self::property($key);
 
             if (isset($seen[$variable])) {
                 throw new RuntimeException("{$this->config->file}: {$name} has two properties named {$variable}");
@@ -1196,6 +1196,14 @@ final class PlaneGenerator
         $variable = self::camel($name);
 
         return in_array($variable, ['this', 'options', 'body', 'query', 'data'], true) ? $variable.'_' : $variable;
+    }
+
+    /** A schema property: any name but `$this` (its constructor has no other parameters). */
+    private static function property(string $name): string
+    {
+        $property = self::camel($name);
+
+        return $property === 'this' ? 'this_' : $property;
     }
 
     private static function className(string $name): string

@@ -47,11 +47,14 @@ class Apps
      *
      * `GET /apps/{id}/blueprint` · action `apps.blueprint` · scope `apps:read`
      *
-     * @return ApiResponse<AppBlueprint>
+     * May be held for a person's approval (`202 approval_required`): waited on, unless
+     * `$options` is `CallOptions::returnPendingApproval()`.
+     *
+     * @return ($options is ReturnPendingApproval ? ApiResponse<AppBlueprint>|PendingApprovalResult<ApiResponse<AppBlueprint>> : ApiResponse<AppBlueprint>)
      */
-    public function blueprint(string $id, ?CallOptions $options = null): ApiResponse
+    public function blueprint(string $id, ?CallOptions $options = null): ApiResponse|PendingApprovalResult
     {
-        return $this->transport->callAndWait(Operations::spec('apps.blueprint'), [$id], [], $options, Value::dto(AppBlueprint::fromArray(...)));
+        return $this->transport->call(Operations::spec('apps.blueprint'), [$id], [], $options, Value::dto(AppBlueprint::fromArray(...)));
     }
 
     /**
@@ -93,12 +96,15 @@ class Apps
      *
      * `POST /apps` · action `apps.create` · scope `apps:write` · danger: critical
      *
+     * May be held for a person's approval (`202 approval_required`): waited on, unless
+     * `$options` is `CallOptions::returnPendingApproval()`.
+     *
      * @param  array{blueprint?: array{kind: 'cbox-id.client-blueprint', version: 1, name: string, client_type: 'confidential'|'public', token_endpoint_auth_method?: string|null, grant_types?: list<string>, redirect_uris?: list<string>, post_logout_redirect_uris?: list<string>, scopes?: list<string>, first_party?: bool, manifest_url?: string|null, access_token_ttl?: int|null, backchannel_logout_uri?: string|null, backchannel_logout_session_required?: bool, api_key_prefix?: string|null}, name?: string, type?: 'web'|'spa'|'cli'|'service'|'agent'|'advanced', client_type?: 'confidential'|'public', grant_types?: list<string>, redirect_uris?: list<string>, post_logout_redirect_uris?: list<string>, scopes?: list<string>, first_party?: bool, manifest_url?: string|null, organization_id?: string|null, jwks?: array<string, mixed>|null}  $body
-     * @return ApiResponse<App>
+     * @return ($options is ReturnPendingApproval ? ApiResponse<App>|PendingApprovalResult<ApiResponse<App>> : ApiResponse<App>)
      */
-    public function create(array $body = [], ?CallOptions $options = null): ApiResponse
+    public function create(array $body = [], ?CallOptions $options = null): ApiResponse|PendingApprovalResult
     {
-        return $this->transport->callAndWait(Operations::spec('apps.create'), [], $body, $options, Value::dto(App::fromArray(...)));
+        return $this->transport->call(Operations::spec('apps.create'), [], $body, $options, Value::dto(App::fromArray(...)));
     }
 
     /**
@@ -138,12 +144,15 @@ class Apps
      *
      * `GET /apps` · action `apps.list` · scope `apps:read`
      *
+     * May be held for a person's approval (`202 approval_required`): waited on, unless
+     * `$options` is `CallOptions::returnPendingApproval()`.
+     *
      * @param  array{limit?: int, after?: string}  $query
-     * @return Page<App>
+     * @return ($options is ReturnPendingApproval ? Page<App>|PendingApprovalResult<Page<App>> : Page<App>)
      */
-    public function list(array $query = [], ?CallOptions $options = null): Page
+    public function list(array $query = [], ?CallOptions $options = null): Page|PendingApprovalResult
     {
-        return $this->transport->pageAndWait(Operations::spec('apps.list'), [], $query, $options, Value::dto(App::fromArray(...)));
+        return $this->transport->page(Operations::spec('apps.list'), [], $query, $options, Value::dto(App::fromArray(...)));
     }
 
     /**

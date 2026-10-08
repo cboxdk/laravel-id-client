@@ -23,7 +23,7 @@ class SigninSocial
     public function __construct(private readonly ManagementTransport $transport) {}
 
     /**
-     * Stop offering a social sign-in provider. People who used it keep their accounts.
+     * Stop offering a social login provider. People who used it keep their accounts.
      *
      * `DELETE /sign-in/social-providers/{id}` · action `signin.social.delete` · scope `signin:write` · danger: critical
      *
@@ -39,7 +39,7 @@ class SigninSocial
     }
 
     /**
-     * List the social sign-in providers (Google, GitHub, Apple…) enabled in this environment, optionally for one organization.
+     * List the social login providers (Google, GitHub, Apple…) enabled in this environment, optionally for one organization.
      *
      * `GET /sign-in/social-providers` · action `signin.social.list` · scope `signin:read` · danger: read
      *
@@ -66,7 +66,7 @@ class SigninSocial
     }
 
     /**
-     * Enable a social sign-in provider (Google, GitHub, Apple…) for one organization with its client credentials. The secret is never returned.
+     * Enable a social login provider (Google, GitHub, Apple…) for one organization with its client credentials. The secret is never returned.
      *
      * `POST /sign-in/social-providers` · action `signin.social.set` · scope `signin:write` · danger: critical
      *

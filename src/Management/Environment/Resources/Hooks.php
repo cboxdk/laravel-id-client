@@ -23,7 +23,7 @@ class Hooks
     public function __construct(private readonly ManagementTransport $transport) {}
 
     /**
-     * Register an inline hook at a hook point (token minting, login, registration, password change). Returns its signing secret once.
+     * Register a hook at a hook point (token minting, login, registration, password change). Returns its signing secret once.
      *
      * `POST /hooks` · action `hooks.create` · scope `hooks:write` · danger: critical
      *
@@ -39,7 +39,7 @@ class Hooks
     }
 
     /**
-     * Remove an inline hook. It is no longer called at its hook point.
+     * Remove a hook. It is no longer called at its hook point.
      *
      * `DELETE /hooks/{id}` · action `hooks.delete` · scope `hooks:write` · danger: destructive
      *
@@ -54,7 +54,7 @@ class Hooks
     }
 
     /**
-     * Get one inline hook: its URL, hook point, owner and whether it is active. Never its signing secret.
+     * Get one hook: its URL, hook point, owner and whether it is active. Never its signing secret.
      *
      * `GET /hooks/{id}` · action `hooks.get` · scope `hooks:read` · danger: read
      *
@@ -69,7 +69,7 @@ class Hooks
     }
 
     /**
-     * List the inline hooks — endpoints called during sign-in and token issuance — with their hook point, owner and whether each is active.
+     * List the hooks — endpoints called during sign-in and token issuance — with their hook point, owner and whether each is active.
      *
      * `GET /hooks` · action `hooks.list` · scope `hooks:read` · danger: read
      *
@@ -96,7 +96,7 @@ class Hooks
     }
 
     /**
-     * Pause (active: false) or activate (active: true) an inline hook.
+     * Pause (active: false) or activate (active: true) a hook.
      *
      * `PATCH /hooks/{id}` · action `hooks.update` · scope `hooks:write` · danger: critical
      *

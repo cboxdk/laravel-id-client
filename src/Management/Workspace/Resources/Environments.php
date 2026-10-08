@@ -10,6 +10,8 @@ use Cbox\Id\Client\Management\Transport\ApiResponse;
 use Cbox\Id\Client\Management\Transport\CallOptions;
 use Cbox\Id\Client\Management\Transport\ManagementTransport;
 use Cbox\Id\Client\Management\Transport\Page;
+use Cbox\Id\Client\Management\Transport\PendingApprovalResult;
+use Cbox\Id\Client\Management\Transport\ReturnPendingApproval;
 use Cbox\Id\Client\Management\Transport\Value;
 use Cbox\Id\Client\Management\Workspace\Operations;
 use Cbox\Id\Client\Management\Workspace\Schemas\CreatedEnvironment;
@@ -39,12 +41,15 @@ class Environments
      *
      * `POST /workspace/environments` · action `environments.create` · scope `environments:write` · danger: critical
      *
+     * May be held for a person's approval (`202 approval_required`): waited on, unless
+     * `$options` is `CallOptions::returnPendingApproval()`.
+     *
      * @param  array{name: string, type?: 'production'|'sandbox', project_id?: string, initial_key?: array{name: string, scopes: list<string>, expires_at?: string|null}|null}  $body
-     * @return ApiResponse<CreatedEnvironment>
+     * @return ($options is ReturnPendingApproval ? ApiResponse<CreatedEnvironment>|PendingApprovalResult<ApiResponse<CreatedEnvironment>> : ApiResponse<CreatedEnvironment>)
      */
-    public function create(array $body, ?CallOptions $options = null): ApiResponse
+    public function create(array $body, ?CallOptions $options = null): ApiResponse|PendingApprovalResult
     {
-        return $this->transport->callAndWait(Operations::spec('environments.create'), [], $body, $options, Value::dto(CreatedEnvironment::fromArray(...)));
+        return $this->transport->call(Operations::spec('environments.create'), [], $body, $options, Value::dto(CreatedEnvironment::fromArray(...)));
     }
 
     /**
@@ -54,12 +59,15 @@ class Environments
      *
      * `GET /workspace/environments` · action `environments.list` · scope `workspace:read`
      *
+     * May be held for a person's approval (`202 approval_required`): waited on, unless
+     * `$options` is `CallOptions::returnPendingApproval()`.
+     *
      * @param  array{limit?: int, page?: int}  $query
-     * @return Page<Environment>
+     * @return ($options is ReturnPendingApproval ? Page<Environment>|PendingApprovalResult<Page<Environment>> : Page<Environment>)
      */
-    public function list(array $query = [], ?CallOptions $options = null): Page
+    public function list(array $query = [], ?CallOptions $options = null): Page|PendingApprovalResult
     {
-        return $this->transport->pageAndWait(Operations::spec('environments.list'), [], $query, $options, Value::dto(Environment::fromArray(...)));
+        return $this->transport->page(Operations::spec('environments.list'), [], $query, $options, Value::dto(Environment::fromArray(...)));
     }
 
     /**

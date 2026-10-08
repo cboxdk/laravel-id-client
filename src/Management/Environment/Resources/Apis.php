@@ -12,6 +12,8 @@ use Cbox\Id\Client\Management\Transport\ApiResponse;
 use Cbox\Id\Client\Management\Transport\CallOptions;
 use Cbox\Id\Client\Management\Transport\ManagementTransport;
 use Cbox\Id\Client\Management\Transport\Page;
+use Cbox\Id\Client\Management\Transport\PendingApprovalResult;
+use Cbox\Id\Client\Management\Transport\ReturnPendingApproval;
 use Cbox\Id\Client\Management\Transport\Value;
 use Generator;
 
@@ -37,12 +39,15 @@ class Apis
      *
      * `POST /apis` · scope `apis:write`
      *
+     * May be held for a person's approval (`202 approval_required`): waited on, unless
+     * `$options` is `CallOptions::returnPendingApproval()`.
+     *
      * @param  array{identifier: string, name: string, organization_id?: string|null, client_id?: string|null, scopes?: list<array{key: string, description?: string|null, tenant_requestable?: bool}>}  $body
-     * @return ApiResponse<Api>
+     * @return ($options is ReturnPendingApproval ? ApiResponse<Api>|PendingApprovalResult<ApiResponse<Api>> : ApiResponse<Api>)
      */
-    public function create(array $body, ?CallOptions $options = null): ApiResponse
+    public function create(array $body, ?CallOptions $options = null): ApiResponse|PendingApprovalResult
     {
-        return $this->transport->callAndWait(Operations::spec('apis.create'), [], $body, $options, Value::dto(Api::fromArray(...)));
+        return $this->transport->call(Operations::spec('apis.create'), [], $body, $options, Value::dto(Api::fromArray(...)));
     }
 
     /**
@@ -53,11 +58,14 @@ class Apis
      *
      * `DELETE /apis/{id}` · scope `apis:write`
      *
-     * @return ApiResponse<null>
+     * May be held for a person's approval (`202 approval_required`): waited on, unless
+     * `$options` is `CallOptions::returnPendingApproval()`.
+     *
+     * @return ($options is ReturnPendingApproval ? ApiResponse<null>|PendingApprovalResult<ApiResponse<null>> : ApiResponse<null>)
      */
-    public function delete(string $id, ?CallOptions $options = null): ApiResponse
+    public function delete(string $id, ?CallOptions $options = null): ApiResponse|PendingApprovalResult
     {
-        return $this->transport->callAndWait(Operations::spec('apis.delete'), [$id], [], $options, Value::none(...));
+        return $this->transport->call(Operations::spec('apis.delete'), [$id], [], $options, Value::none(...));
     }
 
     /**
@@ -65,11 +73,14 @@ class Apis
      *
      * `GET /apis/{id}` · scope `apis:read`
      *
-     * @return ApiResponse<Api>
+     * May be held for a person's approval (`202 approval_required`): waited on, unless
+     * `$options` is `CallOptions::returnPendingApproval()`.
+     *
+     * @return ($options is ReturnPendingApproval ? ApiResponse<Api>|PendingApprovalResult<ApiResponse<Api>> : ApiResponse<Api>)
      */
-    public function get(string $id, ?CallOptions $options = null): ApiResponse
+    public function get(string $id, ?CallOptions $options = null): ApiResponse|PendingApprovalResult
     {
-        return $this->transport->callAndWait(Operations::spec('apis.get'), [$id], [], $options, Value::dto(Api::fromArray(...)));
+        return $this->transport->call(Operations::spec('apis.get'), [$id], [], $options, Value::dto(Api::fromArray(...)));
     }
 
     /**
@@ -77,12 +88,15 @@ class Apis
      *
      * `GET /apis` · scope `apis:read`
      *
+     * May be held for a person's approval (`202 approval_required`): waited on, unless
+     * `$options` is `CallOptions::returnPendingApproval()`.
+     *
      * @param  array{limit?: int, after?: string}  $query
-     * @return Page<Api>
+     * @return ($options is ReturnPendingApproval ? Page<Api>|PendingApprovalResult<Page<Api>> : Page<Api>)
      */
-    public function list(array $query = [], ?CallOptions $options = null): Page
+    public function list(array $query = [], ?CallOptions $options = null): Page|PendingApprovalResult
     {
-        return $this->transport->pageAndWait(Operations::spec('apis.list'), [], $query, $options, Value::dto(Api::fromArray(...)));
+        return $this->transport->page(Operations::spec('apis.list'), [], $query, $options, Value::dto(Api::fromArray(...)));
     }
 
     /**
@@ -106,11 +120,14 @@ class Apis
      *
      * `PATCH /apis/{id}` · scope `apis:write`
      *
+     * May be held for a person's approval (`202 approval_required`): waited on, unless
+     * `$options` is `CallOptions::returnPendingApproval()`.
+     *
      * @param  array{name?: string, client_id?: string|null, scopes?: list<array{key: string, description?: string|null, tenant_requestable?: bool}>}  $body
-     * @return ApiResponse<Api>
+     * @return ($options is ReturnPendingApproval ? ApiResponse<Api>|PendingApprovalResult<ApiResponse<Api>> : ApiResponse<Api>)
      */
-    public function update(string $id, array $body = [], ?CallOptions $options = null): ApiResponse
+    public function update(string $id, array $body = [], ?CallOptions $options = null): ApiResponse|PendingApprovalResult
     {
-        return $this->transport->callAndWait(Operations::spec('apis.update'), [$id], $body, $options, Value::dto(Api::fromArray(...)));
+        return $this->transport->call(Operations::spec('apis.update'), [$id], $body, $options, Value::dto(Api::fromArray(...)));
     }
 }

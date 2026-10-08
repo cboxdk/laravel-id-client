@@ -23,7 +23,7 @@ class Approvals
     public function __construct(private readonly ManagementTransport $transport) {}
 
     /**
-     * Deny a pending agent request (CIBA) for the person it was raised for: the agent gets access_denied and no token.
+     * Deny a pending approval request (CIBA) for the person it was raised for: the agent gets access_denied and no token.
      *
      * `POST /agent-requests/{request_id}/deny` · action `approvals.deny` · scope `approvals:write` · danger: destructive
      *
