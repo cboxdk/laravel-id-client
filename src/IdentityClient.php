@@ -22,6 +22,7 @@ use Cbox\Id\Client\ValueObjects\Identity;
 use Cbox\Id\Client\ValueObjects\Organization;
 use Cbox\Id\Client\ValueObjects\RefreshedTokens;
 use Cbox\Id\Client\ValueObjects\VerifiedApiKey;
+use Cbox\Id\Client\Webhooks\StandardWebhookSignature;
 use Firebase\JWT\JWK;
 use Firebase\JWT\JWT;
 use Illuminate\Http\RedirectResponse;
@@ -665,6 +666,19 @@ class IdentityClient
         }
 
         return hash_equals(hash_hmac('sha256', $timestamp.'.'.$payload, $secret), $signature);
+    }
+
+    /**
+     * Verify a delivery signed with the Standard Webhooks scheme (`webhook-id`,
+     * `webhook-timestamp`, `webhook-signature`) — an endpoint whose `signature_scheme` is
+     * `standard_webhooks`. `$secret` is the endpoint's `whsec_…` secret; a Cbox-scheme hex
+     * secret is converted the way Cbox ID converts it when an endpoint changes scheme.
+     *
+     * @param  array<array-key, mixed>  $headers  e.g. `$request->headers->all()`
+     */
+    public function verifyStandardWebhook(string $payload, array $headers, string $secret, int $toleranceSeconds = 300): bool
+    {
+        return StandardWebhookSignature::verify($payload, $headers, StandardWebhookSignature::secretFor($secret), $toleranceSeconds);
     }
 
     /**

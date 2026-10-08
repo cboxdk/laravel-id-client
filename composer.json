@@ -15,7 +15,8 @@
         "larastan/larastan": "^3.0",
         "laravel/pint": "^1.18",
         "orchestra/testbench": "^10.0 || ^11.0",
-        "pestphp/pest": "^3.5 || ^4.0"
+        "pestphp/pest": "^3.5 || ^4.0",
+        "symfony/yaml": "^7.0 || ^8.0"
     },
     "autoload": {
         "psr-4": {
@@ -24,7 +25,8 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Cbox\\Id\\Client\\Tests\\": "tests/"
+            "Cbox\\Id\\Client\\Tests\\": "tests/",
+            "Cbox\\Id\\Client\\Generator\\": "generator/"
         }
     },
     "extra": {
@@ -33,7 +35,8 @@
                 "Cbox\\Id\\Client\\ClientServiceProvider"
             ],
             "aliases": {
-                "CboxId": "Cbox\\Id\\Client\\Facades\\CboxId"
+                "CboxId": "Cbox\\Id\\Client\\Facades\\CboxId",
+                "CboxIdApi": "Cbox\\Id\\Client\\Facades\\CboxIdApi"
             }
         }
     },
@@ -41,12 +44,15 @@
         "lint": "pint --test",
         "analyse": "phpstan analyse --no-progress --memory-limit=1G",
         "test": "pest",
+        "generate": "@php bin/generate-management",
+        "generate:check": "@php bin/generate-management --check",
         "license-check": "@php bin/check-licenses.php",
         "sbom": "@php bin/generate-sbom.php",
         "qa": [
             "@lint",
             "@analyse",
             "@test",
+            "@generate:check",
             "@license-check",
             "@composer audit --no-dev"
         ]

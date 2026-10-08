@@ -79,6 +79,7 @@ class NotConfigured extends ClientConfigurationException implements HttpExceptio
             'client_secret' => 'CBOX_ID_CLIENT_SECRET',
             'redirect' => 'CBOX_ID_REDIRECT',
             'management.key' => 'CBOX_ID_MANAGEMENT_KEY',
+            'management.workspace_key' => 'CBOX_ID_WORKSPACE_KEY',
             default => null,
         };
     }

@@ -1,0 +1,96 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Generates the typed management clients (src/Management/{Environment,Workspace,Platform,
+ * Account}/ and src/Management/*Client.php) from the OpenAPI documents in openapi/.
+ *
+ *   composer generate                                   regenerate from openapi/*.yaml
+ *   php bin/generate-management --check                 exit 1 when the generated code is stale
+ *   php bin/generate-management --fetch environment=https://acme.cboxid.com
+ *                                                       refresh one vendored spec from a live host
+ *   php bin/generate-management --fetch all=https://id.example.com
+ *                                                       refresh all four from one (self-hosted) host
+ */
+
+use Cbox\Id\Client\Generator\ManagementGenerator;
+use Cbox\Id\Client\Generator\PlaneConfig;
+use Symfony\Component\Yaml\Yaml;
+
+$root = dirname(__DIR__);
+require $root.'/vendor/autoload.php';
+
+$args = array_slice($argv, 1);
+$check = in_array('--check', $args, true);
+
+try {
+    foreach ($args as $index => $arg) {
+        if ($arg !== '--fetch') {
+            continue;
+        }
+
+        [$plane, $url] = array_pad(explode('=', (string) ($args[$index + 1] ?? ''), 2), 2, '');
+
+        if ($plane === '' || $url === '') {
+            throw new RuntimeException('--fetch takes plane=url, e.g. --fetch environment=https://acme.cboxid.com');
+        }
+
+        $targets = array_values(array_filter(PlaneConfig::all(), static fn (PlaneConfig $c): bool => $plane === 'all' || $c->plane === $plane));
+
+        if ($targets === []) {
+            throw new RuntimeException("Unknown plane {$plane}; use environment, workspace, platform, account or all");
+        }
+
+        foreach ($targets as $config) {
+            $source = str_ends_with($url, '.yaml') || str_ends_with($url, '.json') ? $url : rtrim($url, '/').$config->specPath;
+            $context = stream_context_create(['http' => ['header' => "Accept: application/yaml, application/json\r\n", 'ignore_errors' => false]]);
+            $text = @file_get_contents($source, false, $context);
+
+            if ($text === false) {
+                throw new RuntimeException("GET {$source} failed");
+            }
+
+            $parsed = Yaml::parse($text);
+
+            if (! is_array($parsed) || ! is_string($parsed['openapi'] ?? null)) {
+                throw new RuntimeException("GET {$source} did not return an OpenAPI document");
+            }
+
+            file_put_contents("{$root}/openapi/{$config->file}.yaml", $text);
+            fwrite(STDOUT, "fetched {$config->file} <- {$source}\n");
+        }
+    }
+
+    $generator = new ManagementGenerator($root);
+
+    if ($check) {
+        $stale = $generator->stale();
+
+        foreach ($stale as $path) {
+            fwrite(STDERR, "stale: {$path}\n");
+        }
+
+        if ($stale !== []) {
+            fwrite(STDERR, "Run `composer generate` and commit the result.\n");
+            exit(1);
+        }
+
+        fwrite(STDOUT, "Generated management clients are up to date.\n");
+        exit(0);
+    }
+
+    foreach (PlaneConfig::all() as $config) {
+        $plane = $generator->plane($config);
+        $operations = count($plane->operations());
+        $skipped = count($plane->skipped);
+        fwrite(STDOUT, "{$config->className}: {$operations} operations".($skipped > 0 ? ", skipped {$skipped} (other credentials)" : '')."\n");
+    }
+
+    $files = $generator->write();
+    fwrite(STDOUT, count($files)." files written.\n");
+} catch (Throwable $e) {
+    fwrite(STDERR, $e->getMessage()."\n");
+    exit(1);
+}

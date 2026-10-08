@@ -233,6 +233,10 @@ $ok = CboxId::verifyWebhook(
 abort_unless($ok, 400);
 ```
 
+For an endpoint on the Standard Webhooks scheme (`signature_scheme: standard_webhooks`), use
+`CboxId::verifyStandardWebhook($request->getContent(), $request->headers->all(), $secret)`
+with its `whsec_…` secret. The built-in receiver accepts either scheme.
+
 ## Receive provisioning webhooks (outbound provisioning)
 
 Instead of standing up a SCIM server, register a hook and let the SDK verify and
@@ -263,6 +267,66 @@ on a queued job (`ProcessCboxIdWebhook`) — so a slow handler never stalls the 
 or trips the dispatcher's timeout/retry. Point `CBOX_ID_WEBHOOK_QUEUE_CONNECTION` /
 `CBOX_ID_WEBHOOK_QUEUE` at a real async queue in production (with `QUEUE_CONNECTION=sync`
 the job runs inline). Each event's `deliveryId` is stable, so dedupe retries with it.
+
+## Management API
+
+Typed clients for Cbox ID's four management planes, **generated from the OpenAPI documents
+the server publishes** (vendored in `openapi/`), so every method, path, scope and type matches
+the server. Server-side only: every client holds a management credential.
+
+| Client | Plane | Credential | Host |
+| --- | --- | --- | --- |
+| `EnvironmentClient` | One environment's tenancy: organizations, users, apps, roles, SSO, audit logs… | `cbid_env_…` key, or a delegated token | The environment's own host (or the root, with `environment:`) |
+| `WorkspaceClient` | The workspace above it: projects, environments, team, keys | `cbid_ws_…` key, or a person's root token | `https://api.cboxid.com` (default) |
+| `PlatformClient` | The deployment itself, for operators | Delegated operator token only | `https://api.cboxid.com` (default) |
+| `AccountClient` | A person's own account | Delegated token only | The environment's own host |
+
+Method names are the server's action names — `apps.secrets.rotate` is
+`$env->apps->secrets->rotate(…)` — with path parameters first, then the body (or query) array,
+then `CallOptions`. Results are readonly schema objects inside an `ApiResponse` (`data`,
+`status`, `replayed`, `idempotencyKey`, `requestId`, `meta`, `body`); bodies are arrays whose
+shape PHPStan checks.
+
+```php
+use Cbox\Id\Client\Facades\CboxIdApi;          // config: CBOX_ID_MANAGEMENT_KEY, CBOX_ID_WORKSPACE_KEY
+use Cbox\Id\Client\Management\EnvironmentClient;
+
+$env = CboxIdApi::environment();                // or: new EnvironmentClient(baseUrl: 'https://acme.cboxid.com', apiKey: $key)
+
+$app = $env->apps->create(['name' => 'Billing', 'type' => 'web', 'redirect_uris' => [$callback]])->data;
+$app->clientSecret;                             // in this response and no other — store it now
+
+$secret = $env->apps->secrets->rotate($app->id, ['grace_seconds' => 3600])->data;
+
+foreach ($env->organizations->listAll(['status' => 'active']) as $organization) {
+    // every page, fetched lazily
+}
+
+$created = CboxIdApi::workspace()->environments->create(['name' => 'Staging', 'type' => 'sandbox'])->data;
+```
+
+- **Idempotent writes.** Every POST/PUT/PATCH/DELETE carries an `Idempotency-Key` (a UUID, or
+  `new CallOptions(idempotencyKey: …)`). Network failures, 5xx, 429 and
+  `409 idempotency_in_progress` are retried with the **same** key, honouring `Retry-After`.
+  `$response->replayed` is true when the server answered from its idempotency store.
+- **Approvals.** A call a key's policy holds (`202 approval_required`) is waited on: the client
+  tells `onApprovalRequired` (or dispatches `ManagementApprovalRequired` through `CboxIdApi`),
+  polls the approval on its own host, and repeats the request with `Cbox-Approval` and the same
+  key. `ApprovalDenied` / `ApprovalExpired` when it does not get one. Pass
+  `CallOptions::returnPendingApproval()` to get a `PendingApprovalResult` back instead, and
+  `resume()` it later.
+- **Errors.** `CboxIdApiException` with `status`, `error` (the stable code), `errors` (field
+  errors on `validation_failed`), `requestId` and `retryAfter`; `ManagementNetworkException`
+  (with the `idempotencyKey`) when no answer came at all.
+- **Audit Logs.** `CboxIdApi::auditLogger()->record([...])` buffers events and sends batches
+  of up to 100, each under its own key (flushed when the app terminates);
+  `CboxIdApi::auditLogs()->export($filters)` waits for a CSV export; `AuditChain::verify()`
+  recomputes an organization's hash chain byte-for-byte as the server does.
+
+The whole guide — delegated tokens, `Cbox-Environment` from the platform root, pagination,
+audit logs, and regenerating — is [Management API](docs/cookbook/management-api.md).
+`composer generate` regenerates the clients from `openapi/`; the test suite fails when the
+generated code and the specs disagree.
 
 ## License
 

@@ -149,11 +149,24 @@ return [
     | `url` defaults to `{issuer}/api/v1`; the key only works on the host of
     | the environment it was minted for.
     |
+    | The typed clients (`CboxIdApi::environment()`, `CboxIdApi::workspace()`,
+    | or `EnvironmentClient` / `WorkspaceClient` from the container) read the
+    | rest: `workspace_key` is a WORKSPACE key (`cbid_ws_…`) for the workspace
+    | plane, served at `root_url` — the platform root, which also serves the
+    | platform plane. Writes are retried `retries` times with the same
+    | Idempotency-Key; `timeout` is seconds per attempt; an approval is polled
+    | every `approval_poll_interval` milliseconds unless the server says.
+    |
     */
 
     'management' => [
         'key' => env('CBOX_ID_MANAGEMENT_KEY'),
         'url' => env('CBOX_ID_MANAGEMENT_URL'),
+        'workspace_key' => env('CBOX_ID_WORKSPACE_KEY'),
+        'root_url' => env('CBOX_ID_ROOT_URL', 'https://api.cboxid.com'),
+        'retries' => (int) env('CBOX_ID_MANAGEMENT_RETRIES', 3),
+        'timeout' => (int) env('CBOX_ID_MANAGEMENT_TIMEOUT', 30),
+        'approval_poll_interval' => (int) env('CBOX_ID_MANAGEMENT_APPROVAL_POLL_INTERVAL', 2000),
     ],
 
     /*

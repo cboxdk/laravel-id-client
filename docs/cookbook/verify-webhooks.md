@@ -1,6 +1,6 @@
 ---
 title: Verify webhooks
-description: Validate an inbound X-Cbox-Signature over the raw request body before you trust a webhook or inline-action call.
+description: Validate an inbound webhook signature — the Cbox scheme or Standard Webhooks — over the raw request body before you trust a webhook or inline-action call.
 weight: 4
 ---
 
@@ -53,6 +53,33 @@ change spacing and will fail verification even when the payload is genuine.
 
 The freshness window is what stops a captured request from being replayed later.
 Keep your server clock in sync (NTP) so legitimate calls aren't rejected as stale.
+
+## Standard Webhooks
+
+An endpoint registered (or changed, `webhooks.signature_scheme.change`) with
+`signature_scheme: standard_webhooks` is signed the [Standard Webhooks](https://www.standardwebhooks.com/)
+way instead: `webhook-id`, `webhook-timestamp` and `webhook-signature: v1,<base64>`, an
+HMAC-SHA256 over `"{webhook-id}.{timestamp}.{raw body}"` keyed with the base64-decoded bytes
+after `whsec_`.
+
+```php
+$ok = CboxId::verifyStandardWebhook(
+    payload: $request->getContent(),
+    headers: $request->headers->all(),
+    secret: config('services.cbox_id.webhook_secret'),   // whsec_… (a hex Cbox secret is converted)
+);
+```
+
+It returns `false` on the same failures, plus a secret that is not a usable `whsec_` secret
+and a signature header with no `v1` entry; other versions are skipped, and any one matching
+`v1` entry passes (a sender mid-rotation signs with both secrets). Dedupe on `webhook-id`:
+it is the delivery id, the same on every retry. `Webhooks\StandardWebhookSignature` has the
+primitives — `verify()`, `sign()` for testing your receiver, and `secretFor()`, which turns a
+hex Cbox secret into the `whsec_` form Cbox ID signs with after the endpoint changes scheme
+without a new secret. It is tested against the specification's published vector.
+
+The built-in receiver (`/cbox-id/webhooks`) accepts either scheme with the one
+`CBOX_ID_WEBHOOK_SECRET`: it reads the scheme off the headers.
 
 ## The secret
 

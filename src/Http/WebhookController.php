@@ -6,6 +6,7 @@ namespace Cbox\Id\Client\Http;
 
 use Cbox\Id\Client\IdentityClient;
 use Cbox\Id\Client\Webhooks\ProcessCboxIdWebhook;
+use Cbox\Id\Client\Webhooks\StandardWebhookSignature;
 use Cbox\Id\Client\Webhooks\WebhookEvent;
 use Cbox\Id\Client\Webhooks\WebhookHandlers;
 use Illuminate\Http\JsonResponse;
@@ -13,8 +14,8 @@ use Illuminate\Http\Request;
 
 /**
  * Receives Cbox ID webhooks: verifies the HMAC signature (via IdentityClient) against
- * the shared secret, then ENQUEUES the event for the app's handlers and returns
- * immediately. Keeping the receiver slim — verify + ack, work off-thread — means a
+ * the shared secret — the Cbox scheme or Standard Webhooks, whichever the delivery
+ * carries — then ENQUEUES the event for the app's handlers and returns immediately. Keeping the receiver slim — verify + ack, work off-thread — means a
  * slow handler can't stall the response or trip the dispatcher's timeout/retry. A
  * machine endpoint: no session or CSRF. 401 on a bad/replayed signature, 422 on a
  * malformed body, 200 once the event is accepted.
@@ -38,7 +39,16 @@ class WebhookController
         $tolerance = is_numeric($t = config('cbox-id-client.webhooks.tolerance')) ? (int) $t : 300;
         $body = $request->getContent();
 
-        if (! $this->identity->verifyWebhook($body, $request->header('X-Cbox-Signature'), $secret, $tolerance)) {
+        // The endpoint's signature scheme shows in its headers. One configured secret serves
+        // both: a hex Cbox secret is converted for Standard Webhooks exactly as Cbox ID
+        // converts it when the endpoint changes scheme without a new secret.
+        $standard = $request->headers->has(StandardWebhookSignature::SIGNATURE_HEADER);
+
+        $verified = $standard
+            ? $this->identity->verifyStandardWebhook($body, $request->headers->all(), $secret, $tolerance)
+            : $this->identity->verifyWebhook($body, $request->header('X-Cbox-Signature'), $secret, $tolerance);
+
+        if (! $verified) {
             return new JsonResponse(['error' => 'invalid_signature'], 401);
         }
 
@@ -60,7 +70,7 @@ class WebhookController
             payload: $payload,
             organizationId: is_string($payload['organization_id'] ?? null) ? $payload['organization_id'] : null,
             deliveryId: is_string($data['delivery_id'] ?? null) ? $data['delivery_id'] : null,
-            deliveredAt: is_numeric($ts = $request->header('X-Cbox-Timestamp')) ? (int) $ts : time(),
+            deliveredAt: is_numeric($ts = $request->header($standard ? StandardWebhookSignature::TIMESTAMP_HEADER : 'X-Cbox-Timestamp')) ? (int) $ts : time(),
             sequence: is_int($data['sequence'] ?? null) ? $data['sequence'] : null,
         );
 

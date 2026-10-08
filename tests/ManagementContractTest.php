@@ -23,7 +23,7 @@ use Symfony\Component\Yaml\Yaml;
 /**
  * The management client against the SERVER'S OWN CONTRACT.
  *
- * tests/Fixtures/openapi/environment.yaml is cbox-id's resources/openapi/environment.yaml,
+ * openapi/environment.yaml is cbox-id's resources/openapi/environment.yaml,
  * copied verbatim. The fake server here answers every request with an example built from
  * that file's response schema, and every request the SDK sends is checked against it: the
  * operation exists, every body field is one the schema declares (and every required one
@@ -34,7 +34,7 @@ function spec(): array
 {
     static $spec = null;
 
-    return $spec ??= Yaml::parseFile(__DIR__.'/Fixtures/openapi/environment.yaml');
+    return $spec ??= Yaml::parseFile(dirname(__DIR__).'/openapi/environment.yaml');
 }
 
 function resolveRef(array $schema): array
@@ -125,7 +125,7 @@ beforeEach(function (): void {
 });
 
 it('matches every path template of the spec it is given', function (): void {
-    expect(operationFor('POST', '/api/v1/organizations/org_1/invitations/inv_1/resend')[0])->toBe('/organizations/{id}/invitations/{invitationId}/resend')
+    expect(operationFor('POST', '/api/v1/organizations/org_1/invitations/inv_1/resend')[0])->toBe('/organizations/{organization_id}/invitations/{invitation_id}/resend')
         ->and(operationFor('GET', '/api/v1/nowhere'))->toBeNull();
 });
 

@@ -3,6 +3,52 @@
 All notable changes to `cboxdk/laravel-id-client`. Earlier releases are described on
 their GitHub release pages.
 
+## [Unreleased]
+
+## [0.14.0] - 2026-10-08
+
+### Added
+
+- **Typed management clients, generated from the server's OpenAPI documents** —
+  `Management\EnvironmentClient`, `WorkspaceClient`, `PlatformClient` and `AccountClient`,
+  the PHP twin of id-js's management client. Methods are the server's action names
+  (`$env->apps->secrets->rotate($id, [...])`), path parameters first, then a body or query
+  array with a PHPStan-checked shape, then `CallOptions`. Results are readonly schema
+  objects in an `ApiResponse`; paged lists return a `Page` and have a lazy `…All()`
+  generator. Each plane's `Operations` table lists every action's method, path, scope and
+  danger.
+- The runtime under them (`Management\Transport`): management-key (plane-checked) or
+  access-token / token-provider auth; `Cbox-Environment` for a root-host token; an
+  `Idempotency-Key` on every write, reused on safe retries (network, 5xx, 429,
+  `409 idempotency_in_progress`; `Retry-After` honoured) and a `replayed` flag; the approval
+  flow (`202 approval_required` → `onApprovalRequired` → poll on the same origin only →
+  repeat with `Cbox-Approval`), with `ApprovalDenied` / `ApprovalExpired` and
+  `CallOptions::returnPendingApproval()`.
+- `Exceptions\CboxIdApiException` (status, error, message, errors, requestId — the body's
+  `request_id`, else `X-Request-Id` — and retryAfter), `ManagementNetworkException`,
+  `UnexpectedResponse`.
+- **Audit Logs helpers**: a buffered `AuditLogger` (batches of up to 100, one idempotency key
+  per batch, flushed when the app terminates), `AuditLogs::export()` that waits for a CSV
+  export, and `AuditChain::verify()` — byte-compatible with the server's canonical JSON,
+  proven against the shared cross-SDK fixture.
+- **Laravel**: the `CboxIdApi` facade (`environment()`, `workspace()`, `environmentAs()`,
+  `workspaceAs()`, `platform()`, `account()`, `auditLogs()`, `auditLogger()`),
+  `EnvironmentClient` / `WorkspaceClient` / `AuditLogger` container bindings, the
+  `ManagementApprovalRequired` event, and `management.workspace_key`, `root_url`, `retries`,
+  `timeout`, `approval_poll_interval` config (`CBOX_ID_WORKSPACE_KEY`, `CBOX_ID_ROOT_URL`, …).
+- **Standard Webhooks verification**: `CboxId::verifyStandardWebhook()` and
+  `Webhooks\StandardWebhookSignature` (`verify()`, `sign()`, `secretFor()`), tested against
+  the specification's vector. The webhook receiver accepts deliveries signed either way with
+  the one configured secret (a hex Cbox secret is converted as Cbox ID converts it).
+- `composer generate` (`bin/generate-management`, with `--check` and `--fetch plane=url`)
+  and the four specs vendored in `openapi/` from cbox-id `integration/wave-7`. The suite fails
+  when the generated code is stale, and snapshots the generated surface.
+
+### Changed
+
+- The existing environment management client's contract test now reads the vendored
+  `openapi/environment.yaml` (wave-7) instead of its own older copy.
+
 ## [0.13.0] - 2026-09-24
 
 The tenancy and authorization layer: what every consuming app was writing by hand.
