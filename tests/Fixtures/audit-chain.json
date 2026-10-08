@@ -1,0 +1,125 @@
+{
+    "_source": "Computed by cbox-id integration\/wave-6 (e0cffae) AuditLogEventResource::document + AuditLogChains::hash with cboxdk\/laravel-audit-chain v0.1.0 CanonicalJson. data is the events as the API returns them; canonical is the exact string the server hashed.",
+    "data": [
+        {
+            "id": "01k7aaaaaaaaaaaaaaaaaaaaaa",
+            "organization_id": "org_1",
+            "sequence": 1,
+            "action": "invoice.voided",
+            "occurred_at": "2026-10-08T09:15:30.123Z",
+            "actor": {
+                "id": "usr_1",
+                "type": "user",
+                "name": "\u00c5se \u00d8rsted",
+                "metadata": {
+                    "role": "admin",
+                    "Zeta": 1,
+                    "alpha": {
+                        "b": 2,
+                        "a": "x\/y"
+                    }
+                }
+            },
+            "targets": [
+                {
+                    "id": "inv_9",
+                    "type": "invoice",
+                    "name": "Invoice \"9\" <b>",
+                    "metadata": null
+                },
+                {
+                    "id": "c_2",
+                    "type": "customer",
+                    "name": null,
+                    "metadata": null
+                }
+            ],
+            "context": {
+                "location": "203.0.113.7",
+                "user_agent": "Mozilla\/5.0 (X11) \u2028line\ttab"
+            },
+            "metadata": {
+                "reason": "duplicate \u2014 refunded",
+                "amount": 1.5,
+                "ok": true,
+                "none": null,
+                "emoji": "\ud83d\ude42",
+                "url": "https:\/\/acme.test\/a\/b"
+            },
+            "schema_version": null,
+            "received_at": "2026-10-08T09:20:00Z",
+            "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+            "hash": "25d461c942725293438357165fd03d850d7f8078fc5eae16779503e7a619a58f",
+            "canonical": "{\"action\":\"invoice.voided\",\"actor\":{\"id\":\"usr_1\",\"metadata\":{\"Zeta\":1,\"alpha\":{\"a\":\"x\/y\",\"b\":2},\"role\":\"admin\"},\"name\":\"\u00c5se \u00d8rsted\",\"type\":\"user\"},\"context\":{\"location\":\"203.0.113.7\",\"user_agent\":\"Mozilla\/5.0 (X11) \\u2028line\\ttab\"},\"id\":\"01k7aaaaaaaaaaaaaaaaaaaaaa\",\"metadata\":{\"amount\":1.5,\"emoji\":\"\ud83d\ude42\",\"none\":null,\"ok\":true,\"reason\":\"duplicate \u2014 refunded\",\"url\":\"https:\/\/acme.test\/a\/b\"},\"occurred_at\":\"2026-10-08T09:15:30.123Z\",\"organization_id\":\"org_1\",\"sequence\":1,\"targets\":[{\"id\":\"inv_9\",\"metadata\":null,\"name\":\"Invoice \\\"9\\\" <b>\",\"type\":\"invoice\"},{\"id\":\"c_2\",\"metadata\":null,\"name\":null,\"type\":\"customer\"}]}"
+        },
+        {
+            "id": "01k7bbbbbbbbbbbbbbbbbbbbbb",
+            "organization_id": "org_1",
+            "sequence": 2,
+            "action": "user.signed_in",
+            "occurred_at": "2026-10-08T09:16:00.000Z",
+            "actor": {
+                "id": "usr_2",
+                "type": "user",
+                "name": null,
+                "metadata": null
+            },
+            "targets": [],
+            "context": {
+                "location": null,
+                "user_agent": null
+            },
+            "metadata": null,
+            "schema_version": null,
+            "received_at": "2026-10-08T09:20:00Z",
+            "prev_hash": "25d461c942725293438357165fd03d850d7f8078fc5eae16779503e7a619a58f",
+            "hash": "868f6f132e577a33103bb872103abc1685d93729e68f87c4593715a3d78d44bd",
+            "canonical": "{\"action\":\"user.signed_in\",\"actor\":{\"id\":\"usr_2\",\"metadata\":null,\"name\":null,\"type\":\"user\"},\"context\":{\"location\":null,\"user_agent\":null},\"id\":\"01k7bbbbbbbbbbbbbbbbbbbbbb\",\"metadata\":null,\"occurred_at\":\"2026-10-08T09:16:00.000Z\",\"organization_id\":\"org_1\",\"sequence\":2,\"targets\":[]}"
+        },
+        {
+            "id": "01k7cccccccccccccccccccccc",
+            "organization_id": "org_1",
+            "sequence": 3,
+            "action": "report.exported",
+            "occurred_at": "2026-10-08T09:17:00.500Z",
+            "actor": {
+                "id": "key_1",
+                "type": "api_key",
+                "name": "CI",
+                "metadata": {
+                    "1": "b",
+                    "0": "a"
+                }
+            },
+            "targets": [
+                {
+                    "id": "r_1",
+                    "type": "report",
+                    "name": "Q3",
+                    "metadata": {
+                        "10": "k",
+                        "2": "j"
+                    }
+                }
+            ],
+            "context": {
+                "location": "::1",
+                "user_agent": "curl\/8"
+            },
+            "metadata": {
+                "\u00fc": 1,
+                "u": 2,
+                "U": 3,
+                "_": 4,
+                "\ue000": 5,
+                "\ud83d\ude00": 6,
+                "ctl": "\u0001\u001f"
+            },
+            "schema_version": null,
+            "received_at": "2026-10-08T09:20:00Z",
+            "prev_hash": "868f6f132e577a33103bb872103abc1685d93729e68f87c4593715a3d78d44bd",
+            "hash": "1b814b4124a9e06bbbb2aebedf5f08d34831b702303d2f58f1e971e1a61aa48a",
+            "canonical": "{\"action\":\"report.exported\",\"actor\":{\"id\":\"key_1\",\"metadata\":[\"a\",\"b\"],\"name\":\"CI\",\"type\":\"api_key\"},\"context\":{\"location\":\"::1\",\"user_agent\":\"curl\/8\"},\"id\":\"01k7cccccccccccccccccccccc\",\"metadata\":{\"U\":3,\"_\":4,\"ctl\":\"\\u0001\\u001f\",\"u\":2,\"\u00fc\":1,\"\ue000\":5,\"\ud83d\ude00\":6},\"occurred_at\":\"2026-10-08T09:17:00.500Z\",\"organization_id\":\"org_1\",\"sequence\":3,\"targets\":[{\"id\":\"r_1\",\"metadata\":{\"10\":\"k\",\"2\":\"j\"},\"name\":\"Q3\",\"type\":\"report\"}]}"
+        }
+    ]
+}

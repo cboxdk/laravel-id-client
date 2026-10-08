@@ -21,7 +21,11 @@ use Cbox\Id\Client\Http\RequirePermission;
 use Cbox\Id\Client\Http\VerifyAccessToken;
 use Cbox\Id\Client\Http\VerifyApiKey;
 use Cbox\Id\Client\Http\WebhookController;
+use Cbox\Id\Client\Management\AuditLogs\AuditLogger;
+use Cbox\Id\Client\Management\EnvironmentClient;
 use Cbox\Id\Client\Management\HttpManagementClient;
+use Cbox\Id\Client\Management\ManagementClients;
+use Cbox\Id\Client\Management\WorkspaceClient;
 use Cbox\Id\Client\Support\Discovery;
 use Cbox\Id\Client\Tenancy\CurrentPrincipal;
 use Cbox\Id\Client\Tenancy\PermissionGate;
@@ -31,6 +35,7 @@ use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Contracts\Auth\Access\Gate;
 use Illuminate\Contracts\Container\Container;
+use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Foundation\Http\Kernel as FoundationHttpKernel;
 use Illuminate\Routing\Router;
@@ -38,6 +43,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Throwable;
 
 class ClientServiceProvider extends ServiceProvider
 {
@@ -100,6 +106,23 @@ class ClientServiceProvider extends ServiceProvider
                 self::configInt('cbox-id-client.http_timeout', 10),
             );
         });
+
+        // The typed management clients, generated from the planes' OpenAPI documents.
+        // Like the client above, resolvable without a key: the first use without one is a
+        // NotConfigured naming the variable.
+        $this->app->singleton(ManagementClients::class, static function (Container $app): ManagementClients {
+            $config = config('cbox-id-client.management');
+            $management = [];
+
+            foreach (is_array($config) ? $config : [] as $key => $value) {
+                $management[(string) $key] = $value;
+            }
+
+            return new ManagementClients($management, self::configString('cbox-id-client.issuer'), $app->make(Dispatcher::class));
+        });
+        $this->app->bind(EnvironmentClient::class, static fn (Container $app): EnvironmentClient => $app->make(ManagementClients::class)->environment());
+        $this->app->bind(WorkspaceClient::class, static fn (Container $app): WorkspaceClient => $app->make(ManagementClients::class)->workspace());
+        $this->app->bind(AuditLogger::class, static fn (Container $app): AuditLogger => $app->make(ManagementClients::class)->auditLogger());
 
         // Back-channel logout. The cache must be one every web server shares: it holds the
         // replay cache, the session index and the revocation list.
@@ -195,6 +218,22 @@ class ClientServiceProvider extends ServiceProvider
         }
 
         $this->registerWebhookRoute();
+
+        // Audit events buffered during the request go out after the response is sent. A
+        // failure is reported, never thrown at a response that has already left.
+        $this->app->terminating(function (): void {
+            $clients = $this->app->make(ManagementClients::class);
+
+            if (! $clients->hasAuditLogger()) {
+                return;
+            }
+
+            try {
+                $clients->auditLogger()->flush();
+            } catch (Throwable $e) {
+                report($e);
+            }
+        });
 
         // Aliased so a route reads `cbox-id.token:tax.quote` and states its own
         // requirement where anyone reading the route can see it.
