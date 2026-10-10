@@ -17,7 +17,12 @@ use Cbox\Id\Client\Management\Transport\Value;
 /** `users.mfa.*` on the environment plane. */
 class UsersMfa
 {
-    public function __construct(private readonly ManagementTransport $transport) {}
+    public readonly UsersMfaSms $sms;
+
+    public function __construct(private readonly ManagementTransport $transport)
+    {
+        $this->sms = new UsersMfaSms($transport);
+    }
 
     /**
      * Reset a user's two-factor authentication: their authenticator and recovery codes are removed and they must enrol again.

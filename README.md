@@ -130,6 +130,28 @@ Switch teams with `CboxId::switchOrganization($id)` (or `selectOrganization()` /
 `cbox-id.api-key:reports:read`. The whole walkthrough is
 [Multi-tenant apps](docs/cookbook/multi-tenant-apps.md).
 
+## Feature flags
+
+Request the `feature_flags` scope and the person's flags arrive in the token. Ask any
+principal, guard a route, or branch a view:
+
+```php
+CboxId::principal()?->hasFeature('new-dashboard');
+
+Route::middleware(['auth', 'feature:new-dashboard'])->get('/dashboard', …);
+```
+
+```blade
+@feature('new-dashboard') <x-new-dashboard /> @else <x-dashboard /> @endfeature
+```
+
+A missing claim means every feature is off. From a job, ask
+`CboxIdApi::environment()->featureFlags->evaluate([...])`. Fine-grained authorization
+(`CboxIdApi::environment()->fga->check([...])`) and leasing a person's GitHub, Google or
+Slack token (`CboxId::leasePipeToken('github', …)`, with typed exceptions carrying the
+connect URL) are in
+[Feature flags, fine-grained authorization and Pipes](docs/cookbook/feature-flags-fga-and-pipes.md).
+
 ## Back-channel logout
 
 Set `CBOX_ID_BACKCHANNEL_LOGOUT=true` and register `/cbox-id/backchannel-logout` as your
@@ -174,6 +196,7 @@ purpose, and useful only from the origins its owner listed against it.
 use Cbox\Id\Client\Frontend\FrontendClient;
 
 $config = app(FrontendClient::class)->config();
+$acme = app(FrontendClient::class)->config('acme');   // the buttons acme's hosted page shows
 
 $config->endpoint('authorization');  // where the form posts on to
 $config->social;                     // the buttons this environment has enabled

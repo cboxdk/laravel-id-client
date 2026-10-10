@@ -11,7 +11,7 @@ use Cbox\Id\Client\Management\Transport\Value;
 use JsonSerializable;
 
 /**
- * Its client secret and private key are write-only and never returned.
+ * Its client secret and private key are write-only and never returned. An environment provider (`level: environment`) is offered on every organization's sign-in page unless the organization has its own for the same provider or turned it off.
  *
  * `#/components/schemas/SocialProvider` on the environment plane.
  */
@@ -19,12 +19,23 @@ readonly class SocialProvider implements JsonSerializable
 {
     public function __construct(
         public string $id,
+        /** One of `environment`, `organization`. */
+        public string $level,
+        /** False when it is turned off; its credentials are kept. */
+        public bool $enabled,
+        /**
+         * Extra scopes requested on top of the ones sign-in needs.
+         *
+         * @var list<string>
+         */
+        public array $scopes,
         public string $name,
         /** One of `oidc`, `oauth2`. */
         public string $protocol,
         public string $status,
         /** The redirect URI to register with the provider. */
         public string $callbackUri,
+        /** null for the environment's own provider. */
         public ?string $organizationId = null,
         /** The catalogue key: google, github, apple… */
         public ?string $provider = null,
@@ -36,6 +47,9 @@ readonly class SocialProvider implements JsonSerializable
     {
         return new self(
             id: Field::required($data, 'id', 'SocialProvider', Value::string(...)),
+            level: Field::required($data, 'level', 'SocialProvider', Value::string(...)),
+            enabled: Field::required($data, 'enabled', 'SocialProvider', Value::bool(...)),
+            scopes: Field::required($data, 'scopes', 'SocialProvider', Value::list(Value::string(...))),
             name: Field::required($data, 'name', 'SocialProvider', Value::string(...)),
             protocol: Field::required($data, 'protocol', 'SocialProvider', Value::string(...)),
             status: Field::required($data, 'status', 'SocialProvider', Value::string(...)),
@@ -52,6 +66,9 @@ readonly class SocialProvider implements JsonSerializable
         return [
             'id' => $this->id,
             'organization_id' => $this->organizationId,
+            'level' => $this->level,
+            'enabled' => $this->enabled,
+            'scopes' => $this->scopes,
             'provider' => $this->provider,
             'name' => $this->name,
             'protocol' => $this->protocol,

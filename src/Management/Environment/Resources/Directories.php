@@ -20,16 +20,25 @@ use Generator;
 /** `directories.*` on the environment plane. */
 class Directories
 {
+    public readonly DirectoriesCredentials $credentials;
+
     public readonly DirectoriesGroups $groups;
 
+    public readonly DirectoriesHris $hris;
+
     public readonly DirectoriesStatus $status;
+
+    public readonly DirectoriesSyncSettings $syncSettings;
 
     public readonly DirectoriesToken $token;
 
     public function __construct(private readonly ManagementTransport $transport)
     {
+        $this->credentials = new DirectoriesCredentials($transport);
         $this->groups = new DirectoriesGroups($transport);
+        $this->hris = new DirectoriesHris($transport);
         $this->status = new DirectoriesStatus($transport);
+        $this->syncSettings = new DirectoriesSyncSettings($transport);
         $this->token = new DirectoriesToken($transport);
     }
 
@@ -122,6 +131,22 @@ class Directories
     public function listAll(array $query = [], ?CallOptions $options = null): Generator
     {
         return $this->transport->paginate(Operations::spec('directories.list'), [], $query, $options, Value::dto(Directory::fromArray(...)));
+    }
+
+    /**
+     * Pull a Google Workspace, Microsoft Entra or HR-system directory now, on a worker. `full` asks an HR system for everybody rather than what changed.
+     *
+     * `POST /directories/{id}/sync` · action `directories.sync` · scope `directory_sync:write` · danger: write
+     *
+     * May be held for a person's approval (`202 approval_required`): waited on, unless
+     * `$options` is `CallOptions::returnPendingApproval()`.
+     *
+     * @param  array{organization_id?: string|null, full?: bool}  $body
+     * @return ($options is ReturnPendingApproval ? ApiResponse<Directory>|PendingApprovalResult<ApiResponse<Directory>> : ApiResponse<Directory>)
+     */
+    public function sync(string $id, array $body = [], ?CallOptions $options = null): ApiResponse|PendingApprovalResult
+    {
+        return $this->transport->call(Operations::spec('directories.sync'), [$id], $body, $options, Value::dto(Directory::fromArray(...)));
     }
 
     /**

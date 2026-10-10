@@ -217,6 +217,23 @@ final class PlaneGenerator
                     break;
                 }
 
+                // An action whose own answer is `202 Accepted` documents it as `oneOf` its body
+                // and the approval body. The branch that is not the approval is the result.
+                if (! $hasResponse && isset($responses[202])) {
+                    $accepted = $this->deref($responses[202], 'responses');
+                    $json = $accepted['content']['application/json'] ?? null;
+                    $branches = is_array($json) && is_array($json['schema']['oneOf'] ?? null) ? $json['schema']['oneOf'] : [];
+
+                    foreach ($branches as $branch) {
+                        if (is_array($branch) && ! str_contains((string) json_encode($branch), 'approval_required')) {
+                            $responseSchema = $branch;
+                            $hasResponse = true;
+
+                            break;
+                        }
+                    }
+                }
+
                 if (! $hasResponse) {
                     throw new RuntimeException("{$this->config->file}: {$method} {$path} declares no 200, 201 or 204 response");
                 }

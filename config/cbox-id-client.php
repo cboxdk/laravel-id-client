@@ -124,6 +124,25 @@ return [
 
     /*
     |---------------------------------------------------------------------------
+    | Feature flags
+    |---------------------------------------------------------------------------
+    |
+    | Read from the `feature_flags` claim — add `feature_flags` to `scopes` and give
+    | the app that scope on its Scopes tab. `cbox-id.feature:key` is always
+    | registered; these are the SHORT names: a `feature:key` route middleware and a
+    | `@feature('key')` … `@endfeature` Blade directive. Set either to another
+    | name, or null to leave it out — Laravel Pennant also registers `@feature`, and
+    | a middleware alias your app already has is never replaced.
+    |
+    */
+
+    'feature_flags' => [
+        'middleware' => 'feature',
+        'blade' => 'feature',
+    ],
+
+    /*
+    |---------------------------------------------------------------------------
     | Organizations
     |---------------------------------------------------------------------------
     |

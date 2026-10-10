@@ -169,3 +169,23 @@ it('does not cache a refusal as though it were a document', function (): void {
     // A blip must not decide what this page looks like for the whole cache window.
     expect($client->config()->isLive())->toBeTrue();
 });
+
+it('asks for one organization\'s buttons, and caches each organization on its own', function (): void {
+    Http::fake(['*' => Http::response([...CONFIG_DOCUMENT, 'methods' => ['passkeys' => true, 'magic_link' => false]], 200)]);
+
+    $client = frontend();
+    $plain = $client->config();
+    $client->config('acme corp');
+    $client->config('acme corp');
+    $client->config();
+
+    $urls = Http::recorded()->map(fn (array $pair): string => $pair[0]->url())->all();
+
+    expect($urls)->toBe([
+        'https://id.acme.test/frontend/v1/config',
+        'https://id.acme.test/frontend/v1/config?organization=acme+corp',
+    ])
+        ->and($plain->methods)->toBe(['passkeys' => true, 'magic_link' => false])
+        ->and($plain->offers('passkeys'))->toBeTrue()
+        ->and($plain->offers('magic_link'))->toBeFalse();
+});

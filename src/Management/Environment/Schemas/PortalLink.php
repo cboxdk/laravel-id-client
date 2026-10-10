@@ -22,7 +22,13 @@ readonly class PortalLink implements JsonSerializable
          * @var list<string>
          */
         public array $intents,
-        /** The address the link was mailed to, or null when it was not sent. */
+        /**
+         * True when an `email` was asked for and NOT sent because this is a sandbox
+         * environment, which sends no mail. `emailed_to` is then null, and the `url` in this
+         * answer is the only way to the link — share it yourself.
+         */
+        public bool $emailSuppressed,
+        /** The address the link was mailed to, or null when it was not sent — none was asked for, or the mail was suppressed (see email_suppressed). */
         public ?string $emailedTo = null,
         /**
          * The one-time setup link — the whole credential. Shown once; `null` on an
@@ -39,6 +45,7 @@ readonly class PortalLink implements JsonSerializable
             id: Field::required($data, 'id', 'PortalLink', Value::string(...)),
             organizationId: Field::required($data, 'organization_id', 'PortalLink', Value::string(...)),
             intents: Field::required($data, 'intents', 'PortalLink', Value::list(Value::string(...))),
+            emailSuppressed: Field::required($data, 'email_suppressed', 'PortalLink', Value::bool(...)),
             emailedTo: Field::optional($data, 'emailed_to', 'PortalLink', Value::string(...)),
             url: Field::optional($data, 'url', 'PortalLink', Value::string(...)),
             expiresAt: Field::optional($data, 'expires_at', 'PortalLink', Value::string(...)),
@@ -53,6 +60,7 @@ readonly class PortalLink implements JsonSerializable
             'organization_id' => $this->organizationId,
             'intents' => $this->intents,
             'emailed_to' => $this->emailedTo,
+            'email_suppressed' => $this->emailSuppressed,
             'url' => $this->url,
             'expires_at' => $this->expiresAt,
         ];

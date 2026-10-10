@@ -18,6 +18,8 @@ use Cbox\Id\Client\Management\Environment\Resources\Branding;
 use Cbox\Id\Client\Management\Environment\Resources\Directories;
 use Cbox\Id\Client\Management\Environment\Resources\Domains;
 use Cbox\Id\Client\Management\Environment\Resources\Events;
+use Cbox\Id\Client\Management\Environment\Resources\FeatureFlags;
+use Cbox\Id\Client\Management\Environment\Resources\Fga;
 use Cbox\Id\Client\Management\Environment\Resources\FrontendKeys;
 use Cbox\Id\Client\Management\Environment\Resources\Hooks;
 use Cbox\Id\Client\Management\Environment\Resources\Invitations;
@@ -27,7 +29,9 @@ use Cbox\Id\Client\Management\Environment\Resources\LogStreams;
 use Cbox\Id\Client\Management\Environment\Resources\Members;
 use Cbox\Id\Client\Management\Environment\Resources\Organizations;
 use Cbox\Id\Client\Management\Environment\Resources\Permissions;
+use Cbox\Id\Client\Management\Environment\Resources\Pipes;
 use Cbox\Id\Client\Management\Environment\Resources\Provisioning;
+use Cbox\Id\Client\Management\Environment\Resources\Radar;
 use Cbox\Id\Client\Management\Environment\Resources\Roles;
 use Cbox\Id\Client\Management\Environment\Resources\SamlApps;
 use Cbox\Id\Client\Management\Environment\Resources\Signin;
@@ -84,6 +88,10 @@ class EnvironmentClient extends ManagementClient
 
     public readonly Events $events;
 
+    public readonly FeatureFlags $featureFlags;
+
+    public readonly Fga $fga;
+
     public readonly FrontendKeys $frontendKeys;
 
     public readonly Hooks $hooks;
@@ -102,7 +110,11 @@ class EnvironmentClient extends ManagementClient
 
     public readonly Permissions $permissions;
 
+    public readonly Pipes $pipes;
+
     public readonly Provisioning $provisioning;
+
+    public readonly Radar $radar;
 
     public readonly Roles $roles;
 
@@ -158,6 +170,8 @@ class EnvironmentClient extends ManagementClient
         $this->directories = new Directories($this->transport);
         $this->domains = new Domains($this->transport);
         $this->events = new Events($this->transport);
+        $this->featureFlags = new FeatureFlags($this->transport);
+        $this->fga = new Fga($this->transport);
         $this->frontendKeys = new FrontendKeys($this->transport);
         $this->hooks = new Hooks($this->transport);
         $this->invitations = new Invitations($this->transport);
@@ -167,7 +181,9 @@ class EnvironmentClient extends ManagementClient
         $this->members = new Members($this->transport);
         $this->organizations = new Organizations($this->transport);
         $this->permissions = new Permissions($this->transport);
+        $this->pipes = new Pipes($this->transport);
         $this->provisioning = new Provisioning($this->transport);
+        $this->radar = new Radar($this->transport);
         $this->roles = new Roles($this->transport);
         $this->samlApps = new SamlApps($this->transport);
         $this->signin = new Signin($this->transport);

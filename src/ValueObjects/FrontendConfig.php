@@ -17,6 +17,8 @@ readonly class FrontendConfig
      * @param  array<string, string>  $endpoints
      * @param  list<SocialProvider>  $social
      * @param  array<string, mixed>  $appearance  the environment's theme, as the console saved it
+     * @param  array<string, bool>|null  $methods  which other sign-in methods are on (`passkeys`,
+     *                                             `magic_link`); null from older instances
      */
     public function __construct(
         public ?string $mode,
@@ -24,6 +26,7 @@ readonly class FrontendConfig
         public array $endpoints,
         public array $social = [],
         public array $appearance = [],
+        public ?array $methods = null,
     ) {}
 
     /** @param array<string, mixed> $document */
@@ -35,6 +38,9 @@ readonly class FrontendConfig
             endpoints: self::endpointsIn($document['endpoints'] ?? null),
             social: self::providersIn($document['social'] ?? null),
             appearance: self::documentIn($document['appearance'] ?? null),
+            methods: is_array($document['methods'] ?? null)
+                ? array_filter(self::documentIn($document['methods']), is_bool(...))
+                : null,
         );
     }
 
@@ -109,6 +115,15 @@ readonly class FrontendConfig
     public function isLive(): bool
     {
         return $this->mode === 'live';
+    }
+
+    /**
+     * Whether a sign-in method is switched on (`passkeys`, `magic_link`). True when the
+     * instance predates the list, which is what it offered then — the endpoint decides.
+     */
+    public function offers(string $method): bool
+    {
+        return $this->methods === null || ($this->methods[$method] ?? false) === true;
     }
 
     public function endpoint(string $key): ?string
