@@ -17,9 +17,14 @@ readonly class Appearance implements JsonSerializable
         /** Whether this level has a theme of its own. */
         public bool $customized,
         public AppearanceTheme $theme,
+        /** A remote logo URL saved before logos became uploads is still stored at this level. It is never fetched and no longer shown on any hosted page; upload a logo (or send `logo: null`) to clear it. */
+        public bool $remoteLogoIgnored,
         /** null for the environment default. */
         public ?string $organizationId = null,
+        /** The uploaded logo, served by this application at /brand-assets/…; null when none is uploaded at this level. Never a remote URL. */
         public ?string $logo = null,
+        /** The uploaded favicon, served the same way; null when none. */
+        public ?string $favicon = null,
     ) {}
 
     /** @param  array<string, mixed>  $data */
@@ -28,8 +33,10 @@ readonly class Appearance implements JsonSerializable
         return new self(
             customized: Field::required($data, 'customized', 'Appearance', Value::bool(...)),
             theme: Field::required($data, 'theme', 'Appearance', Value::dto(AppearanceTheme::fromArray(...))),
+            remoteLogoIgnored: Field::required($data, 'remote_logo_ignored', 'Appearance', Value::bool(...)),
             organizationId: Field::optional($data, 'organization_id', 'Appearance', Value::string(...)),
             logo: Field::optional($data, 'logo', 'Appearance', Value::string(...)),
+            favicon: Field::optional($data, 'favicon', 'Appearance', Value::string(...)),
         );
     }
 
@@ -41,6 +48,8 @@ readonly class Appearance implements JsonSerializable
             'customized' => $this->customized,
             'theme' => $this->theme->toArray(),
             'logo' => $this->logo,
+            'favicon' => $this->favicon,
+            'remote_logo_ignored' => $this->remoteLogoIgnored,
         ];
     }
 

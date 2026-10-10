@@ -5,6 +5,8 @@ their GitHub release pages.
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-10-10
+
 Needs laravel-id 1.24 / the Cbox ID release with feature flags, fine-grained
 authorization, Pipes and SMS as a second factor. Against an older instance the new claim
 reads as absent (every feature off) and the new endpoints answer 404.
@@ -29,11 +31,18 @@ reads as absent (every feature off) and the new endpoints answer 404.
   `connectUrl` (and `connectUrlWith($clientId, $returnTo)`), `PipeTemporarilyUnavailable`
   carries `retryAfter`, `PipeLeaseDenied` is the 403. `CboxId::pipeConnectUrl()` and
   `redirectToPipeConnect()` build the hosted connect page.
-- Management clients regenerated from the current specs (Cbox ID wave 10):
-  `featureFlags` (including `evaluate(['user_id' => …, 'organization_id' => …])`), `fga`
-  (`check`, `checkBatch`, tuples write/delete/list, resources and subjects lists, schema
+- `FrontendClient::config($organization)`: the sign-in document for one organization (by
+  id or slug), whose `social` list is exactly what that organization's hosted page offers.
+  Each organization is cached on its own. `FrontendConfig::$methods` and `offers()` say
+  whether passkeys and magic links are switched on.
+- Management clients regenerated from the current specs (Cbox ID wave 10): `featureFlags`
+  (including `evaluate(['user_id' => …, 'organization_id' => …])`), `fga` (`check`,
+  `checkBatch`, tuples write/delete/list, resources and subjects lists, schema
   get/update/validate, with `consistency_token` on every read), `pipes` (setup, grants,
-  connections), `radar`, `signin->sms`, `users->mfa->sms->remove()`, the HRIS directory
+  connections), `radar`, `signin->sms`, the environment sign-in methods (`signin->social`
+  update, enable, disable, inherit and offered; `environment_wide` / `organization_id` on
+  social set; the auth policy's method fields), `branding->appearance->set()` taking the
+  logo and favicon as base64 data URIs, `users->mfa->sms->remove()`, the HRIS directory
   routes, and on the account plane `mfa->sms->remove()` and `pipes->disconnect()`.
   `Fga\FgaTuple::format()` / `check()` write the tuple notation the batch check takes.
 

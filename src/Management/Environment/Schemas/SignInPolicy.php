@@ -19,6 +19,10 @@ readonly class SignInPolicy implements JsonSerializable
         public SignInRules $baseline,
         /** True for an organization with no override of its own. */
         public bool $inheriting,
+        /** The environment-wide methods and session lengths actually in force, after the deployment's ceiling. */
+        public SignInMethodsInForce $inForce,
+        /** The deployment's ceiling: which methods it offers at all, the longest sessions it allows, and whether it has Turnstile keys. */
+        public SignInMethodsInForce $deployment,
         /** null for the environment baseline. */
         public ?string $organizationId = null,
         /** What the organization stored itself; null when it inherits (and always for the baseline). */
@@ -32,6 +36,8 @@ readonly class SignInPolicy implements JsonSerializable
             policy: Field::required($data, 'policy', 'SignInPolicy', Value::dto(SignInRules::fromArray(...))),
             baseline: Field::required($data, 'baseline', 'SignInPolicy', Value::dto(SignInRules::fromArray(...))),
             inheriting: Field::required($data, 'inheriting', 'SignInPolicy', Value::bool(...)),
+            inForce: Field::required($data, 'in_force', 'SignInPolicy', Value::dto(SignInMethodsInForce::fromArray(...))),
+            deployment: Field::required($data, 'deployment', 'SignInPolicy', Value::dto(SignInMethodsInForce::fromArray(...))),
             organizationId: Field::optional($data, 'organization_id', 'SignInPolicy', Value::string(...)),
             override: Field::optional($data, 'override', 'SignInPolicy', Value::dto(SignInRules::fromArray(...))),
         );
@@ -46,6 +52,8 @@ readonly class SignInPolicy implements JsonSerializable
             'baseline' => $this->baseline->toArray(),
             'override' => $this->override?->toArray(),
             'inheriting' => $this->inheriting,
+            'in_force' => $this->inForce->toArray(),
+            'deployment' => $this->deployment->toArray(),
         ];
     }
 

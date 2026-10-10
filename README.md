@@ -196,6 +196,7 @@ purpose, and useful only from the origins its owner listed against it.
 use Cbox\Id\Client\Frontend\FrontendClient;
 
 $config = app(FrontendClient::class)->config();
+$acme = app(FrontendClient::class)->config('acme');   // the buttons acme's hosted page shows
 
 $config->endpoint('authorization');  // where the form posts on to
 $config->social;                     // the buttons this environment has enabled

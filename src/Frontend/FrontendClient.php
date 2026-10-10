@@ -69,18 +69,26 @@ class FrontendClient
     /**
      * Everything needed to draw a sign-in box, and nothing that identifies anybody.
      *
+     * `$organization` (an id or slug, the way a hosted page is addressed) asks for that
+     * organization's box: `social` is then exactly what its hosted page offers. Each
+     * organization is cached on its own; one the environment does not have is answered as
+     * no hint at all.
+     *
      * @throws FrontendApiUnavailable
      */
-    public function config(): FrontendConfig
+    public function config(?string $organization = null): FrontendConfig
     {
+        $organization = $organization ?? '';
+
         /** @var array<string, mixed> $document */
         $document = Cache::remember(
             // Keyed on the KEY as well as the issuer: one application may legitimately
             // read two environments, and a cache keyed on the issuer alone would serve
-            // one customer's branding on the other's page.
-            'cbox-id-client.frontend.'.hash('sha256', $this->issuer.'|'.$this->publishableKey),
+            // one customer's branding on the other's page. And on the organization, whose
+            // buttons are its own.
+            'cbox-id-client.frontend.'.hash('sha256', $this->issuer.'|'.$this->publishableKey.($organization === '' ? '' : '|'.$organization)),
             $this->cacheTtl,
-            fn (): array => $this->get('/frontend/v1/config'),
+            fn (): array => $this->get('/frontend/v1/config'.($organization === '' ? '' : '?'.http_build_query(['organization' => $organization]))),
         );
 
         return FrontendConfig::fromArray($document);

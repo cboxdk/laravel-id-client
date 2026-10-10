@@ -52,14 +52,14 @@ class SigninPolicy
     }
 
     /**
-     * Change the authentication policy of the environment baseline, or tighten one organization's override. Requiring SSO signs out password sessions.
+     * Change the authentication policy of the environment baseline — including whether passkeys and magic links are offered and how long sessions last — or tighten one organization's override. Requiring SSO signs out password sessions.
      *
      * `PATCH /sign-in/policy` · action `signin.policy.update` · scope `signin:write` · danger: critical
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
      *
-     * @param  array{organization_id?: string|null, min_length?: int, require_breach_check?: bool, max_age_days?: int|null, reuse_history?: int, mfa?: 'off'|'optional'|'required', sso?: 'off'|'preferred'|'required', lockout_threshold?: int|null}  $body
+     * @param  array{organization_id?: string|null, min_length?: int, require_breach_check?: bool, max_age_days?: int|null, reuse_history?: int, mfa?: 'off'|'optional'|'required', sso?: 'off'|'preferred'|'required', lockout_threshold?: int|null, passkeys?: bool, magic_link?: bool, session_idle_minutes?: int|null, session_absolute_minutes?: int|null, bot_challenge?: bool}  $body
      * @return ($options is ReturnPendingApproval ? ApiResponse<SignInPolicySchema>|PendingApprovalResult<ApiResponse<SignInPolicySchema>> : ApiResponse<SignInPolicySchema>)
      */
     public function update(array $body = [], ?CallOptions $options = null): ApiResponse|PendingApprovalResult

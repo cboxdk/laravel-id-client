@@ -37,14 +37,14 @@ class BrandingAppearance
     }
 
     /**
-     * Set the hosted sign-in theme (preset, colours, corners, type, logo) for the environment default or one organization.
+     * Set the hosted sign-in theme (preset, colours, corners, type, uploaded logo and favicon) for the environment default or one organization.
      *
      * `PUT /branding/appearance` · action `branding.appearance.set` · scope `branding:write` · danger: write
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
      *
-     * @param  array{organization_id?: string|null, theme: array{preset?: string, radius?: string, font?: string, light?: array{primary?: string, background?: string, foreground?: string, muted?: string}, dark?: array{primary?: string, background?: string, foreground?: string, muted?: string}}, logo?: string|null}  $body
+     * @param  array{organization_id?: string|null, theme: array{preset?: string, radius?: string, font?: string, light?: array{primary?: string, background?: string, foreground?: string, muted?: string}, dark?: array{primary?: string, background?: string, foreground?: string, muted?: string}}, logo?: string|null, favicon?: string|null}  $body
      * @return ($options is ReturnPendingApproval ? ApiResponse<Appearance>|PendingApprovalResult<ApiResponse<Appearance>> : ApiResponse<Appearance>)
      */
     public function set(array $body, ?CallOptions $options = null): ApiResponse|PendingApprovalResult

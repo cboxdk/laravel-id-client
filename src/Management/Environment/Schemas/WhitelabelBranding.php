@@ -21,9 +21,9 @@ readonly class WhitelabelBranding implements JsonSerializable
         public ?string $appName = null,
         public ?string $emailFromName = null,
         public ?string $emailTemplate = null,
-        /** Uploaded from the console. */
+        /** Uploaded with `PUT /branding/appearance` (the console's Branding page). */
         public ?string $logoUrl = null,
-        /** Uploaded from the console. */
+        /** Uploaded with `PUT /branding/appearance` (the console's Branding page). */
         public ?string $faviconUrl = null,
     ) {}
 
