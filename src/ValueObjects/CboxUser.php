@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cbox\Id\Client\ValueObjects;
 
 use Cbox\Id\Client\Concerns\ReadsAuthorizationClaims;
+use Cbox\Id\Client\Contracts\HasFeatureFlags;
 use Cbox\Id\Client\Contracts\Principal;
 
 /**
@@ -17,7 +18,7 @@ use Cbox\Id\Client\Contracts\Principal;
  * the `org_role` tier), `roles()`, `permissions()`, `hasPermission()`, and `actor()` for a
  * support session. Ask for the `organizations` scope to also get `organizations()`.
  */
-readonly class CboxUser implements Principal
+readonly class CboxUser implements HasFeatureFlags, Principal
 {
     use ReadsAuthorizationClaims;
 

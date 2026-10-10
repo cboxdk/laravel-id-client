@@ -95,6 +95,7 @@ class CboxIdFake
      * @param  list<string>  $permissions
      * @param  list<string>  $roles
      * @param  array<string, mixed>  $claims  anything else the principal should carry
+     * @param  list<string>|null  $featureFlags  the `feature_flags` claim; null leaves it absent
      */
     public function actingAs(
         Principal|string $subject = 'user_test',
@@ -105,7 +106,12 @@ class CboxIdFake
         ?string $organizationName = null,
         ?string $actor = null,
         array $claims = [],
+        ?array $featureFlags = null,
     ): Principal {
+        if ($featureFlags !== null) {
+            $claims['feature_flags'] = $featureFlags;
+        }
+
         $principal = $subject instanceof Principal
             ? $subject
             : new Identity($subject, $this->claims($subject, $organization, $role, $permissions, $roles, $organizationName, $actor, $claims));
@@ -130,6 +136,7 @@ class CboxIdFake
      * @param  list<string>  $permissions
      * @param  list<string>  $roles
      * @param  array<string, mixed>  $claims
+     * @param  list<string>|null  $featureFlags  the `feature_flags` claim; null leaves it absent
      */
     public function signIn(
         string $subject = 'user_test',
@@ -142,7 +149,12 @@ class CboxIdFake
         ?string $organizationName = null,
         ?string $actor = null,
         array $claims = [],
+        ?array $featureFlags = null,
     ): CboxUser {
+        if ($featureFlags !== null) {
+            $claims['feature_flags'] = $featureFlags;
+        }
+
         $email ??= $subject.'@example.test';
 
         $user = new CboxUser(

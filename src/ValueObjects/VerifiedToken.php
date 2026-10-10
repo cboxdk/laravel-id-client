@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cbox\Id\Client\ValueObjects;
 
 use Cbox\Id\Client\Concerns\ReadsAuthorizationClaims;
+use Cbox\Id\Client\Contracts\HasFeatureFlags;
 use Cbox\Id\Client\Contracts\Principal;
 use Cbox\Id\Client\Exceptions\OrganizationRequired;
 
@@ -18,7 +19,7 @@ use Cbox\Id\Client\Exceptions\OrganizationRequired;
  * The tenancy questions — `organization()`, `permissions()`, `hasPermission()`,
  * `actor()` — are answered from the signed claims, so they carry the same proof.
  */
-readonly class VerifiedToken implements Principal
+readonly class VerifiedToken implements HasFeatureFlags, Principal
 {
     use ReadsAuthorizationClaims;
 

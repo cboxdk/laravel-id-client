@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cbox\Id\Client\ValueObjects;
 
 use Cbox\Id\Client\Concerns\ReadsAuthorizationClaims;
+use Cbox\Id\Client\Contracts\HasFeatureFlags;
 use Cbox\Id\Client\Contracts\Principal;
 use Cbox\Id\Client\IdentityClient;
 use Cbox\Id\Client\Support\Claims;
@@ -21,7 +22,7 @@ use Cbox\Id\Client\Support\Claims;
  * with `remember: true`). A permission revoked since then is still here until the next
  * one — which is why the session is not where a high-stakes check should stop.
  */
-readonly class Identity implements Principal
+readonly class Identity implements HasFeatureFlags, Principal
 {
     use ReadsAuthorizationClaims;
 
@@ -36,6 +37,9 @@ readonly class Identity implements Principal
         'roles', 'permissions', 'groups', 'act',
         // The Cbox ID session this sign-in came from — what a back-channel logout names.
         'sid',
+        // The feature flags on at sign-in, so `cbox-id.feature` and `@feature` answer on
+        // every request of the session, not only the callback.
+        'feature_flags',
     ];
 
     /**

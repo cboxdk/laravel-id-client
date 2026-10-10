@@ -26,6 +26,9 @@ container if you prefer constructor injection.
 - **[Management API](management-api.md)** — the typed, generated clients for the
   environment, workspace, platform and account planes: idempotent writes, approvals,
   pagination and Audit Logs.
+- **[Feature flags, fine-grained authorization and Pipes](feature-flags-fga-and-pipes.md)** —
+  `hasFeature()`, the `feature:` middleware and `@feature`; relationship checks with
+  consistency tokens; leasing a person's connected-account token.
 - **[Back-channel logout](back-channel-logout.md)** — end a person's sessions in your
   app when they sign out of Cbox ID.
 - **[Protect your API](protect-your-api.md)** — verify a token presented *to* you,

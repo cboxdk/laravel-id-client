@@ -13,6 +13,7 @@ use Cbox\Id\Client\Exceptions\ApiKeyVerificationUnavailable;
 use Cbox\Id\Client\Exceptions\AuthenticationFailed;
 use Cbox\Id\Client\Exceptions\InvalidState;
 use Cbox\Id\Client\Exceptions\NotConfigured;
+use Cbox\Id\Client\Exceptions\PipeLeaseFailed;
 use Cbox\Id\Client\Support\Discovery;
 use Cbox\Id\Client\Support\Pkce;
 use Cbox\Id\Client\Tenancy\CurrentPrincipal;
@@ -20,6 +21,7 @@ use Cbox\Id\Client\Tenancy\SessionIdentityStore;
 use Cbox\Id\Client\ValueObjects\CboxUser;
 use Cbox\Id\Client\ValueObjects\Identity;
 use Cbox\Id\Client\ValueObjects\Organization;
+use Cbox\Id\Client\ValueObjects\PipeToken;
 use Cbox\Id\Client\ValueObjects\RefreshedTokens;
 use Cbox\Id\Client\ValueObjects\VerifiedApiKey;
 use Cbox\Id\Client\Webhooks\StandardWebhookSignature;
@@ -482,6 +484,96 @@ class IdentityClient
     public function redirectToApiKeys(?string $clientId = null, ?string $returnTo = null, ?string $organization = null): RedirectResponse
     {
         return new RedirectResponse($this->apiKeysUrl($clientId, $returnTo, $organization));
+    }
+
+    /**
+     * The hosted page where the signed-in person connects their account at `$provider`
+     * (Pipes): `{issuer}/account/connected-services/{provider}/connect`, preselected to
+     * this app. They come back to `$returnTo` with
+     * `?provider=…&status=connected|cancelled|failed` — honoured only on an origin the app
+     * registered; otherwise they land on Connected services.
+     */
+    public function pipeConnectUrl(string $provider, ?string $returnTo = null): string
+    {
+        return self::withConnectReturn(
+            rtrim($this->issuer(), '/').'/account/connected-services/'.rawurlencode($provider).'/connect',
+            $this->clientId(),
+            $returnTo,
+        );
+    }
+
+    public function redirectToPipeConnect(string $provider, ?string $returnTo = null): RedirectResponse
+    {
+        return new RedirectResponse($this->pipeConnectUrl($provider, $returnTo));
+    }
+
+    /**
+     * Lease a fresh access token for a person's connected account at `$provider` (Pipes).
+     * Cbox ID refreshes it first when it is about to expire, so you never handle a
+     * refresh token. Use it, drop it, lease again next time.
+     *
+     * Without `$accessToken` it leases as this app, with a client-credentials token
+     * scoped `vault.lease`, and `$userId` names the person. With a token issued to this
+     * app FOR a person, pass it and leave `$userId` out — the lease is theirs.
+     *
+     *     try {
+     *         $token = CboxId::leasePipeToken('github', purpose: 'list-repos', userId: $user->cbox_id);
+     *     } catch (PipeNotConnected|PipeReauthorizationRequired $e) {
+     *         return redirect($e->connectUrlWith(config('cbox-id-client.client_id'), url()->current()));
+     *     }
+     *
+     * @throws PipeLeaseFailed {@see PipeNotConnected} / {@see PipeReauthorizationRequired}
+     *                         (send them to `connectUrl`), {@see PipeTemporarilyUnavailable}
+     *                         (retry after `retryAfter`), {@see PipeLeaseDenied} (not granted)
+     */
+    public function leasePipeToken(string $provider, string $purpose, ?string $userId = null, ?string $accessToken = null): PipeToken
+    {
+        $token = $accessToken ?? $this->machineToken(['vault.lease']);
+        $body = ['purpose' => $purpose];
+
+        if ($userId !== null) {
+            $body['user_id'] = $userId;
+        }
+
+        $response = Http::withToken($token)
+            ->acceptJson()
+            ->timeout($this->timeout())
+            ->post(rtrim($this->issuer(), '/').'/api/v1/vault/pipes/'.rawurlencode($provider).'/token', $body);
+
+        if (! $response->successful()) {
+            throw PipeLeaseFailed::fromResponse($response);
+        }
+
+        $data = $response->json();
+
+        if (! is_array($data) || ! is_string($data['access_token'] ?? null)) {
+            throw new PipeLeaseFailed('The pipe lease answered without an access token.', null, $response->status());
+        }
+
+        return PipeToken::fromArray($data);
+    }
+
+    /**
+     * A connect URL with `client_id` and `return_to` added — the one a lease refusal
+     * carries, or one from {@see pipeConnectUrl()}.
+     */
+    public static function withConnectReturn(string $connectUrl, ?string $clientId = null, ?string $returnTo = null): string
+    {
+        $parts = parse_url($connectUrl);
+        $query = [];
+        parse_str(is_array($parts) ? ($parts['query'] ?? '') : '', $query);
+
+        if ($clientId !== null && $clientId !== '') {
+            $query['client_id'] = $clientId;
+        }
+
+        if ($returnTo !== null && $returnTo !== '') {
+            $query['return_to'] = $returnTo;
+        }
+
+        $base = strtok($connectUrl, '?');
+
+        return ($base === false ? $connectUrl : $base).($query === [] ? '' : '?'.http_build_query($query));
     }
 
     /**

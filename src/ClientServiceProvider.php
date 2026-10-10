@@ -9,6 +9,7 @@ use Cbox\Id\Client\Authz\ManifestPublisher;
 use Cbox\Id\Client\BackchannelLogout\LogoutTokenVerifier;
 use Cbox\Id\Client\BackchannelLogout\SessionRegistry;
 use Cbox\Id\Client\Console\PublishManifestCommand;
+use Cbox\Id\Client\Contracts\HasFeatureFlags;
 use Cbox\Id\Client\Contracts\Management;
 use Cbox\Id\Client\Contracts\VerifiesApiKeys;
 use Cbox\Id\Client\Exceptions\ClientConfigurationException;
@@ -16,6 +17,7 @@ use Cbox\Id\Client\Frontend\FrontendClient;
 use Cbox\Id\Client\Http\BackchannelLogoutController;
 use Cbox\Id\Client\Http\EnforceBackchannelLogout;
 use Cbox\Id\Client\Http\RequireConfiguredIdentity;
+use Cbox\Id\Client\Http\RequireFeature;
 use Cbox\Id\Client\Http\RequireOrganization;
 use Cbox\Id\Client\Http\RequirePermission;
 use Cbox\Id\Client\Http\VerifyAccessToken;
@@ -43,6 +45,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\View\Compilers\BladeCompiler;
 use Throwable;
 
 class ClientServiceProvider extends ServiceProvider
@@ -244,6 +247,9 @@ class ClientServiceProvider extends ServiceProvider
         $router->aliasMiddleware('cbox-id.permission', RequirePermission::class);
         $router->aliasMiddleware('cbox-id.configured', RequireConfiguredIdentity::class);
         $router->aliasMiddleware('cbox-id.session', EnforceBackchannelLogout::class);
+        $router->aliasMiddleware('cbox-id.feature', RequireFeature::class);
+
+        $this->registerFeatureFlagShortcuts($router);
 
         $this->registerBackchannelLogout($router);
 
@@ -252,6 +258,34 @@ class ClientServiceProvider extends ServiceProvider
         if (config('cbox-id-client.authorization.gate') === true) {
             PermissionGate::register($this->app->make(Gate::class), $this->app->make(CurrentPrincipal::class));
         }
+    }
+
+    /**
+     * `feature:key` and `@feature('key')`, under the names configured. The short alias is
+     * only taken when the application has not already taken it: an alias registered here
+     * at boot would otherwise silently replace the application's own.
+     */
+    private function registerFeatureFlagShortcuts(Router $router): void
+    {
+        $alias = config('cbox-id-client.feature_flags.middleware', 'feature');
+
+        if (is_string($alias) && $alias !== '' && ! array_key_exists($alias, $router->getMiddleware())) {
+            $router->aliasMiddleware($alias, RequireFeature::class);
+        }
+
+        $directive = config('cbox-id-client.feature_flags.blade', 'feature');
+
+        if (! is_string($directive) || $directive === '') {
+            return;
+        }
+
+        $this->callAfterResolving('blade.compiler', function (BladeCompiler $blade) use ($directive): void {
+            $blade->if($directive, function (string $key): bool {
+                $principal = $this->app->make(CurrentPrincipal::class)->resolve(auth()->user(), request());
+
+                return $principal instanceof HasFeatureFlags && $principal->hasFeature($key);
+            });
+        });
     }
 
     /**

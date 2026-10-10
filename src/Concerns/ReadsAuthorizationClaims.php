@@ -97,6 +97,34 @@ trait ReadsAuthorizationClaims
         return $role !== '' && in_array($role, $this->roles(), true);
     }
 
+    /**
+     * The keys of the feature flags on for this person in this organization — the
+     * `feature_flags` claim. Null when the claim is absent (the `feature_flags` scope was
+     * not requested); `[]` when it was asked and nothing is on. A token carries the flags
+     * as they were when it was issued; the next refresh picks up a change.
+     *
+     * @return list<string>|null
+     */
+    public function featureFlags(): ?array
+    {
+        // A list or nothing. A string is not split like `roles` is: a malformed claim must
+        // turn every feature off, never on.
+        if (! is_array($this->claims['feature_flags'] ?? null)) {
+            return null;
+        }
+
+        return Claims::strings($this->claims, 'feature_flags');
+    }
+
+    /**
+     * Whether the feature flag `$key` is on. Exact match. False when the claim is absent —
+     * an app that forgot to request the scope sees every feature off, never every one on.
+     */
+    public function hasFeature(string $key): bool
+    {
+        return $key !== '' && in_array($key, $this->featureFlags() ?? [], true);
+    }
+
     public function actor(): ?Actor
     {
         return Actor::fromClaims($this->claims);

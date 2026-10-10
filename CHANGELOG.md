@@ -5,6 +5,45 @@ their GitHub release pages.
 
 ## [Unreleased]
 
+Needs laravel-id 1.24 / the Cbox ID release with feature flags, fine-grained
+authorization, Pipes and SMS as a second factor. Against an older instance the new claim
+reads as absent (every feature off) and the new endpoints answer 404.
+
+### Added
+
+- **Feature flags.** `featureFlags()` and `hasFeature($key)` on `CboxUser`,
+  `VerifiedToken` and the session `Identity` (new `Contracts\HasFeatureFlags`, with
+  `HasFeatureFlags::SCOPE`), read from the `feature_flags` claim — `null` when the scope was
+  not requested, `[]` when nothing is on, and never on for a malformed claim. The session
+  identity now remembers `feature_flags`.
+- `cbox-id.feature:key[,key…]` route middleware (all must be on; a flag that is off answers
+  404), with a short `feature:key` alias, and a `@feature('key')` … `@else` … `@endfeature`
+  Blade directive. Both short names are configurable under `feature_flags` (or `null` to
+  skip — Laravel Pennant also registers `@feature`); an alias the application already has
+  is never replaced.
+- `CboxId::fake()->actingAs(featureFlags: […])` and `signIn(featureFlags: […])`.
+- **Pipes.** `CboxId::leasePipeToken($provider, $purpose, $userId, $accessToken)` leases a
+  fresh token for a person's connected account (as the app with a `vault.lease` machine
+  token, or with a token you hold) and returns a `PipeToken`. Refusals are typed under
+  `PipeLeaseFailed`: `PipeNotConnected` and `PipeReauthorizationRequired` carry
+  `connectUrl` (and `connectUrlWith($clientId, $returnTo)`), `PipeTemporarilyUnavailable`
+  carries `retryAfter`, `PipeLeaseDenied` is the 403. `CboxId::pipeConnectUrl()` and
+  `redirectToPipeConnect()` build the hosted connect page.
+- Management clients regenerated from the current specs (Cbox ID wave 10):
+  `featureFlags` (including `evaluate(['user_id' => …, 'organization_id' => …])`), `fga`
+  (`check`, `checkBatch`, tuples write/delete/list, resources and subjects lists, schema
+  get/update/validate, with `consistency_token` on every read), `pipes` (setup, grants,
+  connections), `radar`, `signin->sms`, `users->mfa->sms->remove()`, the HRIS directory
+  routes, and on the account plane `mfa->sms->remove()` and `pipes->disconnect()`.
+  `Fga\FgaTuple::format()` / `check()` write the tuple notation the batch check takes.
+
+### Changed
+
+- The generator folds an action that is also another action's namespace into its parent
+  (`fga.check.batch` becomes `$fga->checkBatch()` next to `$fga->check()`), and accepts an
+  action whose only success answer is `202` (`directories.sync`), typed as no result like
+  the other SDKs.
+
 ## [0.14.0] - 2026-10-08
 
 ### Added
