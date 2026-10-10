@@ -142,11 +142,11 @@ class Directories
      * `$options` is `CallOptions::returnPendingApproval()`.
      *
      * @param  array{organization_id?: string|null, full?: bool}  $body
-     * @return ($options is ReturnPendingApproval ? ApiResponse<null>|PendingApprovalResult<ApiResponse<null>> : ApiResponse<null>)
+     * @return ($options is ReturnPendingApproval ? ApiResponse<Directory>|PendingApprovalResult<ApiResponse<Directory>> : ApiResponse<Directory>)
      */
     public function sync(string $id, array $body = [], ?CallOptions $options = null): ApiResponse|PendingApprovalResult
     {
-        return $this->transport->call(Operations::spec('directories.sync'), [$id], $body, $options, Value::none(...));
+        return $this->transport->call(Operations::spec('directories.sync'), [$id], $body, $options, Value::dto(Directory::fromArray(...)));
     }
 
     /**

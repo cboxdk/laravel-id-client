@@ -54,7 +54,7 @@ class Fga
     /**
      * Run 1–100 checks in one round trip, each written resource#relation@subject (document:readme#viewer@user:alice), all at the same revision, answered in order.
      *
-     * `GET /fga/check/batch` · action `fga.check.batch` · scope `fga:read` · danger: read
+     * `GET /fga/check/batch` · action `fga.check_batch` · scope `fga:read` · danger: read
      *
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
@@ -64,6 +64,6 @@ class Fga
      */
     public function checkBatch(array $query, ?CallOptions $options = null): ApiResponse|PendingApprovalResult
     {
-        return $this->transport->call(Operations::spec('fga.check.batch'), [], $query, $options, Value::dto(FgaCheckBatch::fromArray(...)));
+        return $this->transport->call(Operations::spec('fga.check_batch'), [], $query, $options, Value::dto(FgaCheckBatch::fromArray(...)));
     }
 }

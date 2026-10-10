@@ -39,10 +39,8 @@ reads as absent (every feature off) and the new endpoints answer 404.
 
 ### Changed
 
-- The generator folds an action that is also another action's namespace into its parent
-  (`fga.check.batch` becomes `$fga->checkBatch()` next to `$fga->check()`), and accepts an
-  action whose only success answer is `202` (`directories.sync`), typed as no result like
-  the other SDKs.
+- The generator reads an action's own `202 Accepted` body (documented as `oneOf` it and the
+  approval body), so `$env->directories->sync()` now returns the `Directory`.
 
 ## [0.14.0] - 2026-10-08
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Cbox\Id\Client\Fga\FgaTuple;
 use Cbox\Id\Client\Management\Environment\Schemas\FgaObject;
 use Illuminate\Http\Client\Request as HttpRequest;
+use Illuminate\Support\Facades\Http;
 
 /**
  * Feature flag evaluation and fine-grained authorization through the generated environment
@@ -141,3 +142,16 @@ it('refuses a part the notation cannot carry', function (string $type, string $i
     ['doc:x', 'a', 'x'],
     ['doc', '', 'x'],
 ]);
+
+it('reads the own 202 body of an action that answers Accepted, not as an approval', function (): void {
+    $seen = fakeManagement(Http::response(['data' => [
+        'id' => 'dir_1', 'organization_id' => 'org_1', 'name' => 'Workday', 'provider' => 'workday',
+        'pull' => true, 'active' => true, 'status' => 'active',
+    ]], 202));
+
+    $result = envClient()->directories->sync('dir_1', ['full' => true]);
+
+    expect($seen)->toHaveCount(1)
+        ->and($result->status)->toBe(202)
+        ->and($result->data->id)->toBe('dir_1');
+});

@@ -217,11 +217,25 @@ final class PlaneGenerator
                     break;
                 }
 
-                // No 200/201/204 at all: an action that answers `202 Accepted` with a body
-                // the spec cannot say, because its 202 is the approval response. Typed as
-                // no result, like a 204 — as id-js and id-python generate it.
-                if (! $hasResponse && ! isset($responses[202])) {
-                    throw new RuntimeException("{$this->config->file}: {$method} {$path} declares no 200, 201, 202 or 204 response");
+                // An action whose own answer is `202 Accepted` documents it as `oneOf` its body
+                // and the approval body. The branch that is not the approval is the result.
+                if (! $hasResponse && isset($responses[202])) {
+                    $accepted = $this->deref($responses[202], 'responses');
+                    $json = $accepted['content']['application/json'] ?? null;
+                    $branches = is_array($json) && is_array($json['schema']['oneOf'] ?? null) ? $json['schema']['oneOf'] : [];
+
+                    foreach ($branches as $branch) {
+                        if (is_array($branch) && ! str_contains((string) json_encode($branch), 'approval_required')) {
+                            $responseSchema = $branch;
+                            $hasResponse = true;
+
+                            break;
+                        }
+                    }
+                }
+
+                if (! $hasResponse) {
+                    throw new RuntimeException("{$this->config->file}: {$method} {$path} declares no 200, 201 or 204 response");
                 }
 
                 $queryNames = array_map(static fn (array $p): mixed => $p['name'] ?? null, $query);
@@ -256,23 +270,6 @@ final class PlaneGenerator
         if ($strip) {
             foreach ($actions as $op) {
                 $op->name = array_slice($op->name, 1);
-            }
-        }
-
-        // An action can be both a method and the namespace of another: `fga.check` and
-        // `fga.check.batch`. A member cannot be both, so the deeper one folds its last two
-        // segments together — `fga->checkBatch()` next to `fga->check()`.
-        $leaves = [];
-
-        foreach ($ops as $op) {
-            $leaves[implode('.', $op->name)] = true;
-        }
-
-        foreach ($ops as $op) {
-            while (count($op->name) > 2 && isset($leaves[implode('.', array_slice($op->name, 0, -1))])) {
-                $leaf = array_pop($op->name);
-                $parent = array_pop($op->name);
-                $op->name[] = $parent.'_'.$leaf;
             }
         }
 
