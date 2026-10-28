@@ -5,6 +5,12 @@ their GitHub release pages.
 
 ## [Unreleased]
 
+## [0.15.1] - 2026-10-28
+
+### Added
+
+- `IdentityClient::redirect()` takes a trailing optional `idpHint` (`google`, `github`), sent as `idp_hint`. Cbox ID then skips its sign-in page and sends a signed-out person straight to that provider, for an app that draws its own social buttons. An instance without it, or a provider the page would not offer, shows the sign-in page as before.
+
 ## [0.15.0] - 2026-10-10
 
 Needs laravel-id 1.24 / the Cbox ID release with feature flags, fine-grained

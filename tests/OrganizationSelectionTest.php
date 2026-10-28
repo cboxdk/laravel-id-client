@@ -140,3 +140,11 @@ it('remembers nothing when the application keeps identity itself', function (): 
 
     expect(app(SessionIdentityStore::class)->identity())->toBeNull();
 });
+
+it('sends idp_hint to authorize, and nothing when there is none', function (): void {
+    fakeCbox();
+    $client = app(IdentityClient::class);
+
+    expect(authorizeQuery($client->redirect(idpHint: 'google')))->toMatchArray(['idp_hint' => 'google'])
+        ->and(authorizeQuery($client->redirect()))->not->toHaveKey('idp_hint');
+});
