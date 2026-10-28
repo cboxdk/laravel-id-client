@@ -32,6 +32,20 @@ redirect and a callback, not a rewrite.
     │   your app logs in <─│  returns CboxUser               │
 ```
 
+## Your own "Continue with Google"
+
+An app that draws its own social buttons passes the provider, and Cbox ID skips its
+sign-in page and sends a signed-out person straight there:
+
+```php
+Route::get('/auth/google', fn () => CboxId::redirect(idpHint: 'google'));
+```
+
+The key is the provider's catalogue key (`google`, `github`, …), the same `provider` the
+Frontend API's `config().social` lists. A provider the sign-in page would not offer is
+ignored and the page is shown as usual. If the provider sign-in fails, the person lands
+on the sign-in page, never back at the provider.
+
 ## What's stored in the session
 
 `redirect()` puts three short-lived values in the session, all consumed (pulled)

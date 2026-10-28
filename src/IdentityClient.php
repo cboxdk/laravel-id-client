@@ -100,6 +100,11 @@ class IdentityClient
      * step). `maxAge` forces re-auth if the instance session is older than N seconds;
      * `loginHint` pre-fills the identifier.
      *
+     * `idpHint` names a social provider (`google`, `github`) and skips the sign-in page:
+     * Cbox ID sends a signed-out person straight to that provider, for an app that draws
+     * its own "Continue with Google". A provider the page would not offer is ignored and
+     * the page is shown as usual.
+     *
      * `organization` binds the grant to that organization: the person must be an active
      * member, or the callback comes back with `access_denied`. `organizationHint` only
      * preselects it in the picker.
@@ -114,6 +119,7 @@ class IdentityClient
         ?string $loginHint = null,
         ?string $organization = null,
         ?string $organizationHint = null,
+        ?string $idpHint = null,
     ): RedirectResponse {
         $verifier = Pkce::verifier();
         $state ??= bin2hex(random_bytes(16));
@@ -145,6 +151,7 @@ class IdentityClient
             'login_hint' => $loginHint,
             'organization' => $organization,
             'organization_hint' => $organizationHint,
+            'idp_hint' => $idpHint,
         ], static fn (?string $v): bool => $v !== null && $v !== ''));
 
         return new RedirectResponse($this->discovery->endpoint('authorization_endpoint').'?'.$query);
