@@ -5,6 +5,14 @@ their GitHub release pages.
 
 ## [Unreleased]
 
+## [0.15.2] - 2026-11-04
+
+### Added
+
+- `ResourceAuthorizationClient` acquires a dedicated API bearer for an already authenticated person, separately from the existing OIDC login. It uses PKCE S256 and independent ten-minute session transactions, checks the expected subject and organization plus exact resource audience, client, scopes, signature and expiry, and never calls issuer-only UserInfo.
+- `ResourceAuthorizationResult` exposes expiry, organization, subject and server-bound context with a private bearer accessor. State is JSON-session-compatible; server-side sessions and blocked authorize/callback routes are required. Browser-visible callbacks never carry API credentials.
+- Integration documentation and tests for simultaneous tabs, replay, stale state, malformed URLs, cookie-session refusal, signature failures and cross-identity tokens. Existing `IdentityClient` methods are unchanged.
+
 ## [0.15.1] - 2026-10-28
 
 ### Added

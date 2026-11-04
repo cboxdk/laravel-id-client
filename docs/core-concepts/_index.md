@@ -11,3 +11,5 @@ on it:
 
 - **[How login works](how-login-works.md)** — the authorization-code + PKCE flow,
   what's stored in the session, and every check performed on the way back.
+
+- [Resource authorization](resource-authorization.md): dedicated API tokens for an already signed-in person.

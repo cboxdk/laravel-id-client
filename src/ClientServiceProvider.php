@@ -96,6 +96,25 @@ class ClientServiceProvider extends ServiceProvider
             return new IdentityClient($config, new Discovery($issuer, $cacheTtl, $timeout), $app->make(SessionIdentityStore::class));
         });
 
+        $this->app->singleton(ResourceAuthorizationClient::class, static function (Container $app): ResourceAuthorizationClient {
+            $raw = config('cbox-id-client');
+            $config = [];
+
+            if (is_array($raw)) {
+                foreach ($raw as $key => $value) {
+                    if (is_string($key)) {
+                        $config[$key] = $value;
+                    }
+                }
+            }
+
+            $issuer = is_string($config['issuer'] ?? null) ? $config['issuer'] : '';
+            $cacheTtl = is_numeric($config['cache_ttl'] ?? null) ? (int) $config['cache_ttl'] : 3600;
+            $timeout = is_numeric($config['http_timeout'] ?? null) ? (int) $config['http_timeout'] : 10;
+
+            return new ResourceAuthorizationClient($config, new Discovery($issuer, $cacheTtl, $timeout));
+        });
+
         // The environment management API. Resolvable without a key so an application
         // that never provisions boots fine; the first call without one is refused with a
         // NotConfigured that names CBOX_ID_MANAGEMENT_KEY.
