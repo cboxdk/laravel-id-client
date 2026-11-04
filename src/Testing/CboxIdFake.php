@@ -6,6 +6,7 @@ namespace Cbox\Id\Client\Testing;
 
 use Cbox\Id\Client\AccessTokenVerifier;
 use Cbox\Id\Client\Contracts\Management;
+use Cbox\Id\Client\Contracts\PermissionDecisions;
 use Cbox\Id\Client\Contracts\Principal;
 use Cbox\Id\Client\Contracts\VerifiesApiKeys;
 use Cbox\Id\Client\Enums\OrganizationRole;
@@ -54,6 +55,8 @@ class CboxIdFake
 
     private readonly FakeManagement $management;
 
+    private readonly FakePermissionDecisions $permissionDecisions;
+
     private readonly FakeApiKeyVerifier $apiKeys;
 
     private readonly TokenFactory $tokens;
@@ -76,6 +79,8 @@ class CboxIdFake
 
         $this->client = new FakeIdentityClient(is_array($config) ? $this->stringKeyed($config) : [], $discovery, $sessions, $this->tokens);
         $this->management = new FakeManagement;
+        $this->permissionDecisions = new FakePermissionDecisions;
+        $this->app->instance(PermissionDecisions::class, $this->permissionDecisions);
         $this->apiKeys = new FakeApiKeyVerifier($clientId);
 
         $this->app->instance(IdentityClient::class, $this->client);
@@ -187,6 +192,11 @@ class CboxIdFake
     public function token(): TokenFactory
     {
         return $this->tokens;
+    }
+
+    public function permissionDecisions(): FakePermissionDecisions
+    {
+        return $this->permissionDecisions;
     }
 
     public function management(): FakeManagement
