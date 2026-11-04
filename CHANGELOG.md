@@ -5,6 +5,8 @@ their GitHub release pages.
 
 ## [Unreleased]
 
+## [0.15.3] - 2026-11-04
+
 ### Added
 
 - `PermissionDecisions` queries current app-scoped RBAC through Cbox ID's decision endpoint. The client binds responses to the requested subject, organization, configured app and exact permission set, refuses malformed responses and redirects, and makes no local authorization cache.
