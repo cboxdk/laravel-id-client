@@ -8,6 +8,7 @@ use Cbox\Id\Client\Exceptions\AuthenticationFailed;
 use Cbox\Id\Client\Exceptions\InvalidState;
 use Cbox\Id\Client\Support\Discovery;
 use Cbox\Id\Client\Support\Pkce;
+use Cbox\Id\Client\ValueObjects\DpopKey;
 use Cbox\Id\Client\ValueObjects\PendingResourceAuthorization;
 use Cbox\Id\Client\ValueObjects\ResourceAuthorizationResult;
 use Illuminate\Http\RedirectResponse;
@@ -27,7 +28,7 @@ final readonly class ResourceAuthorizationClient
      * @param  list<string>  $scopes
      * @param  array<string,string>  $context
      */
-    public function redirect(string $resource, string $organizationId, string $expectedSubject, string $redirectUri, array $scopes, array $context = []): RedirectResponse
+    public function redirect(string $resource, string $organizationId, string $expectedSubject, string $redirectUri, array $scopes, array $context = [], bool $dpop = false): RedirectResponse
     {
         if (! filter_var($resource, FILTER_VALIDATE_URL) || parse_url($resource, PHP_URL_SCHEME) !== 'https'
             || parse_url($resource, PHP_URL_FRAGMENT) !== null || rtrim($resource, '/') === rtrim($this->required('issuer'), '/')
@@ -63,13 +64,15 @@ final readonly class ResourceAuthorizationClient
         }
         $state = bin2hex(random_bytes(32));
         $verifier = Pkce::verifier();
-        session()->put('cbox-resource.'.$state, (new PendingResourceAuthorization($resource, $organizationId, $expectedSubject, $redirectUri, $scopes, $context, $verifier, time() + 600))->toArray());
+        $holder = $dpop ? DpopKey::generate() : null;
+        session()->put('cbox-resource.'.$state, (new PendingResourceAuthorization($resource, $organizationId, $expectedSubject, $redirectUri, $scopes, $context, $verifier, time() + 600, $holder))->toArray());
 
         $endpoint = $this->endpoint('authorization_endpoint');
 
         return new RedirectResponse($endpoint.(str_contains($endpoint, '?') ? '&' : '?').http_build_query([
             'response_type' => 'code', 'client_id' => $this->required('client_id'), 'redirect_uri' => $redirectUri,
             'resource' => $resource, 'organization' => $organizationId, 'scope' => implode(' ', $scopes),
+            ...($holder === null ? [] : ['dpop_jkt' => $holder->thumbprint()]),
             'state' => $state, 'code_challenge' => Pkce::challenge($verifier), 'code_challenge_method' => 'S256',
         ]));
     }
@@ -87,30 +90,37 @@ final readonly class ResourceAuthorizationClient
         if (! $pending instanceof PendingResourceAuthorization || $pending->expires < time()) {
             throw InvalidState::because('Expired or consumed resource authorization state.');
         }
+        $holder = $pending->holder;
         $code = $request->query('code');
         if ($request->has('error') || ! is_string($code) || $code === '' || ($request->has('iss') && $request->query('iss') !== $this->required('issuer'))) {
             throw AuthenticationFailed::because('Resource authorization was refused.');
         }
         try {
-            $response = Http::asForm()->withoutRedirecting()->timeout(10)->post($this->endpoint('token_endpoint'), [
+            $endpoint = $this->endpoint('token_endpoint');
+            $http = Http::asForm()->withoutRedirecting()->timeout(10);
+            if ($holder instanceof DpopKey) {
+                $http = $http->withHeaders(['DPoP' => $holder->proof('POST', $endpoint)]);
+            }
+            $response = $http->post($endpoint, [
                 'grant_type' => 'authorization_code', 'code' => $code, 'client_id' => $this->required('client_id'),
                 'client_secret' => $this->required('client_secret'), 'redirect_uri' => $pending->redirectUri,
                 'code_verifier' => $pending->verifier, 'resource' => $pending->resource,
             ]);
             $bearer = $response->json('access_token');
             $tokenType = $response->json('token_type');
-            if (! $response->successful() || ! is_string($bearer) || ! is_string($tokenType) || strcasecmp($tokenType, 'Bearer') !== 0) {
+            if (! $response->successful() || ! is_string($bearer) || ! is_string($tokenType) || strcasecmp($tokenType, $holder instanceof DpopKey ? 'DPoP' : 'Bearer') !== 0) {
                 throw AuthenticationFailed::because('Resource token exchange failed.');
             }
             $this->endpoint('jwks_uri');
-            $verified = (new AccessTokenVerifier($this->discovery, $this->required('issuer'), $pending->resource))->verify($bearer, $pending->scopes);
+            $verifier = new AccessTokenVerifier($this->discovery, $this->required('issuer'), $pending->resource);
+            $verified = $holder instanceof DpopKey ? $verifier->verifyForHolder($bearer, $holder, $pending->scopes) : $verifier->verify($bearer, $pending->scopes);
             if ($verified->subject !== $pending->expectedSubject || $verified->organizationId !== $pending->organizationId
                 || $verified->clientId !== $this->required('client_id') || $verified->subject === $verified->clientId
                 || isset($verified->claims['act']) || $verified->claims['aud'] !== $pending->resource || $verified->expiresAt <= time()) {
                 throw AuthenticationFailed::because('Resource token binding did not match.');
             }
 
-            return new ResourceAuthorizationResult($bearer, $verified->subject, $pending->organizationId, $pending->resource, $verified->scopes, $verified->expiresAt, $pending->context);
+            return new ResourceAuthorizationResult($bearer, $verified->subject, $pending->organizationId, $pending->resource, $verified->scopes, $verified->expiresAt, $pending->context, $holder);
         } catch (\Throwable) {
             // Token responses and transport exceptions may contain credentials.
             throw AuthenticationFailed::because('Resource authorization could not be verified.');

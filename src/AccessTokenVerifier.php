@@ -6,6 +6,7 @@ namespace Cbox\Id\Client;
 
 use Cbox\Id\Client\Exceptions\TokenRejected;
 use Cbox\Id\Client\Support\Discovery;
+use Cbox\Id\Client\ValueObjects\DpopKey;
 use Cbox\Id\Client\ValueObjects\VerifiedToken;
 use Firebase\JWT\JWK;
 use Firebase\JWT\JWT;
@@ -63,6 +64,20 @@ readonly class AccessTokenVerifier
      */
     public function verify(string $token, array $requiredScopes = []): VerifiedToken
     {
+        return $this->verifyClaims($token, $requiredScopes, null);
+    }
+
+    /** Verify an outbound grant against our own key. Inbound requests still require a proof validator.
+     * @param  list<string>  $requiredScopes
+     */
+    public function verifyForHolder(string $token, DpopKey $holder, array $requiredScopes = []): VerifiedToken
+    {
+        return $this->verifyClaims($token, $requiredScopes, $holder);
+    }
+
+    /** @param list<string> $requiredScopes */
+    private function verifyClaims(string $token, array $requiredScopes, ?DpopKey $holder): VerifiedToken
+    {
         $claims = $this->decode($token);
 
         if (($claims['iss'] ?? null) !== $this->issuer) {
@@ -85,7 +100,12 @@ readonly class AccessTokenVerifier
         // Accepting it here without validating the proof would silently downgrade a
         // sender-constrained token to a bearer one — undoing the protection while
         // appearing to honour it. Refused until the proof check exists.
-        if (isset($claims['cnf'])) {
+        if ($holder !== null) {
+            $binding = $claims['cnf'] ?? null;
+            if (! $binding instanceof \stdClass || ! is_string($binding->jkt ?? null) || ! hash_equals($holder->thumbprint(), $binding->jkt)) {
+                throw TokenRejected::because('The resource grant is not bound to the expected DPoP key.');
+            }
+        } elseif (isset($claims['cnf'])) {
             throw TokenRejected::because(
                 'This token is sender-constrained (DPoP) and this API only accepts bearer tokens. '
                 .'Request a token without a DPoP binding, or add proof validation here before accepting one.'

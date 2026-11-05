@@ -125,6 +125,7 @@ class ClientServiceProvider extends ServiceProvider
             return new ResourceAuthorizationClient($config, new Discovery($issuer, $cacheTtl, $timeout));
         });
 
+        $this->app->bind(PersonalAppCatalog::class, static fn () => new PersonalAppCatalog(app(Factory::class), self::configString('cbox-id-client.issuer')));
         $this->app->bind(UserProperties::class, static fn () => new HttpUserProperties(
             app(Factory::class), self::configString('cbox-id-client.issuer'), self::configInt('cbox-id-client.http_timeout', 10),
         ));
