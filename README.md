@@ -354,3 +354,5 @@ generated code and the specs disagree.
 ## License
 
 MIT © Cbox.
+
+On a revision-aware host, the typed `Management::members()` page exposes `directoryRevision` from `meta.directory_revision`. When reconciling an organization's roster, collect all pages at the same nonnegative revision. Retry the full traversal if a later page reports a different revision. Older hosts can omit the field and the client returns null.

@@ -20,12 +20,13 @@ final class PendingResourceAuthorization
         public array $context,
         #[\SensitiveParameter] public string $verifier,
         public int $expires,
+        public ?DpopKey $holder = null,
     ) {}
 
     /** @return array<string,mixed> */
     public function toArray(): array
     {
-        return ['resource' => $this->resource, 'organizationId' => $this->organizationId, 'expectedSubject' => $this->expectedSubject, 'redirectUri' => $this->redirectUri, 'scopes' => $this->scopes, 'context' => $this->context, 'verifier' => $this->verifier, 'expires' => $this->expires];
+        return ['resource' => $this->resource, 'organizationId' => $this->organizationId, 'expectedSubject' => $this->expectedSubject, 'redirectUri' => $this->redirectUri, 'scopes' => $this->scopes, 'context' => $this->context, 'verifier' => $this->verifier, 'expires' => $this->expires, 'holder' => $this->holder?->seal()];
     }
 
     public static function fromStored(mixed $value): ?self
@@ -59,7 +60,13 @@ final class PendingResourceAuthorization
             $validContext[$key] = $item;
         }
 
-        return new self($value['resource'], $value['organizationId'], $value['expectedSubject'], $value['redirectUri'], $validScopes, $validContext, $value['verifier'], $expires);
+        $sealed = $value['holder'] ?? null;
+        $holder = is_string($sealed) ? DpopKey::open($sealed) : null;
+        if ($sealed !== null && $holder === null) {
+            return null;
+        }
+
+        return new self($value['resource'], $value['organizationId'], $value['expectedSubject'], $value['redirectUri'], $validScopes, $validContext, $value['verifier'], $expires, $holder);
     }
 
     /** @return array<string,mixed> */

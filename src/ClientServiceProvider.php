@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace Cbox\Id\Client;
 
 use Cbox\Id\Client\ApiKeys\ApiKeyVerifier;
+use Cbox\Id\Client\Authz\HttpPermissionDecisions;
 use Cbox\Id\Client\Authz\ManifestPublisher;
 use Cbox\Id\Client\BackchannelLogout\LogoutTokenVerifier;
 use Cbox\Id\Client\BackchannelLogout\SessionRegistry;
 use Cbox\Id\Client\Console\PublishManifestCommand;
 use Cbox\Id\Client\Contracts\HasFeatureFlags;
 use Cbox\Id\Client\Contracts\Management;
+use Cbox\Id\Client\Contracts\PermissionDecisions;
+use Cbox\Id\Client\Contracts\UserProperties;
 use Cbox\Id\Client\Contracts\VerifiesApiKeys;
 use Cbox\Id\Client\Events\UserPropertiesUpdated;
 use Cbox\Id\Client\Exceptions\ClientConfigurationException;
@@ -33,6 +36,7 @@ use Cbox\Id\Client\Support\Discovery;
 use Cbox\Id\Client\Tenancy\CurrentPrincipal;
 use Cbox\Id\Client\Tenancy\PermissionGate;
 use Cbox\Id\Client\Tenancy\SessionIdentityStore;
+use Cbox\Id\Client\UserProperties\HttpUserProperties;
 use Cbox\Id\Client\Webhooks\EventType;
 use Cbox\Id\Client\Webhooks\WebhookEvent;
 use Cbox\Id\Client\Webhooks\WebhookHandlers;
@@ -43,6 +47,7 @@ use Illuminate\Contracts\Container\Container;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Foundation\Http\Kernel as FoundationHttpKernel;
+use Illuminate\Http\Client\Factory;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
@@ -60,6 +65,11 @@ class ClientServiceProvider extends ServiceProvider
         // Shared registry — the app registers provisioning hooks against it, the
         // webhook controller dispatches to it. Singleton so both see the same handlers.
         $this->app->singleton(WebhookHandlers::class);
+        $this->app->singleton(PermissionDecisions::class, static fn (): HttpPermissionDecisions => new HttpPermissionDecisions(
+            self::configString('cbox-id-client.issuer'),
+            self::configString('cbox-id-client.client_id'),
+            self::configInt('cbox-id-client.http_timeout', 10),
+        ));
 
         $this->app->singleton(ManifestPublisher::class, static function (): ManifestPublisher {
             $issuer = self::configString('cbox-id-client.issuer');
@@ -117,6 +127,11 @@ class ClientServiceProvider extends ServiceProvider
 
             return new ResourceAuthorizationClient($config, new Discovery($issuer, $cacheTtl, $timeout));
         });
+
+        $this->app->bind(PersonalAppCatalog::class, static fn () => new PersonalAppCatalog(app(Factory::class), self::configString('cbox-id-client.issuer')));
+        $this->app->bind(UserProperties::class, static fn () => new HttpUserProperties(
+            app(Factory::class), self::configString('cbox-id-client.issuer'), self::configInt('cbox-id-client.http_timeout', 10),
+        ));
 
         // The environment management API. Resolvable without a key so an application
         // that never provisions boots fine; the first call without one is refused with a

@@ -296,6 +296,48 @@ must sign in again; anything else is worth retrying.
 When a person signs out of Cbox ID, or loses access, Cbox ID can tell your app to end
 their sessions too — see [Back-channel logout](back-channel-logout.md).
 
+## 10. Check permissions against current Cbox ID state
+
+For a sensitive operation, ask the decision endpoint instead of relying only on
+permissions remembered at sign-in:
+
+```php
+use Cbox\Id\Client\Contracts\PermissionDecisions;
+use Cbox\Id\Client\Facades\CboxId;
+
+// This client must be registered to request decisions:read.
+$token = CboxId::machineToken(['decisions:read']);
+$decision = app(PermissionDecisions::class)->check(
+    $token, $subjectId, $organizationId, ['invoices:approve'],
+);
+abort_unless($decision->allowed(), 403);
+```
+
+Derive the subject and organization from trusted server-side context. Client tokens
+ask only for their own app; organization-owned clients can ask only about their
+own organization. An issuer-audience user token can ask about its own subject and
+organization. Resource-audience tokens are refused by Cbox ID: do not reuse an API
+token at this identity endpoint.
+
+The client makes a fresh request each time and verifies the returned subject,
+organization, app, exact permission set, booleans and aggregate result. Missing,
+malformed or inconsistent answers throw `AuthenticationFailed`; a valid denial
+returns a decision whose `allowed()` is false. Redirects are not followed. Failed
+HTTP responses expose only status and a generic message, not their response body.
+
+`organizationRole` is the current membership tier, or null. If your operation also
+requires membership, check that explicitly: an environment-wide staff grant can
+permit an action without organization membership. This call does not establish a
+browser session, validate a previously presented resource token or terminate an
+open connection. Keep authentication, logout handling and resource ownership checks.
+
+In consumer tests, `CboxId::fake()->permissionDecisions()->queue($decision)` supplies
+an outcome; an empty queue denies by default. Queue `AuthenticationFailed` to test
+an unavailable identity service. The fake records token hashes, never plaintext
+bearers, in its `calls` list. `new PermissionDecision` is a default-denied value
+object. Use the full `Cbox\Id\Client\Authz\PermissionDecision` class name when
+constructing a granted test outcome.
+
 ## Testing all of it
 
 `CboxId::fake()` gives you every piece above without a fake issuer — see

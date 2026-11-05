@@ -22,6 +22,7 @@ readonly class Page
         public array $items = [],
         public bool $hasMore = false,
         public ?string $nextCursor = null,
+        public ?int $directoryRevision = null,
     ) {}
 
     /**
@@ -39,6 +40,7 @@ readonly class Page
             array_map($map, Claims::objects($body, 'data')),
             Claims::bool($meta, 'has_more'),
             Claims::string($meta, 'next_cursor'),
+            Claims::int($meta, 'directory_revision'),
         );
     }
 }
