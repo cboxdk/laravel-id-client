@@ -35,3 +35,5 @@ container if you prefer constructor injection.
   and gate routes on scopes.
 - **[Integration prompt (for AI agents)](integration-prompt.md)** — a self-contained
   brief to hand Claude Code (or a developer) to wire up login in a new SaaS.
+
+- **[User preferences](user-properties.md)** — versioned settings, namespace grants, conflict handling and cache invalidation.

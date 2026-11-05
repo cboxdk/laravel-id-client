@@ -60,7 +60,7 @@ it('creates an organization with its owner, and reads the typed answer', functio
 it('reads a page and its cursor', function (): void {
     Http::fake(['*' => Http::response([
         'data' => [['id' => 'm_1', 'user_id' => 'user_1', 'role' => 'owner'], ['id' => 'm_2', 'user_id' => 'user_2', 'role' => 'something-new']],
-        'meta' => ['limit' => 2, 'has_more' => true, 'next_cursor' => 'user_2'],
+        'meta' => ['limit' => 2, 'has_more' => true, 'next_cursor' => 'user_2', 'directory_revision' => 42],
     ])]);
 
     $page = management()->members('org_1', limit: 2);
@@ -69,7 +69,8 @@ it('reads a page and its cursor', function (): void {
         ->and($page->items[0]->role)->toBe(OrganizationRole::Owner)
         ->and($page->items[1]->role)->toBeNull()
         ->and($page->hasMore)->toBeTrue()
-        ->and($page->nextCursor)->toBe('user_2');
+        ->and($page->nextCursor)->toBe('user_2')
+        ->and($page->directoryRevision)->toBe(42);
 });
 
 it('answers a missing environment role with false rather than an exception', function (): void {

@@ -13,6 +13,7 @@ use Cbox\Id\Client\Console\PublishManifestCommand;
 use Cbox\Id\Client\Contracts\HasFeatureFlags;
 use Cbox\Id\Client\Contracts\Management;
 use Cbox\Id\Client\Contracts\PermissionDecisions;
+use Cbox\Id\Client\Contracts\UserProperties;
 use Cbox\Id\Client\Contracts\VerifiesApiKeys;
 use Cbox\Id\Client\Exceptions\ClientConfigurationException;
 use Cbox\Id\Client\Frontend\FrontendClient;
@@ -34,6 +35,7 @@ use Cbox\Id\Client\Support\Discovery;
 use Cbox\Id\Client\Tenancy\CurrentPrincipal;
 use Cbox\Id\Client\Tenancy\PermissionGate;
 use Cbox\Id\Client\Tenancy\SessionIdentityStore;
+use Cbox\Id\Client\UserProperties\HttpUserProperties;
 use Cbox\Id\Client\Webhooks\WebhookHandlers;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
@@ -42,6 +44,7 @@ use Illuminate\Contracts\Container\Container;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Foundation\Http\Kernel as FoundationHttpKernel;
+use Illuminate\Http\Client\Factory;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
@@ -121,6 +124,11 @@ class ClientServiceProvider extends ServiceProvider
 
             return new ResourceAuthorizationClient($config, new Discovery($issuer, $cacheTtl, $timeout));
         });
+
+        $this->app->bind(PersonalAppCatalog::class, static fn () => new PersonalAppCatalog(app(Factory::class), self::configString('cbox-id-client.issuer')));
+        $this->app->bind(UserProperties::class, static fn () => new HttpUserProperties(
+            app(Factory::class), self::configString('cbox-id-client.issuer'), self::configInt('cbox-id-client.http_timeout', 10),
+        ));
 
         // The environment management API. Resolvable without a key so an application
         // that never provisions boots fine; the first call without one is refused with a

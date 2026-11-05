@@ -4,15 +4,21 @@ declare(strict_types=1);
 
 use Cbox\Id\Client\Exceptions\AuthenticationFailed;
 use Cbox\Id\Client\Exceptions\InvalidState;
+use Cbox\Id\Client\PersonalAppCatalog;
 use Cbox\Id\Client\ResourceAuthorizationClient;
 use Cbox\Id\Client\Support\Pkce;
 use Cbox\Id\Client\Testing\FakeDiscovery;
 use Cbox\Id\Client\Testing\TestKeys;
 use Cbox\Id\Client\Testing\TokenFactory;
+use Cbox\Id\Client\ValueObjects\ResourceAuthorizationResult;
+use Firebase\JWT\JWK;
+use Firebase\JWT\JWT;
+use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 
 beforeEach(function (): void {
+    config(['app.key' => 'base64:'.base64_encode(random_bytes(32))]);
     Http::preventStrayRequests();
     $this->client = new ResourceAuthorizationClient(['issuer' => 'https://id.example', 'client_id' => 'sites', 'client_secret' => 'secret'], new FakeDiscovery('https://id.example', TestKeys::pair()['jwks']));
     $this->token = (new TokenFactory('https://id.example', 'https://domains.example', 'sites'))->for('user-a')->organization('org-a')->scopes(['dns:write']);
@@ -112,4 +118,53 @@ it('preserves existing authorization endpoint query parameters', function (): vo
     $this->client = new ResourceAuthorizationClient(['issuer' => 'https://id.example', 'client_id' => 'sites', 'client_secret' => 'secret'], $discovery);
     $query = resourceStart($this);
     expect($query['tenant'])->toBe('one')->and($query['response_type'])->toBe('code')->and($query)->toHaveKey('state');
+});
+
+it('exchanges and presents a sender-constrained grant with distinct signed proofs', function (): void {
+    $url = $this->client->redirect('https://domains.example', 'org-a', 'user-a', 'https://sites.example/callback', ['dns:write'], dpop: true)->getTargetUrl();
+    parse_str(parse_url($url, PHP_URL_QUERY), $start);
+    $stateKey = 'cbox-resource.'.$start['state'];
+    $serialized = json_encode(session()->get($stateKey), JSON_THROW_ON_ERROR);
+    expect($serialized)->not->toContain('PRIVATE KEY');
+    session()->put($stateKey, json_decode($serialized, true, flags: JSON_THROW_ON_ERROR));
+    $bound = (string) $this->token->with(['cnf' => ['jkt' => $start['dpop_jkt']]]);
+    Http::fake(['*' => Http::response(['access_token' => $bound, 'token_type' => 'DPoP'])]);
+    $grant = $this->client->authenticate(Request::create('/', 'GET', ['state' => $start['state'], 'code' => 'code']));
+    $tokenProof = Http::recorded()[0][0]->header('DPoP')[0];
+    $url = 'https://domains.example/api/v1/me/apps?organization_id=org-a';
+    $headers = $grant->requestHeaders('GET', $url);
+    expect($headers['Authorization'])->toBe('DPoP '.$bound);
+    $decode = function (string $proof): object {
+        $header = json_decode(base64_decode(strtr(explode('.', $proof)[0], '-_', '+/')), true, flags: JSON_THROW_ON_ERROR);
+        expect($header['typ'])->toBe('dpop+jwt')->and($header['jwk'])->not->toHaveKey('d');
+
+        return JWT::decode($proof, JWK::parseKey($header['jwk'], 'ES256'));
+    };
+    $tokenClaims = $decode($tokenProof);
+    $apiClaims = $decode($headers['DPoP']);
+    expect($tokenClaims->htm)->toBe('POST')->and(property_exists($tokenClaims, 'ath'))->toBeFalse()
+        ->and($apiClaims->htm)->toBe('GET')->and($apiClaims->htu)->toBe('https://domains.example/api/v1/me/apps')
+        ->and($apiClaims->ath)->toBe(rtrim(strtr(base64_encode(hash('sha256', $bound, true)), '+/', '-_'), '='))
+        ->and($apiClaims->jti)->not->toBe($tokenClaims->jti)
+        ->and($grant->requestHeaders('GET', $url)['DPoP'])->not->toBe($headers['DPoP']);
+    expect(fn () => $grant->requestHeaders('GET', 'https://foreign.example/apps'))->toThrow(InvalidArgumentException::class);
+});
+
+it('refuses DPoP downgrade and a token bound to another holder', function (string $type, array $binding): void {
+    $url = $this->client->redirect('https://domains.example', 'org-a', 'user-a', 'https://sites.example/callback', ['dns:write'], dpop: true)->getTargetUrl();
+    parse_str(parse_url($url, PHP_URL_QUERY), $start);
+    Http::fake(['*' => Http::response(['access_token' => (string) $this->token->with($binding), 'token_type' => $type])]);
+    expect(fn () => $this->client->authenticate(Request::create('/', 'GET', ['state' => $start['state'], 'code' => 'code'])))->toThrow(AuthenticationFailed::class);
+})->with([['Bearer', []], ['DPoP', []], ['DPoP', ['cnf' => ['jkt' => 'wrong']]]]);
+
+it('reads only the personal catalog for the authorized subject and organization', function (): void {
+    $grant = new ResourceAuthorizationResult('token', 'user-a', 'org-a', 'https://id.example/mcp', ['account:apps:read'], time() + 600, []);
+    $catalog = new PersonalAppCatalog(app(Factory::class), 'https://id.example');
+    Http::fake(['id.example/*' => Http::response(['data' => [['key' => 'signals', 'name' => 'Signals', 'description' => null, 'launch_url' => 'https://signals.example/', 'icon_url' => null]], 'meta' => ['revision' => str_repeat('a', 64), 'refresh_after' => 180]])]);
+    expect(fn () => $catalog->read($grant, 'user-b', 'org-a'))->toThrow(AuthenticationFailed::class);
+    expect(fn () => $catalog->read($grant, 'user-a', 'org-b'))->toThrow(AuthenticationFailed::class);
+    Http::assertNothingSent();
+    $page = $catalog->read($grant, 'user-a', 'org-a');
+    expect($page['refresh_after'])->toBe(60)->and($page['apps'][0]['key'])->toBe('signals');
+    Http::assertSent(fn ($req) => $req->hasHeader('Authorization', 'Bearer token') && $req->url() === 'https://id.example/api/v1/me/apps?organization_id=org-a');
 });
