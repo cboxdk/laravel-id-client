@@ -6,6 +6,8 @@ namespace Cbox\Id\Client\ValueObjects;
 
 use Cbox\Id\Client\Exceptions\AuthenticationFailed;
 use Firebase\JWT\JWT;
+use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Support\Facades\Crypt;
 
 /** A server-side holder key for one delegated OAuth grant. */
 final readonly class DpopKey
@@ -20,6 +22,21 @@ final readonly class DpopKey
         }
 
         return new self($pem);
+    }
+
+    /** Keep key material encrypted in server sessions, including JSON-backed sessions. */
+    public function seal(): string
+    {
+        return Crypt::encryptString($this->pem);
+    }
+
+    public static function open(#[\SensitiveParameter] string $sealed): ?self
+    {
+        try {
+            return new self(Crypt::decryptString($sealed));
+        } catch (DecryptException) {
+            return null;
+        }
     }
 
     /** @return array{crv:string,kty:string,x:string,y:string} */

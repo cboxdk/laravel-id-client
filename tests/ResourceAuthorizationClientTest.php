@@ -18,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 
 beforeEach(function (): void {
+    config(['app.key' => 'base64:'.base64_encode(random_bytes(32))]);
     Http::preventStrayRequests();
     $this->client = new ResourceAuthorizationClient(['issuer' => 'https://id.example', 'client_id' => 'sites', 'client_secret' => 'secret'], new FakeDiscovery('https://id.example', TestKeys::pair()['jwks']));
     $this->token = (new TokenFactory('https://id.example', 'https://domains.example', 'sites'))->for('user-a')->organization('org-a')->scopes(['dns:write']);
@@ -122,6 +123,10 @@ it('preserves existing authorization endpoint query parameters', function (): vo
 it('exchanges and presents a sender-constrained grant with distinct signed proofs', function (): void {
     $url = $this->client->redirect('https://domains.example', 'org-a', 'user-a', 'https://sites.example/callback', ['dns:write'], dpop: true)->getTargetUrl();
     parse_str(parse_url($url, PHP_URL_QUERY), $start);
+    $stateKey = 'cbox-resource.'.$start['state'];
+    $serialized = json_encode(session()->get($stateKey), JSON_THROW_ON_ERROR);
+    expect($serialized)->not->toContain('PRIVATE KEY');
+    session()->put($stateKey, json_decode($serialized, true, flags: JSON_THROW_ON_ERROR));
     $bound = (string) $this->token->with(['cnf' => ['jkt' => $start['dpop_jkt']]]);
     Http::fake(['*' => Http::response(['access_token' => $bound, 'token_type' => 'DPoP'])]);
     $grant = $this->client->authenticate(Request::create('/', 'GET', ['state' => $start['state'], 'code' => 'code']));
