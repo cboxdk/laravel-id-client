@@ -1,7 +1,7 @@
 {
     "bomFormat": "CycloneDX",
     "specVersion": "1.5",
-    "serialNumber": "urn:uuid:cf454ebb-e64a-4d06-9ef9-b998568b1ce6",
+    "serialNumber": "urn:uuid:c8af3a4e-697c-40db-8aec-f5b9b520283a",
     "version": 1,
     "metadata": {
         "tools": [
@@ -657,11 +657,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/clock@v8.1.0",
+            "bom-ref": "pkg:composer/symfony/clock@v8.1.9",
             "group": "symfony",
             "name": "clock",
-            "version": "v8.1.0",
-            "purl": "pkg:composer/symfony/clock@v8.1.0",
+            "version": "v8.1.9",
+            "purl": "pkg:composer/symfony/clock@v8.1.9",
             "description": "Decouples applications from the system clock",
             "licenses": [
                 {
@@ -673,11 +673,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/console@v8.1.8",
+            "bom-ref": "pkg:composer/symfony/console@v8.1.11",
             "group": "symfony",
             "name": "console",
-            "version": "v8.1.8",
-            "purl": "pkg:composer/symfony/console@v8.1.8",
+            "version": "v8.1.11",
+            "purl": "pkg:composer/symfony/console@v8.1.11",
             "description": "Eases the creation of beautiful and testable command line interfaces",
             "licenses": [
                 {
@@ -689,11 +689,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/css-selector@v8.1.6",
+            "bom-ref": "pkg:composer/symfony/css-selector@v8.1.10",
             "group": "symfony",
             "name": "css-selector",
-            "version": "v8.1.6",
-            "purl": "pkg:composer/symfony/css-selector@v8.1.6",
+            "version": "v8.1.10",
+            "purl": "pkg:composer/symfony/css-selector@v8.1.10",
             "description": "Converts CSS selectors to XPath expressions",
             "licenses": [
                 {
@@ -705,11 +705,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/deprecation-contracts@v3.8.0",
+            "bom-ref": "pkg:composer/symfony/deprecation-contracts@v3.8.1",
             "group": "symfony",
             "name": "deprecation-contracts",
-            "version": "v3.8.0",
-            "purl": "pkg:composer/symfony/deprecation-contracts@v3.8.0",
+            "version": "v3.8.1",
+            "purl": "pkg:composer/symfony/deprecation-contracts@v3.8.1",
             "description": "A generic function and convention to trigger deprecation notices",
             "licenses": [
                 {
@@ -721,11 +721,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/error-handler@v8.1.8",
+            "bom-ref": "pkg:composer/symfony/error-handler@v8.1.10",
             "group": "symfony",
             "name": "error-handler",
-            "version": "v8.1.8",
-            "purl": "pkg:composer/symfony/error-handler@v8.1.8",
+            "version": "v8.1.10",
+            "purl": "pkg:composer/symfony/error-handler@v8.1.10",
             "description": "Provides tools to manage errors and ease debugging PHP code",
             "licenses": [
                 {
@@ -753,11 +753,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/event-dispatcher-contracts@v3.7.1",
+            "bom-ref": "pkg:composer/symfony/event-dispatcher-contracts@v3.8.1",
             "group": "symfony",
             "name": "event-dispatcher-contracts",
-            "version": "v3.7.1",
-            "purl": "pkg:composer/symfony/event-dispatcher-contracts@v3.7.1",
+            "version": "v3.8.1",
+            "purl": "pkg:composer/symfony/event-dispatcher-contracts@v3.8.1",
             "description": "Generic abstractions related to dispatching event",
             "licenses": [
                 {
@@ -769,11 +769,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/finder@v8.1.8",
+            "bom-ref": "pkg:composer/symfony/finder@v8.1.11",
             "group": "symfony",
             "name": "finder",
-            "version": "v8.1.8",
-            "purl": "pkg:composer/symfony/finder@v8.1.8",
+            "version": "v8.1.11",
+            "purl": "pkg:composer/symfony/finder@v8.1.11",
             "description": "Finds files and directories via an intuitive fluent interface",
             "licenses": [
                 {
@@ -785,11 +785,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/http-foundation@v8.1.8",
+            "bom-ref": "pkg:composer/symfony/http-foundation@v8.1.11",
             "group": "symfony",
             "name": "http-foundation",
-            "version": "v8.1.8",
-            "purl": "pkg:composer/symfony/http-foundation@v8.1.8",
+            "version": "v8.1.11",
+            "purl": "pkg:composer/symfony/http-foundation@v8.1.11",
             "description": "Defines an object-oriented layer for the HTTP specification",
             "licenses": [
                 {
@@ -801,11 +801,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/http-kernel@v8.1.8",
+            "bom-ref": "pkg:composer/symfony/http-kernel@v8.1.11",
             "group": "symfony",
             "name": "http-kernel",
-            "version": "v8.1.8",
-            "purl": "pkg:composer/symfony/http-kernel@v8.1.8",
+            "version": "v8.1.11",
+            "purl": "pkg:composer/symfony/http-kernel@v8.1.11",
             "description": "Provides a structured process for converting a Request into a Response",
             "licenses": [
                 {
@@ -817,11 +817,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/mailer@v8.1.7",
+            "bom-ref": "pkg:composer/symfony/mailer@v8.1.10",
             "group": "symfony",
             "name": "mailer",
-            "version": "v8.1.7",
-            "purl": "pkg:composer/symfony/mailer@v8.1.7",
+            "version": "v8.1.10",
+            "purl": "pkg:composer/symfony/mailer@v8.1.10",
             "description": "Helps sending emails",
             "licenses": [
                 {
@@ -865,11 +865,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/polyfill-intl-grapheme@v1.43.0",
+            "bom-ref": "pkg:composer/symfony/polyfill-intl-grapheme@v1.43.3",
             "group": "symfony",
             "name": "polyfill-intl-grapheme",
-            "version": "v1.43.0",
-            "purl": "pkg:composer/symfony/polyfill-intl-grapheme@v1.43.0",
+            "version": "v1.43.3",
+            "purl": "pkg:composer/symfony/polyfill-intl-grapheme@v1.43.3",
             "description": "Symfony polyfill for intl's grapheme_* functions",
             "licenses": [
                 {
@@ -1025,11 +1025,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/process@v8.1.7",
+            "bom-ref": "pkg:composer/symfony/process@v8.1.10",
             "group": "symfony",
             "name": "process",
-            "version": "v8.1.7",
-            "purl": "pkg:composer/symfony/process@v8.1.7",
+            "version": "v8.1.10",
+            "purl": "pkg:composer/symfony/process@v8.1.10",
             "description": "Executes commands in sub-processes",
             "licenses": [
                 {
@@ -1041,11 +1041,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/routing@v8.1.8",
+            "bom-ref": "pkg:composer/symfony/routing@v8.1.11",
             "group": "symfony",
             "name": "routing",
-            "version": "v8.1.8",
-            "purl": "pkg:composer/symfony/routing@v8.1.8",
+            "version": "v8.1.11",
+            "purl": "pkg:composer/symfony/routing@v8.1.11",
             "description": "Maps an HTTP request to a set of configuration variables",
             "licenses": [
                 {
@@ -1057,11 +1057,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/service-contracts@v3.7.3",
+            "bom-ref": "pkg:composer/symfony/service-contracts@v3.8.1",
             "group": "symfony",
             "name": "service-contracts",
-            "version": "v3.7.3",
-            "purl": "pkg:composer/symfony/service-contracts@v3.7.3",
+            "version": "v3.8.1",
+            "purl": "pkg:composer/symfony/service-contracts@v3.8.1",
             "description": "Generic abstractions related to writing services",
             "licenses": [
                 {
@@ -1073,11 +1073,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/string@v8.1.7",
+            "bom-ref": "pkg:composer/symfony/string@v8.1.10",
             "group": "symfony",
             "name": "string",
-            "version": "v8.1.7",
-            "purl": "pkg:composer/symfony/string@v8.1.7",
+            "version": "v8.1.10",
+            "purl": "pkg:composer/symfony/string@v8.1.10",
             "description": "Provides an object-oriented API to strings and deals with bytes, UTF-8 code points and grapheme clusters in a unified way",
             "licenses": [
                 {
@@ -1089,11 +1089,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/translation@v8.1.5",
+            "bom-ref": "pkg:composer/symfony/translation@v8.1.11",
             "group": "symfony",
             "name": "translation",
-            "version": "v8.1.5",
-            "purl": "pkg:composer/symfony/translation@v8.1.5",
+            "version": "v8.1.11",
+            "purl": "pkg:composer/symfony/translation@v8.1.11",
             "description": "Provides tools to internationalize your application",
             "licenses": [
                 {
@@ -1105,11 +1105,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/translation-contracts@v3.7.1",
+            "bom-ref": "pkg:composer/symfony/translation-contracts@v3.8.1",
             "group": "symfony",
             "name": "translation-contracts",
-            "version": "v3.7.1",
-            "purl": "pkg:composer/symfony/translation-contracts@v3.7.1",
+            "version": "v3.8.1",
+            "purl": "pkg:composer/symfony/translation-contracts@v3.8.1",
             "description": "Generic abstractions related to translation",
             "licenses": [
                 {
@@ -1121,11 +1121,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/uid@v8.1.8",
+            "bom-ref": "pkg:composer/symfony/uid@v8.1.9",
             "group": "symfony",
             "name": "uid",
-            "version": "v8.1.8",
-            "purl": "pkg:composer/symfony/uid@v8.1.8",
+            "version": "v8.1.9",
+            "purl": "pkg:composer/symfony/uid@v8.1.9",
             "description": "Provides an object-oriented API to generate and represent UIDs",
             "licenses": [
                 {
@@ -1137,11 +1137,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/var-dumper@v8.1.7",
+            "bom-ref": "pkg:composer/symfony/var-dumper@v8.1.10",
             "group": "symfony",
             "name": "var-dumper",
-            "version": "v8.1.7",
-            "purl": "pkg:composer/symfony/var-dumper@v8.1.7",
+            "version": "v8.1.10",
+            "purl": "pkg:composer/symfony/var-dumper@v8.1.10",
             "description": "Provides mechanisms for walking through any arbitrary PHP variable",
             "licenses": [
                 {

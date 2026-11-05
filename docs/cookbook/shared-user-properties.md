@@ -93,5 +93,5 @@ the latest document rather than overwriting unrelated keys. Reset a preference
 with `remove`, not null. The reserved preferences include `theme`, `language`,
 `locale`, `timezone`, `date_format`, `time_format` and `week_start`.
 
-Read/write HTTP calls, local persistence, deduplication and broadcasts remain app
-responsibilities; this addition supplies the verified Laravel event hook.
+Use the [typed property client](user-properties.md) for reads and writes. Local
+persistence, deduplication and broadcasts remain app responsibilities.
