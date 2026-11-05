@@ -5,6 +5,10 @@ their GitHub release pages.
 
 ## [Unreleased]
 
+### Added
+
+- Typed organization service connections with scoped grant creation, status, short-lived token leases and revocation. HTTPS transport verifies returned organization, consumer, resource and scopes; the explicit test fake never succeeds without configured results.
+
 ## [0.15.4] - 2026-11-05
 
 ### Added
