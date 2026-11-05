@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cbox\Id\Client\Http;
 
+use Cbox\Id\Client\Events\UserPropertiesUpdated;
 use Cbox\Id\Client\IdentityClient;
 use Cbox\Id\Client\Webhooks\ProcessCboxIdWebhook;
 use Cbox\Id\Client\Webhooks\StandardWebhookSignature;
@@ -11,6 +12,7 @@ use Cbox\Id\Client\Webhooks\WebhookEvent;
 use Cbox\Id\Client\Webhooks\WebhookHandlers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use InvalidArgumentException;
 
 /**
  * Receives Cbox ID webhooks: verifies the HMAC signature (via IdentityClient) against
@@ -73,6 +75,14 @@ class WebhookController
             deliveredAt: is_numeric($ts = $request->header($standard ? StandardWebhookSignature::TIMESTAMP_HEADER : 'X-Cbox-Timestamp')) ? (int) $ts : time(),
             sequence: is_int($data['sequence'] ?? null) ? $data['sequence'] : null,
         );
+
+        if (UserPropertiesUpdated::supports($event->type)) {
+            try {
+                UserPropertiesUpdated::fromWebhook($event, '');
+            } catch (InvalidArgumentException) {
+                return new JsonResponse(['error' => 'invalid_payload'], 422);
+            }
+        }
 
         // Enqueue only when something will handle it — skip a no-op job otherwise. The
         // handlers run on a worker (see ProcessCboxIdWebhook), so the response returns

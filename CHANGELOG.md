@@ -5,6 +5,15 @@ their GitHub release pages.
 
 ## [Unreleased]
 
+## [0.15.4] - 2026-11-05
+
+### Added
+
+- Versioned shared user property reads and patches through `UserProperties`, with typed documents, sanitized errors and a test fake.
+- Verified preference and metadata webhooks dispatch `UserPropertiesUpdated` on the webhook worker for app-owned cache sync and private broadcasts. Invalid property payloads are rejected before queuing; existing handlers remain supported.
+- Personal app catalog reads and server-held DPoP keys for delegated resource authorization, plus directory revision metadata.
+- Integration recipes for private browser sync, duplicate delivery, version reconciliation and reconnect recovery.
+
 ## [0.15.3] - 2026-11-04
 
 ### Added
