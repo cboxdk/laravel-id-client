@@ -13,6 +13,7 @@ use Cbox\Id\Client\Console\PublishManifestCommand;
 use Cbox\Id\Client\Contracts\HasFeatureFlags;
 use Cbox\Id\Client\Contracts\Management;
 use Cbox\Id\Client\Contracts\PermissionDecisions;
+use Cbox\Id\Client\Contracts\ServiceConnections;
 use Cbox\Id\Client\Contracts\UserProperties;
 use Cbox\Id\Client\Contracts\VerifiesApiKeys;
 use Cbox\Id\Client\Exceptions\ClientConfigurationException;
@@ -31,6 +32,7 @@ use Cbox\Id\Client\Management\EnvironmentClient;
 use Cbox\Id\Client\Management\HttpManagementClient;
 use Cbox\Id\Client\Management\ManagementClients;
 use Cbox\Id\Client\Management\WorkspaceClient;
+use Cbox\Id\Client\ServiceConnections\HttpServiceConnections;
 use Cbox\Id\Client\Support\Discovery;
 use Cbox\Id\Client\Tenancy\CurrentPrincipal;
 use Cbox\Id\Client\Tenancy\PermissionGate;
@@ -83,6 +85,10 @@ class ClientServiceProvider extends ServiceProvider
                 $timeout,
             );
         });
+
+        $this->app->singleton(ServiceConnections::class, static fn (Container $app): HttpServiceConnections => new HttpServiceConnections(
+            $app->make(Factory::class), $app->make(IdentityClient::class), self::configString('cbox-id-client.issuer'), self::configString('cbox-id-client.client_id'),
+        ));
 
         $this->app->singleton(SessionIdentityStore::class);
         $this->app->singleton(CurrentPrincipal::class);
