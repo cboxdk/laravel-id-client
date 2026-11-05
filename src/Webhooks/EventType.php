@@ -17,6 +17,8 @@ enum EventType: string
 {
     case UserCreated = 'user.created';
     case UserUpdated = 'user.updated';
+    case UserPreferencesUpdated = 'user.preferences.updated';
+    case UserMetadataUpdated = 'user.metadata.updated';
     case UserDeactivated = 'user.deactivated';
     case UserReactivated = 'user.reactivated';
     case UserLogin = 'user.login';

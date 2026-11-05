@@ -87,3 +87,9 @@ The signing secret is issued when the webhook/action endpoint is registered on t
 instance — it is **not** your OAuth `client_secret`. Store it wherever you keep other
 inbound secrets (shown above as `services.cbox_id.webhook_secret`) and never commit
 it.
+
+## Shared preferences and metadata
+
+The receiver also emits a typed Laravel event for property changes. See
+[Shared user property events](shared-user-properties.md) for cache refresh, retries
+and private browser broadcasts.

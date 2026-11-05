@@ -15,6 +15,7 @@ use Cbox\Id\Client\Contracts\Management;
 use Cbox\Id\Client\Contracts\PermissionDecisions;
 use Cbox\Id\Client\Contracts\UserProperties;
 use Cbox\Id\Client\Contracts\VerifiesApiKeys;
+use Cbox\Id\Client\Events\UserPropertiesUpdated;
 use Cbox\Id\Client\Exceptions\ClientConfigurationException;
 use Cbox\Id\Client\Frontend\FrontendClient;
 use Cbox\Id\Client\Http\BackchannelLogoutController;
@@ -36,6 +37,8 @@ use Cbox\Id\Client\Tenancy\CurrentPrincipal;
 use Cbox\Id\Client\Tenancy\PermissionGate;
 use Cbox\Id\Client\Tenancy\SessionIdentityStore;
 use Cbox\Id\Client\UserProperties\HttpUserProperties;
+use Cbox\Id\Client\Webhooks\EventType;
+use Cbox\Id\Client\Webhooks\WebhookEvent;
 use Cbox\Id\Client\Webhooks\WebhookHandlers;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
@@ -252,6 +255,13 @@ class ClientServiceProvider extends ServiceProvider
             $this->publishes([
                 __DIR__.'/../config/cbox-id-client.php' => config_path('cbox-id-client.php'),
             ], 'cbox-id-client-config');
+        }
+
+        // Register through the existing queue path; applications need only a Laravel listener.
+        foreach ([EventType::UserPreferencesUpdated, EventType::UserMetadataUpdated] as $type) {
+            $this->app->make(WebhookHandlers::class)->on($type, static function (WebhookEvent $webhook): void {
+                Event::dispatch(UserPropertiesUpdated::fromWebhook($webhook, self::configString('cbox-id-client.issuer')));
+            });
         }
 
         $this->registerWebhookRoute();
