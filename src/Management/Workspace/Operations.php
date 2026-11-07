@@ -25,6 +25,9 @@ class Operations
     {
         return [
             'action_approvals.get',
+            'billing.account.update',
+            'billing.payment_method.default',
+            'billing.payment_method.remove',
             'environments.create',
             'environments.domain.remove',
             'environments.domain.request',
@@ -71,6 +74,9 @@ class Operations
     {
         return self::$specs[$key] ??= match ($key) {
             'action_approvals.get' => new OperationSpec(action: null, operationId: null, method: 'GET', path: '/workspace/action-approvals/{id}', pathParams: ['id'], scope: null, danger: null, approval: false, body: false, pagination: null),
+            'billing.account.update' => new OperationSpec(action: 'billing.account.update', operationId: 'billing_account_update', method: 'PATCH', path: '/workspace/billing/account', pathParams: [], scope: 'billing:write', danger: Danger::Write, approval: true, body: true, pagination: null),
+            'billing.payment_method.default' => new OperationSpec(action: 'billing.payment_method.default', operationId: 'billing_payment_method_default', method: 'PATCH', path: '/workspace/billing/payment-methods/{id}/default', pathParams: ['id'], scope: 'billing:write', danger: Danger::Write, approval: true, body: false, pagination: null),
+            'billing.payment_method.remove' => new OperationSpec(action: 'billing.payment_method.remove', operationId: 'billing_payment_method_remove', method: 'DELETE', path: '/workspace/billing/payment-methods/{id}', pathParams: ['id'], scope: 'billing:write', danger: Danger::Write, approval: true, body: false, pagination: null),
             'environments.create' => new OperationSpec(action: 'environments.create', operationId: 'environments_create', method: 'POST', path: '/workspace/environments', pathParams: [], scope: 'environments:write', danger: Danger::Critical, approval: true, body: true, pagination: null),
             'environments.domain.remove' => new OperationSpec(action: 'environments.domain.remove', operationId: 'environments_domain_remove', method: 'DELETE', path: '/workspace/environments/{environment_id}/domain', pathParams: ['environment_id'], scope: 'environments:write', danger: Danger::Destructive, approval: true, body: false, pagination: null),
             'environments.domain.request' => new OperationSpec(action: 'environments.domain.request', operationId: 'environments_domain_request', method: 'POST', path: '/workspace/environments/{environment_id}/domain', pathParams: ['environment_id'], scope: 'environments:write', danger: Danger::Write, approval: true, body: true, pagination: null),
@@ -93,7 +99,7 @@ class Operations
             'team.invitations.revoke' => new OperationSpec(action: 'team.invitations.revoke', operationId: 'team_invitations_revoke', method: 'DELETE', path: '/workspace/invitations/{id}', pathParams: ['id'], scope: 'team:write', danger: Danger::Destructive, approval: true, body: false, pagination: null),
             'team.invite' => new OperationSpec(action: 'team.invite', operationId: 'team_invite', method: 'POST', path: '/workspace/members', pathParams: [], scope: 'team:write', danger: Danger::Write, approval: true, body: true, pagination: null),
             'team.list' => new OperationSpec(action: 'team.list', operationId: 'team_list', method: 'GET', path: '/workspace/members', pathParams: [], scope: 'team:read', danger: Danger::Read, approval: true, body: false, pagination: Pagination::Page),
-            'team.remove' => new OperationSpec(action: 'team.remove', operationId: 'team_remove', method: 'DELETE', path: '/workspace/members/{id}', pathParams: ['id'], scope: 'team:write', danger: Danger::Destructive, approval: true, body: false, pagination: null),
+            'team.remove' => new OperationSpec(action: 'team.remove', operationId: 'team_remove', method: 'DELETE', path: '/workspace/members/{id}', pathParams: ['id'], scope: 'team:write', danger: Danger::Destructive, approval: true, body: true, pagination: null),
             'team.role' => new OperationSpec(action: 'team.role', operationId: 'team_role', method: 'PATCH', path: '/workspace/members/{id}/role', pathParams: ['id'], scope: 'team:write', danger: Danger::Write, approval: true, body: true, pagination: null),
             'team.transfer_ownership' => new OperationSpec(action: 'team.transfer_ownership', operationId: 'team_transfer_ownership', method: 'POST', path: '/workspace/members/{id}/transfer-ownership', pathParams: ['id'], scope: 'team:write', danger: Danger::Critical, approval: true, body: false, pagination: null),
             'workspace.get' => new OperationSpec(action: 'workspace.get', operationId: 'workspace_get', method: 'GET', path: '/workspace', pathParams: [], scope: 'workspace:read', danger: Danger::Read, approval: true, body: false, pagination: null),

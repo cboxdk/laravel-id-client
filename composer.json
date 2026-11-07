@@ -3,7 +3,16 @@
     "description": "Laravel/PHP consumer SDK for Cbox ID — turnkey OIDC login, hosted profile-management redirect, machine tokens, and webhook verification against a Cbox ID instance.",
     "type": "library",
     "license": "MIT",
-    "keywords": ["cbox", "identity", "oidc", "sso", "authentication", "client", "sdk", "laravel"],
+    "keywords": [
+        "cbox",
+        "identity",
+        "oidc",
+        "sso",
+        "authentication",
+        "client",
+        "sdk",
+        "laravel"
+    ],
     "require": {
         "php": "^8.4",
         "firebase/php-jwt": "^7.0",

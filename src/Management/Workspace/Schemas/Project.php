@@ -19,8 +19,9 @@ readonly class Project implements JsonSerializable
         public ?string $slug = null,
         /** One of `active`, `suspended`. */
         public ?string $status = null,
-        /** This project's plan environment allowance. */
+        /** Local per-project ceiling; creating environments also requires sufficient current Billing entitlement. */
         public ?int $environmentLimit = null,
+        /** Number of environments visible to the caller. */
         public ?int $environmentsUsed = null,
     ) {}
 

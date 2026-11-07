@@ -280,3 +280,12 @@ it('creates an app from another environment\'s blueprint, overriding what names 
         'redirect_uris' => ['https://app.example/cb'],
     ]);
 });
+
+it('replaces app roles using the documented list response and required selection', function (): void {
+    $roles = app(Management::class)->replaceAppRoles('org_1', 'user_1', 'cid_1', [], hash('sha256', '[]'));
+
+    expect($roles)->toHaveCount(1)->and($roles[0]->roleId)->toBe('role_id_1');
+    Http::assertSent(fn (HttpRequest $request): bool => $request->method() === 'PUT'
+        && str_ends_with((string) parse_url($request->url(), PHP_URL_PATH), '/organizations/org_1/members/user_1/apps/cid_1/roles')
+        && $request['roles'] === []);
+});

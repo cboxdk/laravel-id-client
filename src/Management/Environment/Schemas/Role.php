@@ -30,6 +30,10 @@ readonly class Role implements JsonSerializable
         public ?string $clientId = null,
         /** Set only for a role one organization made for itself. */
         public ?string $organizationId = null,
+        /** The activated app definition. Publishing a new manifest does not change existing holders' permissions. */
+        public ?string $activeDefinitionVersion = null,
+        /** A published change waiting for an environment administrator to explicitly activate this version. */
+        public ?RolePendingDefinition $pendingDefinition = null,
     ) {}
 
     /** @param  array<string, mixed>  $data */
@@ -44,6 +48,8 @@ readonly class Role implements JsonSerializable
             description: Field::optional($data, 'description', 'Role', Value::string(...)),
             clientId: Field::optional($data, 'client_id', 'Role', Value::string(...)),
             organizationId: Field::optional($data, 'organization_id', 'Role', Value::string(...)),
+            activeDefinitionVersion: Field::optional($data, 'active_definition_version', 'Role', Value::string(...)),
+            pendingDefinition: Field::optional($data, 'pending_definition', 'Role', Value::dto(RolePendingDefinition::fromArray(...))),
         );
     }
 
@@ -59,6 +65,8 @@ readonly class Role implements JsonSerializable
             'organization_id' => $this->organizationId,
             'tenant_assignable' => $this->tenantAssignable,
             'permissions' => $this->permissions,
+            'active_definition_version' => $this->activeDefinitionVersion,
+            'pending_definition' => $this->pendingDefinition?->toArray(),
         ];
     }
 

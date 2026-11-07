@@ -23,7 +23,7 @@ class WorkspaceSettings
     /**
      * Rename the workspace.
      *
-     * Requires scope `settings:write` and a role that may `manage-members`.
+     * Requires scope `settings:write` and a role that may `own-organization` and `manage-members`.
      *
      * `PATCH /workspace` · action `workspace.settings.update` · scope `settings:write` · danger: write
      *

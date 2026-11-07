@@ -18,12 +18,6 @@ readonly class Organization implements JsonSerializable
         public ?string $name = null,
         /** One of `active`, `suspended`. */
         public ?string $status = null,
-        /**
-         * The workspace's projects with each one's plan/allowance. Present only for billing-readers (plans are per project).
-         *
-         * @var list<Project>
-         */
-        public ?array $projects = null,
     ) {}
 
     /** @param  array<string, mixed>  $data */
@@ -33,7 +27,6 @@ readonly class Organization implements JsonSerializable
             id: Field::optional($data, 'id', 'Organization', Value::string(...)),
             name: Field::optional($data, 'name', 'Organization', Value::string(...)),
             status: Field::optional($data, 'status', 'Organization', Value::string(...)),
-            projects: Field::optional($data, 'projects', 'Organization', Value::list(Value::dto(Project::fromArray(...)))),
         );
     }
 
@@ -44,7 +37,6 @@ readonly class Organization implements JsonSerializable
             'id' => $this->id,
             'name' => $this->name,
             'status' => $this->status,
-            'projects' => $this->projects === null ? null : array_map(static fn (Project $item) => $item->toArray(), $this->projects),
         ];
     }
 

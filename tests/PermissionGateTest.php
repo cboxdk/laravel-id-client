@@ -18,8 +18,7 @@ use Illuminate\Support\Facades\Route;
 
 /**
  * Laravel's own authorization answering Cbox ID permissions: `@can`, `$user->can()`,
- * `Gate::authorize()` — with no policy per permission, and without ever denying what the
- * application's own gates would allow.
+ * `Gate::authorize()` — permissions and resource policies must both allow access.
  */
 function registerGate(): void
 {
@@ -45,14 +44,38 @@ it('grants a held permission through $user->can() and @can', function (): void {
         ->and(trim(Blade::render("@can('invoices:delete') yes @else no @endcan")))->toBe('no');
 });
 
-it('only ever grants: an app gate still decides what the permission does not cover', function (): void {
+it('refuses a missing permission even when a local gate would grant it', function (): void {
     registerGate();
     Gate::define('invoices:export', fn (): bool => true);
     Gate::define('update', fn (): bool => false);
     $user = signedInWith(['update']);
 
-    expect($user->can('invoices:export'))->toBeTrue()   // not held, the app's gate says yes
+    expect($user->can('invoices:export'))->toBeFalse()  // a local gate cannot invent a grant
         ->and($user->can('update'))->toBeFalse();        // not permission-shaped: never touched
+});
+
+it('requires the resource gate as well as the permission', function (): void {
+    registerGate();
+    $user = signedInWith(['invoices:read']);
+    Gate::define('invoices:read', fn (LocalUser $actor, string $organization): bool => $organization === 'org_1');
+
+    expect($user->can('invoices:read', ['org_1']))->toBeTrue()
+        ->and($user->can('invoices:read', ['org_2']))->toBeFalse();
+});
+
+it('denies a resource check without a resource gate even when the permission is held', function (): void {
+    registerGate();
+    $user = signedInWith(['invoices:read']);
+
+    expect($user->can('invoices:read', ['org_1']))->toBeFalse();
+});
+
+it('denies a resource check without the permission even when the resource gate allows it', function (): void {
+    registerGate();
+    $user = signedInWith([]);
+    Gate::define('invoices:read', fn (): bool => true);
+
+    expect($user->can('invoices:read', ['org_1']))->toBeFalse();
 });
 
 it('is off until the application asks for it', function (): void {

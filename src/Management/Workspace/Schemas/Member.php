@@ -17,11 +17,20 @@ readonly class Member implements JsonSerializable
         public ?string $id = null,
         public ?string $email = null,
         public ?string $name = null,
-        /** One of `owner`, `admin`, `developer`, `member`, `viewer`. */
+        /**
+         * Shared membership tier; only current owner implies app authority.
+         * One of `owner`, `admin`, `developer`, `member`, `viewer`.
+         */
         public ?string $role = null,
-        /** One of `active`, `invited`. */
+        /** @var list<string> */
+        public ?array $roles = null,
+        public ?string $rolesVersion = null,
+        /** One of `active`, `invited`, `suspended`. */
         public ?string $status = null,
         public ?bool $allEnvironments = null,
+        /** @var list<string> */
+        public ?array $environmentIds = null,
+        public ?string $environmentAccessVersion = null,
     ) {}
 
     /** @param  array<string, mixed>  $data */
@@ -32,8 +41,12 @@ readonly class Member implements JsonSerializable
             email: Field::optional($data, 'email', 'Member', Value::string(...)),
             name: Field::optional($data, 'name', 'Member', Value::string(...)),
             role: Field::optional($data, 'role', 'Member', Value::string(...)),
+            roles: Field::optional($data, 'roles', 'Member', Value::list(Value::string(...))),
+            rolesVersion: Field::optional($data, 'roles_version', 'Member', Value::string(...)),
             status: Field::optional($data, 'status', 'Member', Value::string(...)),
             allEnvironments: Field::optional($data, 'all_environments', 'Member', Value::bool(...)),
+            environmentIds: Field::optional($data, 'environment_ids', 'Member', Value::list(Value::string(...))),
+            environmentAccessVersion: Field::optional($data, 'environment_access_version', 'Member', Value::string(...)),
         );
     }
 
@@ -45,8 +58,12 @@ readonly class Member implements JsonSerializable
             'email' => $this->email,
             'name' => $this->name,
             'role' => $this->role,
+            'roles' => $this->roles,
+            'roles_version' => $this->rolesVersion,
             'status' => $this->status,
             'all_environments' => $this->allEnvironments,
+            'environment_ids' => $this->environmentIds,
+            'environment_access_version' => $this->environmentAccessVersion,
         ];
     }
 

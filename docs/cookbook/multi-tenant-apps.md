@@ -79,9 +79,16 @@ $this->authorize('invoices:create');
 $request->user()->can('invoices:export');
 ```
 
-It only ever **grants**. A permission the person lacks falls through to your own gates
-and policies, and abilities that are not `feature:action` are never touched. Keep
-row-level questions ("is this invoice in their organization?") in a policy.
+A missing permission **denies**, even when a local gate would allow the action.
+With arguments, a held permission defers to your gate or policy, which must also
+allow access to that resource. Without a resource gate or policy the check denies.
+Abilities that are not `feature:action` remain entirely application-owned.
+
+For example, `Gate::authorize('invoices:read', $invoice)` requires both the
+`invoices:read` permission and an application gate checking the invoice's
+organization and the person's resource access. A permission check without an
+argument does not establish access to an invoice. Scope list and export queries
+as well as individual resources.
 
 There are no Blade directives beyond `@can`: it already covers permissions, and
 `CboxId::principal()` covers the rest.
@@ -342,3 +349,21 @@ constructing a granted test outcome.
 
 `CboxId::fake()` gives you every piece above without a fake issuer — see
 [Testing](../getting-started/testing.md).
+
+
+## Required manifest synchronization during deployment
+
+Run `php artisan cbox-id:publish-manifest --no-interaction` before rolling out a new app image.
+A successful HTTP status alone is insufficient: ID must acknowledge the configured client ID,
+manifest version and canonical checksum, together with valid reconciliation counts. Rejections,
+redirects, malformed replies and transport failures return a nonzero exit code. Responses are not
+printed, so an upstream diagnostic cannot echo credentials into deployment logs.
+
+The server must support these acknowledgement fields. Roll out the matching Cbox ID server before
+updating consuming apps. Publication discovers definitions; it does not assign roles to members.
+Changes to an existing role’s permissions are staged in ID and require explicit activation there.
+Local row policies still apply after a permission is allowed.
+
+An empty config fails deployment instead of silently skipping synchronization. To intentionally
+retire every definition, pass `--allow-empty`; this sends the empty manifest and verifies its
+acknowledgement. Retiring a catalog entry preserves existing assignments for operator review.

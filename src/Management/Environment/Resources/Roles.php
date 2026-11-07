@@ -18,10 +18,13 @@ use Cbox\Id\Client\Management\Transport\Value;
 /** `roles.*` on the environment plane. */
 class Roles
 {
+    public readonly RolesDefinition $definition;
+
     public readonly RolesPermissions $permissions;
 
     public function __construct(private readonly ManagementTransport $transport)
     {
+        $this->definition = new RolesDefinition($transport);
         $this->permissions = new RolesPermissions($transport);
     }
 

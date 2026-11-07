@@ -28,7 +28,7 @@ class Workspace
     /**
      * Get the workspace
      *
-     * Requires scope `workspace:read` (any role). Returns the workspace's identity. The `projects` block (each project's plan/allowance) is included only for keys whose role can read billing (owner/admin/viewer — not developer).
+     * Requires scope `workspace:read` and current workspace access. Returns only the workspace identity and status, including for members with only the Billing app role.
      *
      * `GET /workspace` · action `workspace.get` · scope `workspace:read` · danger: read
      *

@@ -8,6 +8,7 @@ use Cbox\Id\Client\Exceptions\ClientConfigurationException;
 use Cbox\Id\Client\Support\Claims;
 use Cbox\Id\Client\Support\Discovery;
 use Illuminate\Support\Facades\Http;
+use Throwable;
 
 /**
  * Publishes this app's authorization manifest (its declared roles + permissions) to
@@ -128,19 +129,42 @@ class ManifestPublisher
             throw ClientConfigurationException::because('Publishing a manifest needs issuer, client_id and client_secret.');
         }
 
-        $response = Http::withToken($this->accessToken())
-            ->timeout($this->timeout)
-            ->acceptJson()
-            ->post(rtrim($this->issuer, '/').'/api/v1/apps/manifest', $this->manifest());
+        if (! filter_var($this->issuer, FILTER_VALIDATE_URL)
+            || parse_url($this->issuer, PHP_URL_USER) !== null
+            || parse_url($this->issuer, PHP_URL_QUERY) !== null
+            || parse_url($this->issuer, PHP_URL_FRAGMENT) !== null) {
+            throw ClientConfigurationException::because('The manifest issuer must be a URL without credentials, a query or a fragment.');
+        }
+
+        $manifest = $this->manifest();
+        try {
+            $response = Http::withToken($this->accessToken())
+                ->withoutRedirecting()
+                ->timeout($this->timeout)
+                ->acceptJson()
+                ->post(rtrim($this->issuer, '/').'/api/v1/apps/manifest', $manifest);
+        } catch (ClientConfigurationException $exception) {
+            throw $exception;
+        } catch (Throwable) {
+            throw ClientConfigurationException::because('Could not reach Cbox ID to publish the authorization manifest.');
+        }
 
         if (! $response->successful()) {
-            throw ClientConfigurationException::because('Manifest push failed: HTTP '.$response->status().' '.$response->body());
+            throw ClientConfigurationException::because('Manifest push failed: HTTP '.$response->status());
         }
 
         $json = $response->json();
 
-        if (! is_array($json)) {
-            return [];
+        if (! is_array($json) || ($json['client_id'] ?? null) !== $this->clientId
+            || ($json['version'] ?? null) !== $manifest['version']
+            || ($json['checksum'] ?? null) !== $this->checksum()
+            || ! is_bool($json['unchanged'] ?? null)
+            || ! is_int($json['roles_declared'] ?? null)
+            || ! is_int($json['permissions_declared'] ?? null)
+            || $json['roles_declared'] < 0 || $json['permissions_declared'] < 0
+            || (! $json['unchanged'] && ($json['roles_declared'] !== count($this->roles)
+                || $json['permissions_declared'] !== count($this->permissions)))) {
+            throw ClientConfigurationException::because('Cbox ID did not acknowledge this app and its complete authorization manifest.');
         }
 
         $summary = [];
@@ -155,9 +179,18 @@ class ManifestPublisher
 
     private function accessToken(): string
     {
+        $endpoint = $this->discovery->endpoint('token_endpoint');
+        $scheme = parse_url($endpoint, PHP_URL_SCHEME);
+        $host = parse_url($endpoint, PHP_URL_HOST);
+        if (! filter_var($endpoint, FILTER_VALIDATE_URL)
+            || ($scheme !== 'https' && ! ($scheme === 'http' && in_array($host, ['localhost', '127.0.0.1', '[::1]'], true)))
+            || parse_url($endpoint, PHP_URL_USER) !== null || parse_url($endpoint, PHP_URL_FRAGMENT) !== null) {
+            throw ClientConfigurationException::because('The manifest token endpoint must be a secure URL without credentials or a fragment.');
+        }
         $response = Http::asForm()
+            ->withoutRedirecting()
             ->timeout($this->timeout)
-            ->post($this->discovery->endpoint('token_endpoint'), [
+            ->post($endpoint, [
                 'grant_type' => 'client_credentials',
                 'client_id' => $this->clientId,
                 'client_secret' => $this->clientSecret,
@@ -166,7 +199,7 @@ class ManifestPublisher
 
         $token = $response->json('access_token');
 
-        if (! is_string($token) || $token === '') {
+        if (! $response->successful() || ! is_string($token) || $token === '') {
             throw ClientConfigurationException::because('Could not obtain an apps.manifest access token — check the client credentials and that the client holds the apps.manifest scope.');
         }
 

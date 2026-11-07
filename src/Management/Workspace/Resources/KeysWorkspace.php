@@ -32,7 +32,7 @@ class KeysWorkspace
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
      *
-     * @param  array{name: string, role: 'admin'|'developer'|'member'|'viewer', scopes?: list<'workspace:read'|'projects:write'|'environments:write'|'team:read'|'team:write'|'keys:write'|'settings:write'>|null, expires_at?: string|null}  $body
+     * @param  array{name: string, role: 'admin'|'developer'|'member'|'viewer', scopes?: list<'workspace:read'|'projects:write'|'environments:write'|'team:read'|'team:write'|'keys:write'|'billing:write'|'settings:write'>|null, expires_at?: string|null}  $body
      * @return ($options is ReturnPendingApproval ? ApiResponse<WorkspaceKey>|PendingApprovalResult<ApiResponse<WorkspaceKey>> : ApiResponse<WorkspaceKey>)
      */
     public function create(array $body, ?CallOptions $options = null): ApiResponse|PendingApprovalResult

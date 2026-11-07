@@ -112,8 +112,8 @@ return [
     |
     | `gate` — answer `feature:action` abilities from the principal's Cbox ID
     | permissions, so `@can('invoices:create')`, `$user->can(…)` and
-    | `$this->authorize(…)` work with no policy per permission. It only ever
-    | GRANTS; your own gates and policies still decide everything else. Off by
+    | `$this->authorize(…)` work with no policy per permission. A missing permission
+    | denies. Checks with arguments also require an application gate or policy. Off by
     | default, because it adds a before-callback to every check you make.
     |
     */

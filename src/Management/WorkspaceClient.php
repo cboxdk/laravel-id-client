@@ -10,6 +10,7 @@ use Cbox\Id\Client\Management\Transport\ApprovalContext;
 use Cbox\Id\Client\Management\Transport\PendingApproval;
 use Cbox\Id\Client\Management\Transport\Plane;
 use Cbox\Id\Client\Management\Workspace\Resources\ActionApprovals;
+use Cbox\Id\Client\Management\Workspace\Resources\Billing;
 use Cbox\Id\Client\Management\Workspace\Resources\Environments;
 use Cbox\Id\Client\Management\Workspace\Resources\Keys;
 use Cbox\Id\Client\Management\Workspace\Resources\Projects;
@@ -32,6 +33,8 @@ use Illuminate\Http\Client\Factory;
 class WorkspaceClient extends ManagementClient
 {
     public readonly ActionApprovals $actionApprovals;
+
+    public readonly Billing $billing;
 
     public readonly Environments $environments;
 
@@ -68,6 +71,7 @@ class WorkspaceClient extends ManagementClient
     ) {
         parent::__construct($baseUrl, $apiKey, $accessToken, $environment, $onApprovalRequired, $approvalPollIntervalMs, $maxRetries, $baseDelayMs, $maxDelayMs, $timeout, $headers, $http);
         $this->actionApprovals = new ActionApprovals($this->transport);
+        $this->billing = new Billing($this->transport);
         $this->environments = new Environments($this->transport);
         $this->keys = new Keys($this->transport);
         $this->projects = new Projects($this->transport);

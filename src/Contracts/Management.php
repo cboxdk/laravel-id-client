@@ -79,6 +79,9 @@ interface Management
      */
     public function transferOwnership(string $organizationId, string $userId): Member;
 
+    /** Read a pending or completed invitation, including its accepted subject receipt. */
+    public function invitation(string $organizationId, string $invitationId): Invitation;
+
     /** @return Page<Invitation> `invitations:read` — pending and unexpired. */
     public function invitations(string $organizationId, ?string $after = null, int $limit = 50): Page;
 
@@ -96,6 +99,15 @@ interface Management
 
     /** @return list<RoleAssignment> `roles:read` — roles granted AT this organization. */
     public function memberRoles(string $organizationId, string $userId): array;
+
+    /**
+     * Atomically replace this app's manual roles. An empty list removes app access,
+     * never membership or another app's roles. Requires roles:write.
+     *
+     * @param  list<string>  $roleKeys
+     * @return list<RoleAssignment>
+     */
+    public function replaceAppRoles(string $organizationId, string $userId, string $clientId, array $roleKeys, string $expectedVersion): array;
 
     /**
      * `roles:write` — idempotent. `$roleId` is a role id, or a manifest key together with

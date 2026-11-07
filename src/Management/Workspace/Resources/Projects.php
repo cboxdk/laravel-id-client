@@ -28,7 +28,7 @@ class Projects
     /**
      * Create a project
      *
-     * Stand up another independently-billed IdP product. Requires scope `projects:write` and the `manage-environments` capability (owner/admin/developer).
+     * Stand up another independently-billed IdP product. Requires scope `projects:write` and the `manage-environments` capability (`id:write` for human members, or current ownership).
      *
      * `POST /workspace/projects` · action `projects.create` · scope `projects:write` · danger: write
      *
@@ -46,7 +46,7 @@ class Projects
     /**
      * List projects
      *
-     * Requires scope `workspace:read` (any role). The workspace's projects (IdP products). Each carries its own plan and environment allowance.
+     * Requires scope `workspace:read` and permission to read environments. Human callers see only projects containing environments they may access; environment counts include only those environments. Billing-only members cannot list projects.
      *
      * `GET /workspace/projects` · action `projects.list` · scope `workspace:read` · danger: read
      *

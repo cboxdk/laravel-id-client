@@ -30,6 +30,8 @@ readonly class Invitation
         public ?DateTimeImmutable $expiresAt = null,
         public array $attributes = [],
         public ?DateTimeImmutable $invitedAt = null,
+        public ?string $acceptedBy = null,
+        public ?DateTimeImmutable $acceptedAt = null,
     ) {}
 
     /** @param array<string, mixed> $data */
@@ -49,6 +51,8 @@ readonly class Invitation
             expiresAt: Claims::time($data, 'expires_at'),
             attributes: $data,
             invitedAt: Claims::time($data, 'invited_at'),
+            acceptedBy: Claims::string($data, 'accepted_by'),
+            acceptedAt: Claims::time($data, 'accepted_at'),
         );
     }
 }

@@ -27,6 +27,9 @@ readonly class Invitation implements JsonSerializable
         public array $roles,
         /** One of `pending`, `accepted`, `revoked`. */
         public string $status,
+        /** The subject that accepted this invitation. Null for pending or historical invitations without a receipt. */
+        public ?string $acceptedBy = null,
+        public ?string $acceptedAt = null,
         /** The app it came from. */
         public ?string $clientId = null,
         /** Where the person is sent after accepting. */
@@ -45,6 +48,8 @@ readonly class Invitation implements JsonSerializable
             role: Field::required($data, 'role', 'Invitation', Value::string(...)),
             roles: Field::required($data, 'roles', 'Invitation', Value::list(Value::string(...))),
             status: Field::required($data, 'status', 'Invitation', Value::string(...)),
+            acceptedBy: Field::optional($data, 'accepted_by', 'Invitation', Value::string(...)),
+            acceptedAt: Field::optional($data, 'accepted_at', 'Invitation', Value::string(...)),
             clientId: Field::optional($data, 'client_id', 'Invitation', Value::string(...)),
             returnTo: Field::optional($data, 'return_to', 'Invitation', Value::string(...)),
             invitedAt: Field::optional($data, 'invited_at', 'Invitation', Value::string(...)),
@@ -61,6 +66,8 @@ readonly class Invitation implements JsonSerializable
             'email' => $this->email,
             'role' => $this->role,
             'roles' => $this->roles,
+            'accepted_by' => $this->acceptedBy,
+            'accepted_at' => $this->acceptedAt,
             'status' => $this->status,
             'client_id' => $this->clientId,
             'return_to' => $this->returnTo,

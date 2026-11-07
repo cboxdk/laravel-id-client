@@ -1,0 +1,11 @@
+{
+  "upstream_head": "06d442eb8d75e68aba12b04a7a4d00a7426e6432",
+  "upstream_branch": "sd/shared-properties-events",
+  "target_version": "0.16.0",
+  "status": "unpublished candidate based on actual upstream history",
+  "source_manifest": "evidence/laravel-id-client-final-source-hashes.json",
+  "publication_parent": "51a184669b6ee39bdfdd749d7c1624e1575136eb",
+  "restored_public_files": [
+    "docs/cookbook/service-connections.md"
+  ]
+}

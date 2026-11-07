@@ -15,21 +15,19 @@ use Throwable;
  */
 class PublishManifestCommand extends Command
 {
-    protected $signature = 'cbox-id:publish-manifest';
+    protected $signature = 'cbox-id:publish-manifest {--allow-empty : Explicitly retire all previously declared definitions}';
 
     protected $description = "Publish this app's roles & permissions manifest to Cbox ID.";
 
     public function handle(ManifestPublisher $publisher): int
     {
-        $manifest = $publisher->manifest();
-
-        if ($manifest['roles'] === [] && $manifest['permissions'] === []) {
-            $this->warn('Nothing to publish — declare roles/permissions in config/cbox-id-client.php under "authz".');
-
-            return self::SUCCESS;
-        }
-
         try {
+            $manifest = $publisher->manifest();
+            if ($manifest['roles'] === [] && $manifest['permissions'] === [] && ! $this->option('allow-empty')) {
+                $this->error('No authorization definitions configured. Use --allow-empty only to retire all definitions intentionally.');
+
+                return self::FAILURE;
+            }
             $result = $publisher->publish();
         } catch (Throwable $e) {
             $this->error($e->getMessage());

@@ -10,11 +10,13 @@ use Cbox\Id\Client\Enums\AssignableMemberRole;
 use Cbox\Id\Client\Enums\OrganizationRole;
 use Cbox\Id\Client\Exceptions\ManagementApiException;
 use Cbox\Id\Client\Exceptions\ResourceNotFound;
+use Cbox\Id\Client\Exceptions\ValidationFailed;
 use Cbox\Id\Client\Management\Data\Api;
 use Cbox\Id\Client\Management\Data\ApiChanges;
 use Cbox\Id\Client\Management\Data\ApiKey;
 use Cbox\Id\Client\Management\Data\App;
 use Cbox\Id\Client\Management\Data\AppBlueprint;
+use Cbox\Id\Client\Management\Data\AppRoleSelection;
 use Cbox\Id\Client\Management\Data\Invitation;
 use Cbox\Id\Client\Management\Data\Member;
 use Cbox\Id\Client\Management\Data\NewApi;
@@ -89,6 +91,16 @@ class FakeManagement implements Management
     public function withOrganization(Organization $organization): static
     {
         $this->organizations[$organization->id] = $organization;
+
+        return $this;
+    }
+
+    public function withInvitation(Invitation $invitation): static
+    {
+        if ($invitation->organizationId === null) {
+            throw new \InvalidArgumentException('An invitation fixture must name its organization.');
+        }
+        $this->invitations[$invitation->organizationId][$invitation->id] = $invitation;
 
         return $this;
     }
@@ -212,11 +224,18 @@ class FakeManagement implements Management
 
         foreach ($this->members[$organizationId] ?? [] as $id => $member) {
             if ($member->role === OrganizationRole::Owner) {
-                $this->members[$organizationId][$id] = new Member($id, OrganizationRole::Admin, $organizationId);
+                $this->members[$organizationId][$id] = new Member($id, OrganizationRole::Admin, $organizationId, $member->email, $member->name, $member->status, $member->joinedAt, $member->attributes, $member->membershipId);
             }
         }
 
         return $this->members[$organizationId][$userId] = new Member($userId, OrganizationRole::Owner, $organizationId, status: 'active');
+    }
+
+    public function invitation(string $organizationId, string $invitationId): Invitation
+    {
+        $this->record(__FUNCTION__, [$organizationId, $invitationId]);
+
+        return $this->invitations[$organizationId][$invitationId] ?? throw new ResourceNotFound('Invitation not found.');
     }
 
     public function invitations(string $organizationId, ?string $after = null, int $limit = 50): Page
@@ -285,6 +304,38 @@ class FakeManagement implements Management
         }
 
         return $this->assignment($role, $userId, $organizationId);
+    }
+
+    public function replaceAppRoles(string $organizationId, string $userId, string $clientId, array $roleKeys, string $expectedVersion): array
+    {
+        $this->record(__FUNCTION__, [$organizationId, $userId, $clientId, $roleKeys, $expectedVersion]);
+        $this->findMember($organizationId, $userId);
+        $selection = AppRoleSelection::fromAssignments($clientId, $this->memberRoles($organizationId, $userId));
+        if (! hash_equals($selection->version(), $expectedVersion)) {
+            $error = new ManagementApiException('This member\'s roles changed. Reload before saving.');
+            $error->status = 409;
+            $error->error = 'app_roles_changed';
+            throw $error;
+        }
+        $wanted = [];
+        foreach (array_unique($roleKeys) as $key) {
+            $matches = array_values(array_filter($this->roles, static fn (Role $role): bool => $role->clientId === $clientId && $role->key === $key && $role->tenantAssignable
+                && ($role->organizationId === null || $role->organizationId === $organizationId)));
+            if (count($matches) !== 1) {
+                throw $this->invalidAppRole('This app does not offer that role.');
+            }
+            $wanted[] = $matches[0]->id;
+        }
+        foreach ($selection->roles as $held) {
+            if (! $held->tenantAssignable && ! in_array($held->roleId, $wanted, true)) {
+                throw $this->invalidAppRole('A staff role must be changed by its environment administrator.');
+            }
+        }
+        $storeKey = $organizationId.'|'.$userId;
+        $old = array_map(static fn (RoleAssignment $role): string => $role->roleId, $selection->roles);
+        $this->assignments[$storeKey] = array_values(array_unique([...array_diff($this->assignments[$storeKey] ?? [], $old), ...$wanted]));
+
+        return AppRoleSelection::fromAssignments($clientId, $this->memberRoles($organizationId, $userId))->roles;
     }
 
     public function unassignRole(string $organizationId, string $userId, string $roleId, ?string $clientId = null): void
@@ -578,6 +629,16 @@ class FakeManagement implements Management
     private function findInvitation(string $organizationId, string $invitationId): Invitation
     {
         return $this->invitations[$organizationId][$invitationId] ?? throw $this->notFound('Invitation');
+    }
+
+    private function invalidAppRole(string $message): ValidationFailed
+    {
+        $exception = new ValidationFailed($message);
+        $exception->error = 'role_not_assignable';
+        $exception->status = 422;
+        $exception->errors = ['roles' => [$message]];
+
+        return $exception;
     }
 
     private function notFound(string $what): ResourceNotFound

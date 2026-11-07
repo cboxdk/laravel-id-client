@@ -20,10 +20,13 @@ use Generator;
 /** `members.*` on the environment plane. */
 class Members
 {
+    public readonly MembersApps $apps;
+
     public readonly MembersRoles $roles;
 
     public function __construct(private readonly ManagementTransport $transport)
     {
+        $this->apps = new MembersApps($transport);
         $this->roles = new MembersRoles($transport);
     }
 

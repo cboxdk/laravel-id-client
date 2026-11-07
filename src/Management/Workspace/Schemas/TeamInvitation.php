@@ -16,9 +16,12 @@ readonly class TeamInvitation implements JsonSerializable
     public function __construct(
         public string $id,
         public string $email,
-        /** One of `admin`, `developer`, `member`, `viewer`. */
-        public string $role,
+        /** @var list<string> */
+        public array $roles,
         public string $expiresAt,
+        /** One of `admin`, `developer`, `member`, `viewer`. */
+        public ?string $role = null,
+        public ?string $appRoleLabel = null,
         /** The person, or the API key, that sent it — by name. */
         public ?string $invitedBy = null,
         public ?string $invitedAt = null,
@@ -30,8 +33,10 @@ readonly class TeamInvitation implements JsonSerializable
         return new self(
             id: Field::required($data, 'id', 'TeamInvitation', Value::string(...)),
             email: Field::required($data, 'email', 'TeamInvitation', Value::string(...)),
-            role: Field::required($data, 'role', 'TeamInvitation', Value::string(...)),
+            roles: Field::required($data, 'roles', 'TeamInvitation', Value::list(Value::string(...))),
             expiresAt: Field::required($data, 'expires_at', 'TeamInvitation', Value::string(...)),
+            role: Field::optional($data, 'role', 'TeamInvitation', Value::string(...)),
+            appRoleLabel: Field::optional($data, 'app_role_label', 'TeamInvitation', Value::string(...)),
             invitedBy: Field::optional($data, 'invited_by', 'TeamInvitation', Value::string(...)),
             invitedAt: Field::optional($data, 'invited_at', 'TeamInvitation', Value::string(...)),
         );
@@ -44,6 +49,8 @@ readonly class TeamInvitation implements JsonSerializable
             'id' => $this->id,
             'email' => $this->email,
             'role' => $this->role,
+            'roles' => $this->roles,
+            'app_role_label' => $this->appRoleLabel,
             'invited_by' => $this->invitedBy,
             'invited_at' => $this->invitedAt,
             'expires_at' => $this->expiresAt,

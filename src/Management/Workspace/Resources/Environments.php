@@ -32,7 +32,7 @@ class Environments
      * Create an environment
      *
      * Requires scope `environments:write` and the `manage-environments` capability
-     * (owner/admin/developer). Danger: critical — with `initial_key` it mints a credential.
+     * (`id:write` for human members, or current ownership). Danger: critical — with `initial_key` it mints a credential.
      *
      * With `initial_key`, the environment's first management key is minted in the same
      * call and returned once as `initial_key.token` — enough for an agent holding one
@@ -55,7 +55,7 @@ class Environments
     /**
      * List environments
      *
-     * Requires scope `workspace:read` (any role).
+     * Requires scope `workspace:read` and permission to read environments. Returns only currently permitted environments; Billing-only members cannot list them.
      *
      * `GET /workspace/environments` · action `environments.list` · scope `workspace:read` · danger: read
      *

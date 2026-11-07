@@ -29,7 +29,7 @@ class OrganizationsPortalLinks
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
      *
-     * @param  array{intents: list<'sso'|'dsync'|'domain_verification'|'log_streams'|'certificate_renewal'|'audit_logs'>, expires_in_minutes?: int|null, email?: string|null, locale?: 'en'|'da'|'de'|'sv'|'nb'|'fr'|null}  $body
+     * @param  array{intents: list<'sso'|'dsync'|'domain_verification'|'log_streams'|'certificate_renewal'|'audit_logs'>, expires_in_minutes?: int|null, email?: string|null, locale?: 'en'|'da'|'de'|'sv'|'nb'|'fr'|'fi'|'es'|'it'|'nl'|'pt'|'pl'|'ro'|'cs'|'hu'|'el'|'bg'|'hr'|'sk'|'tr'|'uk'|null}  $body
      * @return ($options is ReturnPendingApproval ? ApiResponse<PortalLink>|PendingApprovalResult<ApiResponse<PortalLink>> : ApiResponse<PortalLink>)
      */
     public function create(string $organizationId, array $body, ?CallOptions $options = null): ApiResponse|PendingApprovalResult

@@ -15,12 +15,11 @@ use Illuminate\Contracts\Auth\Authenticatable;
  * `@can('invoices:create')`, `$user->can('invoices:create')`, `Gate::authorize(…)` and
  * `$this->authorize(…)` all work without a policy per permission.
  *
- * **IT ONLY EVER GRANTS.** A missing permission returns null, not false, so a Gate or
- * policy your application defines for the same ability still gets its say, and an
- * ability that is not permission-shaped (`update`, `view-dashboard`) is never touched.
- * A held permission is answered true before your definitions run — that is the point of
- * the permission — so keep row-level checks ("is this invoice in their organization?")
- * in a policy on a differently-named ability.
+ * A permission is necessary, never sufficient for a resource-scoped check. When
+ * arguments are supplied, a missing permission denies and a held permission defers
+ * to the application's gate or policy. Without a resource policy the check denies.
+ * Checks without arguments answer the permission directly. Abilities that are not
+ * permission-shaped (`update`, `view-dashboard`) remain the application's concern.
  *
  * Opt-in (`cbox-id-client.authorization.gate`), because a before-callback runs for every
  * check in the application and nobody should get one they did not ask for.
@@ -40,14 +39,18 @@ class PermissionGate
 
     public static function register(Gate $gate, CurrentPrincipal $principals): void
     {
-        $gate->before(static function (?Authenticatable $user, string $ability) use ($principals): ?bool {
+        $gate->before(static function (?Authenticatable $user, string $ability, array $arguments) use ($principals): ?bool {
             if (! self::isPermission($ability)) {
                 return null;
             }
 
             $principal = $principals->resolve($user, request());
 
-            return $principal !== null && $principal->hasPermission($ability) ? true : null;
+            if ($principal === null || ! $principal->hasPermission($ability)) {
+                return false;
+            }
+
+            return $arguments === [] ? true : null;
         });
     }
 }

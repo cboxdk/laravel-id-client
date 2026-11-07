@@ -10,20 +10,22 @@ info:
     environments, its team, and its keys with a workspace key.
 
     **Scopes.** A workspace key carries a ROLE and, optionally, SCOPES. The role bounds
-    everything the key may do — the same capabilities a person holding that role has in
-    the console — and scopes narrow it further: `workspace:read`, `projects:write`,
-    `environments:write`, `team:read`, `team:write`, `keys:write`, `settings:write`. A key
+    everything the machine key may do, and scopes narrow it further: `workspace:read`, `projects:write`,
+    `environments:write`, `team:read`, `team:write`, `keys:write`, `settings:write`, `billing:write`. A key
     minted with no scopes is bounded by its role alone. Each operation names the scope and
     the capability it needs; a key missing either gets `403`.
 
     **As a member of the team.** Beside a key, the plane takes an access token the platform
     root issued one of the workspace's people (`WorkspaceAccessToken` — `cbox login` at the
     root, or an agent signed in there). It is bounded the same two ways: the person's
-    membership role must hold the capability, and the token must carry the scope. What it
+    current Cbox ID app permissions must hold the capability, and the token must carry the scope.
+    A shared organization Admin role grants no app permissions; current ownership grants full authority.
+    Name the workspace with `Cbox-Organization` when an unbound token can access multiple workspaces.
+    This header cannot override a workspace already bound to the token or key. What it
     does is recorded as the member, and every critical operation waits for the person's
     approval on their device. With the same token, each environment of the workspace is
     reached from the root's host through the environment API, naming it in
-    `Cbox-Environment`.
+    `Cbox-Environment`. Selected-environment access is checked against current membership on every request.
 
     **Bootstrapping an environment.** `POST /workspace/environments` with `initial_key`
     creates the environment and mints its first management key (`cbid_env_…`) in one call.
@@ -47,7 +49,8 @@ info:
     **Rate limits.** Buckets are keyed on the API KEY, not the caller's IP, so a CI
     runner behind a shared NAT gets its own allowance. A `429` carries `Retry-After`.
 servers:
-  - url: 'https://api.cboxid.com/api/v1'
+  -
+    url: 'https://api.cboxid.com/api/v1'
     description: 'Hosted (the platform root)'
   -
     url: 'https://{host}/api/v1'
@@ -61,13 +64,22 @@ security:
   -
     WorkspaceAccessToken: []
 tags:
-  - name: Workspace
-  - name: Projects
-  - name: Environments
-  - name: Team
-  - name: Keys
+  -
+    name: Workspace
+  -
+    name: Projects
+  -
+    name: Environments
+  -
+    name: Team
+  -
+    name: Keys
     description: "Workspace keys, and the management keys of the workspace's environments."
-  - name: Approvals
+  -
+    name: Billing
+    description: 'Workspace invoice details and stored payment methods.'
+  -
+    name: Approvals
     description: "Actions a key's policy holds for a person's approval."
 paths:
   /workspace:
@@ -77,9 +89,18 @@ paths:
       summary: 'Get the workspace'
       operationId: workspace_get
       x-action: workspace.get
-      description: "Requires scope `workspace:read` (any role). Returns the workspace's identity. The `projects` block (each project's plan/allowance) is included only for keys whose role can read billing (owner/admin/viewer — not developer)."
+      description: 'Requires scope `workspace:read` and current workspace access. Returns only the workspace identity and status, including for members with only the Billing app role.'
       parameters:
-        - $ref: '#/components/parameters/CboxApproval'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
       responses:
         200:
           description: OK
@@ -100,20 +121,36 @@ paths:
           $ref: '#/components/responses/NotFound'
         429:
           $ref: '#/components/responses/TooManyRequests'
+        503:
+          description: 'Product admission could not be verified. The request is refused; retry later.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
       x-scope: 'workspace:read'
       x-danger: read
     patch:
       tags:
         - Workspace
       summary: 'Rename the workspace.'
-      description: 'Requires scope `settings:write` and a role that may `manage-members`. Danger: write.'
+      description: 'Requires scope `settings:write` and a role that may `own-organization` and `manage-members`. Danger: write.'
       operationId: workspace_settings_update
       x-action: workspace.settings.update
       x-scope: 'settings:write'
       x-danger: write
       parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/CboxApproval'
+        -
+          $ref: '#/components/parameters/IdempotencyKey'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
       requestBody:
         required: true
         content:
@@ -197,12 +234,436 @@ paths:
           $ref: '#/components/responses/NotFound'
         429:
           $ref: '#/components/responses/TooManyRequests'
+  /workspace/billing/account:
+    patch:
+      tags:
+        - Billing
+      summary: 'Update the workspace billing contact and invoice address.'
+      description: 'Requires scope `billing:write` and a role that may `manage-billing`. Danger: write.'
+      operationId: billing_account_update
+      x-action: billing.account.update
+      x-scope: 'billing:write'
+      x-danger: write
+      parameters:
+        -
+          $ref: '#/components/parameters/IdempotencyKey'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                billing_email:
+                  type: string
+                  format: email
+                  maxLength: 254
+                invoice_name:
+                  type: string
+                  maxLength: 255
+                address_line1:
+                  type: string
+                  maxLength: 255
+                address_line2:
+                  type:
+                    - string
+                    - 'null'
+                  maxLength: 255
+                postal_code:
+                  type: string
+                  maxLength: 32
+                city:
+                  type: string
+                  maxLength: 255
+                country:
+                  type: string
+                  enum:
+                    - AD
+                    - AE
+                    - AF
+                    - AG
+                    - AI
+                    - AL
+                    - AM
+                    - AO
+                    - AQ
+                    - AR
+                    - AS
+                    - AT
+                    - AU
+                    - AW
+                    - AX
+                    - AZ
+                    - BA
+                    - BB
+                    - BD
+                    - BE
+                    - BF
+                    - BG
+                    - BH
+                    - BI
+                    - BJ
+                    - BL
+                    - BM
+                    - BN
+                    - BO
+                    - BQ
+                    - BR
+                    - BS
+                    - BT
+                    - BV
+                    - BW
+                    - BY
+                    - BZ
+                    - CA
+                    - CC
+                    - CD
+                    - CF
+                    - CG
+                    - CH
+                    - CI
+                    - CK
+                    - CL
+                    - CM
+                    - CN
+                    - CO
+                    - CR
+                    - CU
+                    - CV
+                    - CW
+                    - CX
+                    - CY
+                    - CZ
+                    - DE
+                    - DJ
+                    - DK
+                    - DM
+                    - DO
+                    - DZ
+                    - EC
+                    - EE
+                    - EG
+                    - EH
+                    - ER
+                    - ES
+                    - ET
+                    - FI
+                    - FJ
+                    - FK
+                    - FM
+                    - FO
+                    - FR
+                    - GA
+                    - GB
+                    - GD
+                    - GE
+                    - GF
+                    - GG
+                    - GH
+                    - GI
+                    - GL
+                    - GM
+                    - GN
+                    - GP
+                    - GQ
+                    - GR
+                    - GS
+                    - GT
+                    - GU
+                    - GW
+                    - GY
+                    - HK
+                    - HM
+                    - HN
+                    - HR
+                    - HT
+                    - HU
+                    - ID
+                    - IE
+                    - IL
+                    - IM
+                    - IN
+                    - IO
+                    - IQ
+                    - IR
+                    - IS
+                    - IT
+                    - JE
+                    - JM
+                    - JO
+                    - JP
+                    - KE
+                    - KG
+                    - KH
+                    - KI
+                    - KM
+                    - KN
+                    - KP
+                    - KR
+                    - KW
+                    - KY
+                    - KZ
+                    - LA
+                    - LB
+                    - LC
+                    - LI
+                    - LK
+                    - LR
+                    - LS
+                    - LT
+                    - LU
+                    - LV
+                    - LY
+                    - MA
+                    - MC
+                    - MD
+                    - ME
+                    - MF
+                    - MG
+                    - MH
+                    - MK
+                    - ML
+                    - MM
+                    - MN
+                    - MO
+                    - MP
+                    - MQ
+                    - MR
+                    - MS
+                    - MT
+                    - MU
+                    - MV
+                    - MW
+                    - MX
+                    - MY
+                    - MZ
+                    - NA
+                    - NC
+                    - NE
+                    - NF
+                    - NG
+                    - NI
+                    - NL
+                    - 'NO'
+                    - NP
+                    - NR
+                    - NU
+                    - NZ
+                    - OM
+                    - PA
+                    - PE
+                    - PF
+                    - PG
+                    - PH
+                    - PK
+                    - PL
+                    - PM
+                    - PN
+                    - PR
+                    - PS
+                    - PT
+                    - PW
+                    - PY
+                    - QA
+                    - RE
+                    - RO
+                    - RS
+                    - RU
+                    - RW
+                    - SA
+                    - SB
+                    - SC
+                    - SD
+                    - SE
+                    - SG
+                    - SH
+                    - SI
+                    - SJ
+                    - SK
+                    - SL
+                    - SM
+                    - SN
+                    - SO
+                    - SR
+                    - SS
+                    - ST
+                    - SV
+                    - SX
+                    - SY
+                    - SZ
+                    - TC
+                    - TD
+                    - TF
+                    - TG
+                    - TH
+                    - TJ
+                    - TK
+                    - TL
+                    - TM
+                    - TN
+                    - TO
+                    - TR
+                    - TT
+                    - TV
+                    - TW
+                    - TZ
+                    - UA
+                    - UG
+                    - UM
+                    - US
+                    - UY
+                    - UZ
+                    - VA
+                    - VC
+                    - VE
+                    - VG
+                    - VI
+                    - VN
+                    - VU
+                    - WF
+                    - WS
+                    - YE
+                    - YT
+                    - ZA
+                    - ZM
+                    - ZW
+                tax_id:
+                  type:
+                    - string
+                    - 'null'
+                  maxLength: 64
+              required:
+                - billing_email
+                - invoice_name
+                - address_line1
+                - postal_code
+                - city
+                - country
+      responses:
+        204:
+          description: Done.
+        202:
+          $ref: '#/components/responses/ApprovalRequired'
+        401:
+          $ref: '#/components/responses/Unauthorized'
+        403:
+          $ref: '#/components/responses/Forbidden'
+        409:
+          $ref: '#/components/responses/Conflict'
+        422:
+          $ref: '#/components/responses/UnprocessableEntity'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/workspace/billing/payment-methods/{id}':
+    delete:
+      tags:
+        - Billing
+      summary: 'Remove an unneeded payment card from this workspace.'
+      description: 'Requires scope `billing:write` and a role that may `manage-billing`. Danger: write.'
+      operationId: billing_payment_method_remove
+      x-action: billing.payment_method.remove
+      x-scope: 'billing:write'
+      x-danger: write
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 255
+        -
+          $ref: '#/components/parameters/IdempotencyKey'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        204:
+          description: Done.
+        202:
+          $ref: '#/components/responses/ApprovalRequired'
+        401:
+          $ref: '#/components/responses/Unauthorized'
+        403:
+          $ref: '#/components/responses/Forbidden'
+        404:
+          $ref: '#/components/responses/NotFound'
+        409:
+          $ref: '#/components/responses/Conflict'
+        422:
+          $ref: '#/components/responses/UnprocessableEntity'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/workspace/billing/payment-methods/{id}/default':
+    patch:
+      tags:
+        - Billing
+      summary: 'Choose the workspace default payment card.'
+      description: 'Requires scope `billing:write` and a role that may `manage-billing`. Danger: write.'
+      operationId: billing_payment_method_default
+      x-action: billing.payment_method.default
+      x-scope: 'billing:write'
+      x-danger: write
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 255
+        -
+          $ref: '#/components/parameters/IdempotencyKey'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        204:
+          description: Done.
+        202:
+          $ref: '#/components/responses/ApprovalRequired'
+        401:
+          $ref: '#/components/responses/Unauthorized'
+        403:
+          $ref: '#/components/responses/Forbidden'
+        404:
+          $ref: '#/components/responses/NotFound'
+        409:
+          $ref: '#/components/responses/Conflict'
+        422:
+          $ref: '#/components/responses/UnprocessableEntity'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
   /workspace/environments:
     get:
       tags:
         - Environments
       summary: 'List environments'
-      description: 'Requires scope `workspace:read` (any role).'
+      description: 'Requires scope `workspace:read` and permission to read environments. Returns only currently permitted environments; Billing-only members cannot list them.'
       operationId: environments_list
       x-action: environments.list
       parameters:
@@ -221,7 +682,16 @@ paths:
             type: integer
             minimum: 1
             default: 1
-        - $ref: '#/components/parameters/CboxApproval'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
       responses:
         200:
           description: OK
@@ -246,6 +716,12 @@ paths:
           $ref: '#/components/responses/UnprocessableEntity'
         429:
           $ref: '#/components/responses/TooManyRequests'
+        503:
+          description: 'Product admission could not be verified. The request is refused; retry later.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
       x-scope: 'workspace:read'
       x-danger: read
     post:
@@ -254,7 +730,7 @@ paths:
       summary: 'Create an environment'
       description: |
         Requires scope `environments:write` and the `manage-environments` capability
-        (owner/admin/developer). Danger: critical — with `initial_key` it mints a credential.
+        (`id:write` for human members, or current ownership). Danger: critical — with `initial_key` it mints a credential.
 
         With `initial_key`, the environment's first management key is minted in the same
         call and returned once as `initial_key.token` — enough for an agent holding one
@@ -263,8 +739,18 @@ paths:
       operationId: environments_create
       x-action: environments.create
       parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/CboxApproval'
+        -
+          $ref: '#/components/parameters/IdempotencyKey'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
       requestBody:
         required: true
         content:
@@ -347,6 +833,8 @@ paths:
                 message: 'Project [01J…] has reached its plan limit of 2 environment(s).'
         429:
           $ref: '#/components/responses/TooManyRequests'
+        503:
+          $ref: '#/components/responses/AdmissionUnavailable'
       x-scope: 'environments:write'
       x-danger: critical
   '/workspace/environments/{environment_id}/domain':
@@ -366,8 +854,18 @@ paths:
           required: true
           schema:
             type: string
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/CboxApproval'
+        -
+          $ref: '#/components/parameters/IdempotencyKey'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
       responses:
         204:
           description: Done.
@@ -385,6 +883,12 @@ paths:
           $ref: '#/components/responses/UnprocessableEntity'
         429:
           $ref: '#/components/responses/TooManyRequests'
+        503:
+          description: 'Product admission could not be verified. The request is refused; retry later.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     post:
       tags:
         - Environments
@@ -401,8 +905,18 @@ paths:
           required: true
           schema:
             type: string
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/CboxApproval'
+        -
+          $ref: '#/components/parameters/IdempotencyKey'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
       requestBody:
         required: true
         content:
@@ -442,6 +956,12 @@ paths:
           $ref: '#/components/responses/UnprocessableEntity'
         429:
           $ref: '#/components/responses/TooManyRequests'
+        503:
+          description: 'Product admission could not be verified. The request is refused; retry later.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   '/workspace/environments/{environment_id}/domain/verify':
     post:
       tags:
@@ -459,8 +979,18 @@ paths:
           required: true
           schema:
             type: string
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/CboxApproval'
+        -
+          $ref: '#/components/parameters/IdempotencyKey'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
       responses:
         200:
           description: OK
@@ -487,6 +1017,12 @@ paths:
           $ref: '#/components/responses/UnprocessableEntity'
         429:
           $ref: '#/components/responses/TooManyRequests'
+        503:
+          description: 'Product admission could not be verified. The request is refused; retry later.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   '/workspace/environments/{environment_id}/keys':
     post:
       tags:
@@ -504,8 +1040,18 @@ paths:
           required: true
           schema:
             type: string
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/CboxApproval'
+        -
+          $ref: '#/components/parameters/IdempotencyKey'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
       requestBody:
         required: true
         content:
@@ -559,6 +1105,12 @@ paths:
           $ref: '#/components/responses/UnprocessableEntity'
         429:
           $ref: '#/components/responses/TooManyRequests'
+        503:
+          description: 'Product admission could not be verified. The request is refused; retry later.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   '/workspace/environments/{environment_id}/keys/{id}':
     delete:
       tags:
@@ -582,8 +1134,18 @@ paths:
           required: true
           schema:
             type: string
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/CboxApproval'
+        -
+          $ref: '#/components/parameters/IdempotencyKey'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
       responses:
         204:
           description: Done.
@@ -601,6 +1163,12 @@ paths:
           $ref: '#/components/responses/UnprocessableEntity'
         429:
           $ref: '#/components/responses/TooManyRequests'
+        503:
+          description: 'Product admission could not be verified. The request is refused; retry later.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /workspace/invitations:
     get:
       tags:
@@ -610,7 +1178,16 @@ paths:
       x-action: team.invitations.list
       description: "Requires scope `team:read` and the `read-members` capability. The team's invitations nobody has accepted yet, newest first (at most 100)."
       parameters:
-        - $ref: '#/components/parameters/CboxApproval'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
       responses:
         200:
           description: OK
@@ -648,8 +1225,18 @@ paths:
           required: true
           schema:
             type: string
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/CboxApproval'
+        -
+          $ref: '#/components/parameters/IdempotencyKey'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
       responses:
         202:
           $ref: '#/components/responses/ApprovalRequired'
@@ -683,8 +1270,18 @@ paths:
           required: true
           schema:
             type: string
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/CboxApproval'
+        -
+          $ref: '#/components/parameters/IdempotencyKey'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
       responses:
         200:
           description: 'Sent again'
@@ -694,7 +1291,7 @@ paths:
                 type: object
                 properties:
                   data:
-                    $ref: '#/components/schemas/Member'
+                    $ref: '#/components/schemas/TeamInvitationReceipt'
         202:
           $ref: '#/components/responses/ApprovalRequired'
         401:
@@ -724,8 +1321,18 @@ paths:
       x-scope: 'keys:write'
       x-danger: critical
       parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/CboxApproval'
+        -
+          $ref: '#/components/parameters/IdempotencyKey'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
       requestBody:
         required: true
         content:
@@ -758,6 +1365,7 @@ paths:
                       - 'team:read'
                       - 'team:write'
                       - 'keys:write'
+                      - 'billing:write'
                       - 'settings:write'
                 expires_at:
                   type:
@@ -792,6 +1400,12 @@ paths:
           $ref: '#/components/responses/UnprocessableEntity'
         429:
           $ref: '#/components/responses/TooManyRequests'
+        503:
+          description: 'Product admission could not be verified. The request is refused; retry later.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     get:
       tags:
         - Keys
@@ -816,7 +1430,16 @@ paths:
           schema:
             type: integer
             description: 'The page to read, from 1. A list says `next_page` when there is one.'
-        - $ref: '#/components/parameters/CboxApproval'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
       responses:
         200:
           description: OK
@@ -844,6 +1467,12 @@ paths:
           $ref: '#/components/responses/UnprocessableEntity'
         429:
           $ref: '#/components/responses/TooManyRequests'
+        503:
+          description: 'Product admission could not be verified. The request is refused; retry later.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   '/workspace/keys/{id}':
     delete:
       tags:
@@ -861,8 +1490,18 @@ paths:
           required: true
           schema:
             type: string
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/CboxApproval'
+        -
+          $ref: '#/components/parameters/IdempotencyKey'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
       responses:
         204:
           description: Done.
@@ -880,6 +1519,12 @@ paths:
           $ref: '#/components/responses/UnprocessableEntity'
         429:
           $ref: '#/components/responses/TooManyRequests'
+        503:
+          description: 'Product admission could not be verified. The request is refused; retry later.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /workspace/members:
     get:
       tags:
@@ -887,7 +1532,7 @@ paths:
       summary: 'List members'
       operationId: team_list
       x-action: team.list
-      description: 'Requires scope `team:read` and the `read-members` capability (owner/admin/viewer). The roster is PII — a developer key is refused.'
+      description: 'Requires scope `team:read` and the `read-members` capability (`members:read` for human members, or current ownership). The roster contains personal information; a machine key also needs an explicit role allowing member reads.'
       parameters:
         -
           name: limit
@@ -904,7 +1549,16 @@ paths:
             type: integer
             minimum: 1
             default: 1
-        - $ref: '#/components/parameters/CboxApproval'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
       responses:
         200:
           description: OK
@@ -936,17 +1590,26 @@ paths:
         - Team
       summary: 'Invite a member'
       description: |
-        Requires scope `team:write` and the `manage-members` capability (owner/admin). Invites the address onto the
-        workspace's team — the same invitation the console's Team page sends: a mail naming
-        this key as the inviter and the role, with a signed link on which the invitee sets a
-        password and is signed in. Owner is never invited; ownership is transferred. An
-        earlier pending invitation for the same address is superseded. List, re-send and
+        Requires scope `team:write` and the `manage-members` capability (`members:manage` for human members, or current ownership). Invites the address onto the
+        ID product team with the selected app roles. Existing shared membership and other
+        apps are preserved. Owner is never invited; ownership is transferred separately. An
+        earlier pending invitation for the same address and this app is superseded. List, re-send and
         withdraw it under `/workspace/invitations`.
       operationId: team_invite
       x-action: team.invite
       parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/CboxApproval'
+        -
+          $ref: '#/components/parameters/IdempotencyKey'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
       requestBody:
         required: true
         content:
@@ -955,7 +1618,7 @@ paths:
               type: object
               required:
                 - email
-                - role
+                - roles
               properties:
                 email:
                   type: string
@@ -964,13 +1627,17 @@ paths:
                   type:
                     - string
                     - 'null'
-                role:
-                  type: string
-                  enum:
-                    - admin
-                    - developer
-                    - member
-                    - viewer
+                roles:
+                  type: array
+                  minItems: 1
+                  uniqueItems: true
+                  items:
+                    type: string
+                    enum:
+                      - admin
+                      - developer
+                      - billing
+                      - viewer
       responses:
         201:
           description: Invited
@@ -980,7 +1647,7 @@ paths:
                 type: object
                 properties:
                   data:
-                    $ref: '#/components/schemas/Member'
+                    $ref: '#/components/schemas/TeamInvitationReceipt'
         202:
           $ref: '#/components/responses/ApprovalRequired'
         401:
@@ -1008,7 +1675,7 @@ paths:
     delete:
       tags:
         - Team
-      summary: "Remove a member from the workspace's team. The owner is never removed; transfer ownership first."
+      summary: 'Remove native ID app roles while preserving shared organization membership and other apps. The current owner cannot be removed.'
       description: 'Requires scope `team:write` and a role that may `manage-members`. Danger: destructive.'
       operationId: team_remove
       x-action: team.remove
@@ -1021,8 +1688,29 @@ paths:
           required: true
           schema:
             type: string
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/CboxApproval'
+        -
+          $ref: '#/components/parameters/IdempotencyKey'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                roles_version:
+                  type: string
+              required:
+                - roles_version
       responses:
         204:
           description: Done.
@@ -1057,8 +1745,18 @@ paths:
           required: true
           schema:
             type: string
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/CboxApproval'
+        -
+          $ref: '#/components/parameters/IdempotencyKey'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
       requestBody:
         required: true
         content:
@@ -1066,6 +1764,8 @@ paths:
             schema:
               type: object
               properties:
+                environment_access_version:
+                  type: string
                 all_environments:
                   type: boolean
                   description: 'True: every environment, including ones created later.'
@@ -1076,6 +1776,7 @@ paths:
                     type: string
                     maxLength: 64
               required:
+                - environment_access_version
                 - all_environments
       responses:
         200:
@@ -1107,7 +1808,7 @@ paths:
     patch:
       tags:
         - Team
-      summary: "Change a team member's role (admin, developer, member or viewer). The owner's role changes only by transferring ownership."
+      summary: 'Replace native ID app roles atomically. Shared organization membership is preserved.'
       description: 'Requires scope `team:write` and a role that may `manage-members`. Danger: write.'
       operationId: team_role
       x-action: team.role
@@ -1120,8 +1821,18 @@ paths:
           required: true
           schema:
             type: string
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/CboxApproval'
+        -
+          $ref: '#/components/parameters/IdempotencyKey'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
       requestBody:
         required: true
         content:
@@ -1129,15 +1840,20 @@ paths:
             schema:
               type: object
               properties:
-                role:
+                roles:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - viewer
+                      - developer
+                      - billing
+                      - admin
+                roles_version:
                   type: string
-                  enum:
-                    - admin
-                    - developer
-                    - member
-                    - viewer
               required:
-                - role
+                - roles
+                - roles_version
       responses:
         200:
           description: OK
@@ -1168,7 +1884,7 @@ paths:
     post:
       tags:
         - Team
-      summary: "Make another member the workspace's owner; the current owner stays on as an admin. Only the owner, signed in, may do this."
+      summary: 'Transfer shared organization ownership. Existing app roles are preserved; the previous owner may lose native ID access. Only the current owner, signed in, may do this.'
       description: 'Requires scope `team:write` and a role that may `manage-members`. Danger: critical.'
       operationId: team_transfer_ownership
       x-action: team.transfer_ownership
@@ -1181,8 +1897,18 @@ paths:
           required: true
           schema:
             type: string
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/CboxApproval'
+        -
+          $ref: '#/components/parameters/IdempotencyKey'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
       responses:
         204:
           description: Done.
@@ -1207,9 +1933,18 @@ paths:
       summary: 'List projects'
       operationId: projects_list
       x-action: projects.list
-      description: "Requires scope `workspace:read` (any role). The workspace's projects (IdP products). Each carries its own plan and environment allowance."
+      description: 'Requires scope `workspace:read` and permission to read environments. Human callers see only projects containing environments they may access; environment counts include only those environments. Billing-only members cannot list projects.'
       parameters:
-        - $ref: '#/components/parameters/CboxApproval'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
       responses:
         200:
           description: OK
@@ -1232,18 +1967,34 @@ paths:
           $ref: '#/components/responses/NotFound'
         429:
           $ref: '#/components/responses/TooManyRequests'
+        503:
+          description: 'Product admission could not be verified. The request is refused; retry later.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
       x-scope: 'workspace:read'
       x-danger: read
     post:
       tags:
         - Projects
       summary: 'Create a project'
-      description: 'Stand up another independently-billed IdP product. Requires scope `projects:write` and the `manage-environments` capability (owner/admin/developer).'
+      description: 'Stand up another independently-billed IdP product. Requires scope `projects:write` and the `manage-environments` capability (`id:write` for human members, or current ownership).'
       operationId: projects_create
       x-action: projects.create
       parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/CboxApproval'
+        -
+          $ref: '#/components/parameters/IdempotencyKey'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
       requestBody:
         required: true
         content:
@@ -1260,7 +2011,7 @@ paths:
                   type: integer
                   minimum: 1
                   maximum: 100
-                  description: "This project's plan environment allowance (default 2)."
+                  description: "Optional lower per-project environment allowance. Defaults to the account's current Billing entitlement and cannot exceed it."
       responses:
         201:
           description: Created
@@ -1283,6 +2034,8 @@ paths:
           $ref: '#/components/responses/UnprocessableEntity'
         429:
           $ref: '#/components/responses/TooManyRequests'
+        503:
+          $ref: '#/components/responses/AdmissionUnavailable'
       x-scope: 'projects:write'
       x-danger: write
   /workspace/projects/verification/resend:
@@ -1296,8 +2049,18 @@ paths:
       x-scope: 'projects:write'
       x-danger: write
       parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/CboxApproval'
+        -
+          $ref: '#/components/parameters/IdempotencyKey'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
       responses:
         200:
           description: OK
@@ -1322,6 +2085,12 @@ paths:
           $ref: '#/components/responses/UnprocessableEntity'
         429:
           $ref: '#/components/responses/TooManyRequests'
+        503:
+          description: 'Product admission could not be verified. The request is refused; retry later.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   '/workspace/projects/{id}':
     patch:
       tags:
@@ -1339,8 +2108,18 @@ paths:
           required: true
           schema:
             type: string
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/CboxApproval'
+        -
+          $ref: '#/components/parameters/IdempotencyKey'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
       requestBody:
         required: true
         content:
@@ -1379,6 +2158,12 @@ paths:
           $ref: '#/components/responses/UnprocessableEntity'
         429:
           $ref: '#/components/responses/TooManyRequests'
+        503:
+          description: 'Product admission could not be verified. The request is refused; retry later.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   '/workspace/projects/{id}/reactivate':
     post:
       tags:
@@ -1396,8 +2181,18 @@ paths:
           required: true
           schema:
             type: string
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/CboxApproval'
+        -
+          $ref: '#/components/parameters/IdempotencyKey'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
       responses:
         200:
           description: OK
@@ -1424,6 +2219,12 @@ paths:
           $ref: '#/components/responses/UnprocessableEntity'
         429:
           $ref: '#/components/responses/TooManyRequests'
+        503:
+          description: 'Product admission could not be verified. The request is refused; retry later.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   '/workspace/projects/{id}/suspend':
     post:
       tags:
@@ -1441,8 +2242,18 @@ paths:
           required: true
           schema:
             type: string
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/CboxApproval'
+        -
+          $ref: '#/components/parameters/IdempotencyKey'
+        -
+          $ref: '#/components/parameters/CboxApproval'
+        -
+          name: Cbox-Organization
+          in: header
+          required: false
+          description: 'Select the exact workspace for a platform-root user token. Required when an unbound token can access multiple workspaces. Must match an organization-bound token or workspace key; never changes the credential authority.'
+          schema:
+            type: string
+            minLength: 1
       responses:
         200:
           description: OK
@@ -1469,6 +2280,12 @@ paths:
           $ref: '#/components/responses/UnprocessableEntity'
         429:
           $ref: '#/components/responses/TooManyRequests'
+        503:
+          description: 'Product admission could not be verified. The request is refused; retry later.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   securitySchemes:
     WorkspaceAccessToken:
@@ -1500,6 +2317,12 @@ components:
         type: string
         maxLength: 255
   responses:
+    AdmissionUnavailable:
+      description: 'Billing admission is unavailable. No project or environment is created; retry later.'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
     ApprovalRequired:
       description: |
         Held for a person's approval: this key's policy requires the person who minted it to
@@ -1548,7 +2371,7 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
     Forbidden:
-      description: "The key's role lacks the required capability, or the key lacks the required scope"
+      description: 'The current app permissions or machine key role lack the required capability, or the credential lacks the required scope'
       content:
         application/json:
           schema:
@@ -1621,11 +2444,6 @@ components:
           enum:
             - active
             - suspended
-        projects:
-          type: array
-          description: "The workspace's projects with each one's plan/allowance. Present only for billing-readers (plans are per project)."
-          items:
-            $ref: '#/components/schemas/Project'
     Project:
       type: object
       properties:
@@ -1642,9 +2460,10 @@ components:
             - suspended
         environment_limit:
           type: integer
-          description: "This project's plan environment allowance."
+          description: 'Local per-project ceiling; creating environments also requires sufficient current Billing entitlement.'
         environments_used:
           type: integer
+          description: 'Number of environments visible to the caller.'
     Environment:
       type: object
       properties:
@@ -1678,7 +2497,9 @@ components:
         id:
           type: string
         email:
-          type: string
+          type:
+            - string
+            - 'null'
           format: email
         name:
           type:
@@ -1692,17 +2513,37 @@ components:
             - developer
             - member
             - viewer
+          description: 'Shared membership tier; only current owner implies app authority.'
+        roles:
+          type: array
+          items:
+            type: string
+            enum:
+              - admin
+              - developer
+              - billing
+              - viewer
+        roles_version:
+          type: string
         status:
           type: string
           enum:
             - active
             - invited
+            - suspended
         all_environments:
           type: boolean
+        environment_ids:
+          type: array
+          items:
+            type: string
+        environment_access_version:
+          type: string
     CreatedEnvironment:
       description: 'An environment, and — when the request asked for one — its first management key.'
       allOf:
-        - $ref: '#/components/schemas/Environment'
+        -
+          $ref: '#/components/schemas/Environment'
         -
           type: object
           properties:
@@ -1775,6 +2616,7 @@ components:
               - 'team:write'
               - 'keys:write'
               - 'settings:write'
+              - 'billing:write'
           description: 'Null when the role alone bounds the key.'
         parent_key_id:
           type:
@@ -1811,7 +2653,7 @@ components:
       required:
         - id
         - email
-        - role
+        - roles
         - expires_at
       properties:
         id:
@@ -1826,6 +2668,19 @@ components:
             - developer
             - member
             - viewer
+        roles:
+          type: array
+          items:
+            type: string
+            enum:
+              - admin
+              - developer
+              - billing
+              - viewer
+        app_role_label:
+          type:
+            - string
+            - 'null'
         invited_by:
           type:
             - string
@@ -1839,6 +2694,32 @@ components:
         expires_at:
           type: string
           format: date-time
+    TeamInvitationReceipt:
+      type: object
+      required:
+        - id
+        - email
+        - roles
+        - status
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        roles:
+          type: array
+          items:
+            type: string
+            enum:
+              - admin
+              - developer
+              - billing
+              - viewer
+        status:
+          type: string
+          enum:
+            - invited
     CustomDomain:
       type: object
       required:
@@ -1872,7 +2753,8 @@ components:
                   type: string
                 record_value:
                   type: string
-            - type: 'null'
+            -
+              type: 'null'
     PageMeta:
       type: object
       description: 'Paging for a list response. `has_more` used to be returned with nothing to act on it — no page parameter and no cursor — so a caller told there was more had no way to ask for it. `next_page` is present exactly when `has_more` is true, so a client can loop without computing anything.'

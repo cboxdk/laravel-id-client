@@ -15,6 +15,7 @@ use Cbox\Id\Client\Management\Transport\ReturnPendingApproval;
 use Cbox\Id\Client\Management\Transport\Value;
 use Cbox\Id\Client\Management\Workspace\Operations;
 use Cbox\Id\Client\Management\Workspace\Schemas\Member;
+use Cbox\Id\Client\Management\Workspace\Schemas\TeamInvitationReceipt;
 use Generator;
 
 /** `team.*` on the workspace plane. */
@@ -37,7 +38,7 @@ class Team
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
      *
-     * @param  array{all_environments: bool, environment_ids?: list<string>}  $body
+     * @param  array{environment_access_version: string, all_environments: bool, environment_ids?: list<string>}  $body
      * @return ($options is ReturnPendingApproval ? ApiResponse<Member>|PendingApprovalResult<ApiResponse<Member>> : ApiResponse<Member>)
      */
     public function environmentAccess(string $id, array $body, ?CallOptions $options = null): ApiResponse|PendingApprovalResult
@@ -48,11 +49,10 @@ class Team
     /**
      * Invite a member
      *
-     * Requires scope `team:write` and the `manage-members` capability (owner/admin). Invites the address onto the
-     * workspace's team — the same invitation the console's Team page sends: a mail naming
-     * this key as the inviter and the role, with a signed link on which the invitee sets a
-     * password and is signed in. Owner is never invited; ownership is transferred. An
-     * earlier pending invitation for the same address is superseded. List, re-send and
+     * Requires scope `team:write` and the `manage-members` capability (`members:manage` for human members, or current ownership). Invites the address onto the
+     * ID product team with the selected app roles. Existing shared membership and other
+     * apps are preserved. Owner is never invited; ownership is transferred separately. An
+     * earlier pending invitation for the same address and this app is superseded. List, re-send and
      * withdraw it under `/workspace/invitations`.
      *
      * `POST /workspace/members` · action `team.invite` · scope `team:write` · danger: write
@@ -60,18 +60,18 @@ class Team
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
      *
-     * @param  array{email: string, name?: string|null, role: 'admin'|'developer'|'member'|'viewer'}  $body
-     * @return ($options is ReturnPendingApproval ? ApiResponse<Member>|PendingApprovalResult<ApiResponse<Member>> : ApiResponse<Member>)
+     * @param  array{email: string, name?: string|null, roles: list<'admin'|'developer'|'billing'|'viewer'>}  $body
+     * @return ($options is ReturnPendingApproval ? ApiResponse<TeamInvitationReceipt>|PendingApprovalResult<ApiResponse<TeamInvitationReceipt>> : ApiResponse<TeamInvitationReceipt>)
      */
     public function invite(array $body, ?CallOptions $options = null): ApiResponse|PendingApprovalResult
     {
-        return $this->transport->call(Operations::spec('team.invite'), [], $body, $options, Value::dto(Member::fromArray(...)));
+        return $this->transport->call(Operations::spec('team.invite'), [], $body, $options, Value::dto(TeamInvitationReceipt::fromArray(...)));
     }
 
     /**
      * List members
      *
-     * Requires scope `team:read` and the `read-members` capability (owner/admin/viewer). The roster is PII — a developer key is refused.
+     * Requires scope `team:read` and the `read-members` capability (`members:read` for human members, or current ownership). The roster contains personal information; a machine key also needs an explicit role allowing member reads.
      *
      * `GET /workspace/members` · action `team.list` · scope `team:read` · danger: read
      *
@@ -98,7 +98,7 @@ class Team
     }
 
     /**
-     * Remove a member from the workspace's team. The owner is never removed; transfer ownership first.
+     * Remove native ID app roles while preserving shared organization membership and other apps. The current owner cannot be removed.
      *
      * Requires scope `team:write` and a role that may `manage-members`.
      *
@@ -107,15 +107,16 @@ class Team
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
      *
+     * @param  array{roles_version: string}  $body
      * @return ($options is ReturnPendingApproval ? ApiResponse<null>|PendingApprovalResult<ApiResponse<null>> : ApiResponse<null>)
      */
-    public function remove(string $id, ?CallOptions $options = null): ApiResponse|PendingApprovalResult
+    public function remove(string $id, array $body, ?CallOptions $options = null): ApiResponse|PendingApprovalResult
     {
-        return $this->transport->call(Operations::spec('team.remove'), [$id], [], $options, Value::none(...));
+        return $this->transport->call(Operations::spec('team.remove'), [$id], $body, $options, Value::none(...));
     }
 
     /**
-     * Change a team member's role (admin, developer, member or viewer). The owner's role changes only by transferring ownership.
+     * Replace native ID app roles atomically. Shared organization membership is preserved.
      *
      * Requires scope `team:write` and a role that may `manage-members`.
      *
@@ -124,7 +125,7 @@ class Team
      * May be held for a person's approval (`202 approval_required`): waited on, unless
      * `$options` is `CallOptions::returnPendingApproval()`.
      *
-     * @param  array{role: 'admin'|'developer'|'member'|'viewer'}  $body
+     * @param  array{roles: list<'viewer'|'developer'|'billing'|'admin'>, roles_version: string}  $body
      * @return ($options is ReturnPendingApproval ? ApiResponse<Member>|PendingApprovalResult<ApiResponse<Member>> : ApiResponse<Member>)
      */
     public function role(string $id, array $body, ?CallOptions $options = null): ApiResponse|PendingApprovalResult
@@ -133,7 +134,7 @@ class Team
     }
 
     /**
-     * Make another member the workspace's owner; the current owner stays on as an admin. Only the owner, signed in, may do this.
+     * Transfer shared organization ownership. Existing app roles are preserved; the previous owner may lose native ID access. Only the current owner, signed in, may do this.
      *
      * Requires scope `team:write` and a role that may `manage-members`.
      *

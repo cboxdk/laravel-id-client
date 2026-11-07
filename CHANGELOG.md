@@ -3,11 +3,26 @@
 All notable changes to `cboxdk/laravel-id-client`. Earlier releases are described on
 their GitHub release pages.
 
-## [Unreleased]
+## [0.16.0] — prepared candidate, not published
+
+### Upgrade
+
+Workspace team.remove now requires a body with roles_version. Send role arrays and current versions for member writes; refresh on conflict. Environment access writes require environment_access_version. Custom Management implementations must implement invitation and replaceAppRoles. No ownership transfer through ordinary role assignment.
 
 ### Added
 
-- Typed organization service connections with scoped grant creation, status, short-lived token leases and revocation. HTTPS transport verifies returned organization, consumer, resource and scopes; the explicit test fake never succeeds without configured results.
+- Atomically replace one app's manually assigned member roles with an optimistic version check. Other app assignments and organization membership remain unchanged.
+- Read an invitation's accepted subject and timestamp from the management API so apps can bind local resource grants to verified acceptance.
+- Service connection management and leasing, with typed failures and an offline test fake.
+- Generated management resources for staged role definitions, app-role replacement and user property namespaces.
+
+### Changed
+
+- Workspace `team.remove()` now requires a body containing `roles_version` and removes native ID app roles only. Role edits require multiple `roles` plus `roles_version`; environment grants use an independent `environment_access_version`.
+- Custom implementations of `Management` must implement the new `invitation()` and `replaceAppRoles()` methods.
+- Manifest receipts must match the submitted client, version and full checksum, with valid change flags and non-negative publication counts.
+- Manifest publication validates complete permission and role definitions before sending them, and refuses redirects or an insecure production endpoint.
+- Permission gates require a current app-scoped decision instead of relying on stored token claims.
 
 ## [0.15.4] - 2026-11-05
 

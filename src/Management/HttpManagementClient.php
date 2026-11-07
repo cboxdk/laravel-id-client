@@ -107,6 +107,11 @@ class HttpManagementClient implements Management
         return Member::fromArray($this->data($this->send('post', $this->org($organizationId).'/transfer-ownership', ['user_id' => $userId])));
     }
 
+    public function invitation(string $organizationId, string $invitationId): Invitation
+    {
+        return Invitation::fromArray($this->data($this->get($this->org($organizationId).'/invitations/'.$this->id($invitationId))));
+    }
+
     public function invitations(string $organizationId, ?string $after = null, int $limit = 50): Page
     {
         return Page::fromResponse($this->get($this->org($organizationId).'/invitations', $this->cursor($after, $limit)), Invitation::fromArray(...));
@@ -138,6 +143,16 @@ class HttpManagementClient implements Management
     public function assignRole(string $organizationId, string $userId, string $roleId, ?string $clientId = null): RoleAssignment
     {
         return RoleAssignment::fromArray($this->data($this->send('put', $this->memberRole($organizationId, $userId, $roleId), [], $this->roleQuery($clientId))));
+    }
+
+    public function replaceAppRoles(string $organizationId, string $userId, string $clientId, array $roleKeys, string $expectedVersion): array
+    {
+        $response = $this->send('put', $this->org($organizationId).'/members/'.$this->id($userId).'/apps/'.$this->id($clientId).'/roles', [
+            'roles' => $roleKeys,
+            'version' => $expectedVersion,
+        ]);
+
+        return array_map(RoleAssignment::fromArray(...), Claims::objects($response, 'data'));
     }
 
     public function unassignRole(string $organizationId, string $userId, string $roleId, ?string $clientId = null): void

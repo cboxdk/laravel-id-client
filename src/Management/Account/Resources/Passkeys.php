@@ -7,6 +7,7 @@ declare(strict_types=1);
 namespace Cbox\Id\Client\Management\Account\Resources;
 
 use Cbox\Id\Client\Management\Account\Operations;
+use Cbox\Id\Client\Management\Account\Schemas\Passkey;
 use Cbox\Id\Client\Management\Transport\ApiResponse;
 use Cbox\Id\Client\Management\Transport\CallOptions;
 use Cbox\Id\Client\Management\Transport\ManagementTransport;
@@ -34,5 +35,23 @@ class Passkeys
     public function remove(string $passkeyId, ?CallOptions $options = null): ApiResponse|PendingApprovalResult
     {
         return $this->transport->call(Operations::spec('account.passkeys.remove'), [$passkeyId], [], $options, Value::none(...));
+    }
+
+    /**
+     * Rename one of your passkeys.
+     *
+     * Requires scope `account:sign_in:write` on an access token you delegated; it acts on your own account only. No management key is accepted.
+     *
+     * `PATCH /me/passkeys/{passkey_id}` · action `account.passkeys.rename` · scope `account:sign_in:write` · danger: write
+     *
+     * May be held for a person's approval (`202 approval_required`): waited on, unless
+     * `$options` is `CallOptions::returnPendingApproval()`.
+     *
+     * @param  array{name: string}  $body
+     * @return ($options is ReturnPendingApproval ? ApiResponse<Passkey>|PendingApprovalResult<ApiResponse<Passkey>> : ApiResponse<Passkey>)
+     */
+    public function rename(string $passkeyId, array $body, ?CallOptions $options = null): ApiResponse|PendingApprovalResult
+    {
+        return $this->transport->call(Operations::spec('account.passkeys.rename'), [$passkeyId], $body, $options, Value::dto(Passkey::fromArray(...)));
     }
 }

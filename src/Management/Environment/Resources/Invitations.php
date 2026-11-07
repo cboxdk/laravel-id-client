@@ -23,6 +23,21 @@ class Invitations
     public function __construct(private readonly ManagementTransport $transport) {}
 
     /**
+     * Get an invitation and its acceptance receipt, confined to its organization.
+     *
+     * `GET /organizations/{organization_id}/invitations/{invitation_id}` · action `invitations.get` · scope `invitations:read` · danger: read
+     *
+     * May be held for a person's approval (`202 approval_required`): waited on, unless
+     * `$options` is `CallOptions::returnPendingApproval()`.
+     *
+     * @return ($options is ReturnPendingApproval ? ApiResponse<Invitation>|PendingApprovalResult<ApiResponse<Invitation>> : ApiResponse<Invitation>)
+     */
+    public function get(string $organizationId, string $invitationId, ?CallOptions $options = null): ApiResponse|PendingApprovalResult
+    {
+        return $this->transport->call(Operations::spec('invitations.get'), [$organizationId, $invitationId], [], $options, Value::dto(Invitation::fromArray(...)));
+    }
+
+    /**
      * List an organization's pending invitations
      *
      * Pending and unexpired only.

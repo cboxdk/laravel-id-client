@@ -53,6 +53,22 @@ class AppsSettings
     }
 
     /**
+     * Turn client-credentials authentication on or off for a confidential app; other grants and scopes stay unchanged.
+     *
+     * `PUT /apps/{id}/settings/client-credentials` · action `apps.settings.client_credentials` · scope `apps:write` · danger: write
+     *
+     * May be held for a person's approval (`202 approval_required`): waited on, unless
+     * `$options` is `CallOptions::returnPendingApproval()`.
+     *
+     * @param  array{enabled: bool}  $body
+     * @return ($options is ReturnPendingApproval ? ApiResponse<App>|PendingApprovalResult<ApiResponse<App>> : ApiResponse<App>)
+     */
+    public function clientCredentials(string $id, array $body, ?CallOptions $options = null): ApiResponse|PendingApprovalResult
+    {
+        return $this->transport->call(Operations::spec('apps.settings.client_credentials'), [$id], $body, $options, Value::dto(App::fromArray(...)));
+    }
+
+    /**
      * Turn token exchange (RFC 8693) on or off for a confidential app.
      *
      * `PUT /apps/{id}/settings/token-exchange` · action `apps.settings.token_exchange` · scope `apps:write` · danger: write

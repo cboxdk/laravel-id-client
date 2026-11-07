@@ -30,7 +30,7 @@ it('publishes the manifest with an apps.manifest client-credentials token', func
     Http::fake([
         '*/.well-known/openid-configuration' => Http::response(['issuer' => 'https://id.test', 'token_endpoint' => 'https://id.test/oauth/token']),
         '*/oauth/token' => Http::response(['access_token' => 'mtoken', 'expires_in' => 900]),
-        '*/api/v1/apps/manifest' => Http::response(['unchanged' => false, 'roles_declared' => 1, 'permissions_declared' => 1]),
+        '*/api/v1/apps/manifest' => Http::response(['client_id' => 'client_1', 'version' => app(ManifestPublisher::class)->manifest()['version'], 'checksum' => app(ManifestPublisher::class)->checksum(), 'unchanged' => false, 'roles_declared' => 1, 'permissions_declared' => 1]),
     ]);
 
     $result = app(ManifestPublisher::class)->publish();
@@ -135,4 +135,54 @@ it('refuses a staff marker that is not a boolean, before it can widen access', f
 
     expect(fn () => app(ManifestPublisher::class)->manifest())
         ->toThrow(ClientConfigurationException::class, 'tenant_assignable must be true or false');
+});
+
+it('fails the release for an absent, mismatched or incomplete acknowledgement', function (array $replacement): void {
+    $publisher = app(ManifestPublisher::class);
+    $reply = array_replace(['client_id' => 'client_1', 'version' => $publisher->manifest()['version'], 'checksum' => $publisher->checksum(), 'unchanged' => false, 'roles_declared' => 1, 'permissions_declared' => 1], $replacement);
+    Http::fake([
+        '*/.well-known/openid-configuration' => Http::response(['issuer' => 'https://id.test', 'token_endpoint' => 'https://id.test/oauth/token']),
+        '*/oauth/token' => Http::response(['access_token' => 'mtoken']),
+        '*/api/v1/apps/manifest' => Http::response($reply),
+    ]);
+    $this->artisan('cbox-id:publish-manifest')->assertFailed();
+})->with([
+    'another app' => [['client_id' => 'other']],
+    'another version' => [['version' => 'old']],
+    'another body' => [['checksum' => str_repeat('0', 64)]],
+    'missing checksum' => [['checksum' => null]],
+    'partial roles' => [['roles_declared' => 0]],
+    'partial permissions' => [['permissions_declared' => 0]],
+    'invalid unchanged' => [['unchanged' => 'true']],
+    'negative unchanged role count' => [['unchanged' => true, 'roles_declared' => -1]],
+    'negative unchanged permission count' => [['unchanged' => true, 'permissions_declared' => -1]],
+]);
+
+it('requires explicit empty retirement and sends it instead of skipping synchronization', function (): void {
+    config(['cbox-id-client.authz.roles' => [], 'cbox-id-client.authz.permissions' => []]);
+    $this->app->forgetInstance(ManifestPublisher::class);
+    $publisher = app(ManifestPublisher::class);
+    Http::fake([
+        '*/.well-known/openid-configuration' => Http::response(['issuer' => 'https://id.test', 'token_endpoint' => 'https://id.test/oauth/token']),
+        '*/oauth/token' => Http::response(['access_token' => 'mtoken']),
+        '*/api/v1/apps/manifest' => Http::response(['client_id' => 'client_1', 'version' => $publisher->manifest()['version'], 'checksum' => $publisher->checksum(), 'unchanged' => false, 'roles_declared' => 0, 'permissions_declared' => 0]),
+    ]);
+    $this->artisan('cbox-id:publish-manifest')->assertFailed();
+    Http::assertNothingSent();
+    $this->artisan('cbox-id:publish-manifest', ['--allow-empty' => true])->assertSuccessful();
+    Http::assertSent(fn ($request): bool => str_contains($request->url(), '/api/v1/apps/manifest') && $request['roles'] === [] && $request['permissions'] === []);
+});
+
+it('does not print response bodies that could echo credentials', function (): void {
+    Http::fake([
+        '*/.well-known/openid-configuration' => Http::response(['issuer' => 'https://id.test', 'token_endpoint' => 'https://id.test/oauth/token']),
+        '*/oauth/token' => Http::response(['access_token' => 'mtoken']),
+        '*/api/v1/apps/manifest' => Http::response('private-upstream-diagnostic', 500),
+    ]);
+    try {
+        app(ManifestPublisher::class)->publish();
+        test()->fail('Expected failure.');
+    } catch (ClientConfigurationException $error) {
+        expect($error->getMessage())->toContain('HTTP 500')->not->toContain('private-upstream-diagnostic');
+    }
 });

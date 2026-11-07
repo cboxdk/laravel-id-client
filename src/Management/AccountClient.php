@@ -9,14 +9,19 @@ namespace Cbox\Id\Client\Management;
 use Cbox\Id\Client\Management\Account\Resources\ActionApprovals;
 use Cbox\Id\Client\Management\Account\Resources\ApiKeys;
 use Cbox\Id\Client\Management\Account\Resources\Applications;
+use Cbox\Id\Client\Management\Account\Resources\Apps;
 use Cbox\Id\Client\Management\Account\Resources\Devices;
+use Cbox\Id\Client\Management\Account\Resources\Email;
 use Cbox\Id\Client\Management\Account\Resources\Mfa;
 use Cbox\Id\Client\Management\Account\Resources\Organizations;
 use Cbox\Id\Client\Management\Account\Resources\Passkeys;
 use Cbox\Id\Client\Management\Account\Resources\Pipes;
 use Cbox\Id\Client\Management\Account\Resources\Profile;
 use Cbox\Id\Client\Management\Account\Resources\Sessions;
+use Cbox\Id\Client\Management\Account\Resources\SignInMethods;
 use Cbox\Id\Client\Management\Account\Resources\Social;
+use Cbox\Id\Client\Management\Account\Resources\Totp;
+use Cbox\Id\Client\Management\Account\Resources\Waitlists;
 use Cbox\Id\Client\Management\Transport\ApprovalContext;
 use Cbox\Id\Client\Management\Transport\PendingApproval;
 use Cbox\Id\Client\Management\Transport\Plane;
@@ -44,7 +49,11 @@ class AccountClient extends ManagementClient
 
     public readonly Applications $applications;
 
+    public readonly Apps $apps;
+
     public readonly Devices $devices;
+
+    public readonly Email $email;
 
     public readonly Mfa $mfa;
 
@@ -58,7 +67,13 @@ class AccountClient extends ManagementClient
 
     public readonly Sessions $sessions;
 
+    public readonly SignInMethods $signInMethods;
+
     public readonly Social $social;
+
+    public readonly Totp $totp;
+
+    public readonly Waitlists $waitlists;
 
     /**
      * Exactly one of `$apiKey` and `$accessToken`. See {@see ManagementClient::__construct()}.
@@ -87,14 +102,19 @@ class AccountClient extends ManagementClient
         $this->actionApprovals = new ActionApprovals($this->transport);
         $this->apiKeys = new ApiKeys($this->transport);
         $this->applications = new Applications($this->transport);
+        $this->apps = new Apps($this->transport);
         $this->devices = new Devices($this->transport);
+        $this->email = new Email($this->transport);
         $this->mfa = new Mfa($this->transport);
         $this->organizations = new Organizations($this->transport);
         $this->passkeys = new Passkeys($this->transport);
         $this->pipes = new Pipes($this->transport);
         $this->profile = new Profile($this->transport);
         $this->sessions = new Sessions($this->transport);
+        $this->signInMethods = new SignInMethods($this->transport);
         $this->social = new Social($this->transport);
+        $this->totp = new Totp($this->transport);
+        $this->waitlists = new Waitlists($this->transport);
     }
 
     public static function plane(): Plane

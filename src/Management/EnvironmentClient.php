@@ -10,10 +10,12 @@ use Cbox\Id\Client\Management\Environment\Resources\AccessReviews;
 use Cbox\Id\Client\Management\Environment\Resources\ActionApprovals;
 use Cbox\Id\Client\Management\Environment\Resources\ApiKeys;
 use Cbox\Id\Client\Management\Environment\Resources\Apis;
+use Cbox\Id\Client\Management\Environment\Resources\AppCatalog;
 use Cbox\Id\Client\Management\Environment\Resources\Approvals;
 use Cbox\Id\Client\Management\Environment\Resources\Apps;
 use Cbox\Id\Client\Management\Environment\Resources\Audit;
 use Cbox\Id\Client\Management\Environment\Resources\AuditLogs;
+use Cbox\Id\Client\Management\Environment\Resources\Authenticator;
 use Cbox\Id\Client\Management\Environment\Resources\Branding;
 use Cbox\Id\Client\Management\Environment\Resources\Directories;
 use Cbox\Id\Client\Management\Environment\Resources\Domains;
@@ -34,11 +36,13 @@ use Cbox\Id\Client\Management\Environment\Resources\Provisioning;
 use Cbox\Id\Client\Management\Environment\Resources\Radar;
 use Cbox\Id\Client\Management\Environment\Resources\Roles;
 use Cbox\Id\Client\Management\Environment\Resources\SamlApps;
+use Cbox\Id\Client\Management\Environment\Resources\Signals;
 use Cbox\Id\Client\Management\Environment\Resources\Signin;
 use Cbox\Id\Client\Management\Environment\Resources\SodPolicies;
 use Cbox\Id\Client\Management\Environment\Resources\Sso;
 use Cbox\Id\Client\Management\Environment\Resources\SupportSessions;
 use Cbox\Id\Client\Management\Environment\Resources\TokenVault;
+use Cbox\Id\Client\Management\Environment\Resources\UserPropertyNamespaces;
 use Cbox\Id\Client\Management\Environment\Resources\Users;
 use Cbox\Id\Client\Management\Environment\Resources\Webhooks;
 use Cbox\Id\Client\Management\Transport\ApprovalContext;
@@ -72,6 +76,8 @@ class EnvironmentClient extends ManagementClient
 
     public readonly Apis $apis;
 
+    public readonly AppCatalog $appCatalog;
+
     public readonly Approvals $approvals;
 
     public readonly Apps $apps;
@@ -79,6 +85,8 @@ class EnvironmentClient extends ManagementClient
     public readonly Audit $audit;
 
     public readonly AuditLogs $auditLogs;
+
+    public readonly Authenticator $authenticator;
 
     public readonly Branding $branding;
 
@@ -120,6 +128,8 @@ class EnvironmentClient extends ManagementClient
 
     public readonly SamlApps $samlApps;
 
+    public readonly Signals $signals;
+
     public readonly Signin $signin;
 
     public readonly SodPolicies $sodPolicies;
@@ -129,6 +139,8 @@ class EnvironmentClient extends ManagementClient
     public readonly SupportSessions $supportSessions;
 
     public readonly TokenVault $tokenVault;
+
+    public readonly UserPropertyNamespaces $userPropertyNamespaces;
 
     public readonly Users $users;
 
@@ -162,10 +174,12 @@ class EnvironmentClient extends ManagementClient
         $this->actionApprovals = new ActionApprovals($this->transport);
         $this->apiKeys = new ApiKeys($this->transport);
         $this->apis = new Apis($this->transport);
+        $this->appCatalog = new AppCatalog($this->transport);
         $this->approvals = new Approvals($this->transport);
         $this->apps = new Apps($this->transport);
         $this->audit = new Audit($this->transport);
         $this->auditLogs = new AuditLogs($this->transport);
+        $this->authenticator = new Authenticator($this->transport);
         $this->branding = new Branding($this->transport);
         $this->directories = new Directories($this->transport);
         $this->domains = new Domains($this->transport);
@@ -186,11 +200,13 @@ class EnvironmentClient extends ManagementClient
         $this->radar = new Radar($this->transport);
         $this->roles = new Roles($this->transport);
         $this->samlApps = new SamlApps($this->transport);
+        $this->signals = new Signals($this->transport);
         $this->signin = new Signin($this->transport);
         $this->sodPolicies = new SodPolicies($this->transport);
         $this->sso = new Sso($this->transport);
         $this->supportSessions = new SupportSessions($this->transport);
         $this->tokenVault = new TokenVault($this->transport);
+        $this->userPropertyNamespaces = new UserPropertyNamespaces($this->transport);
         $this->users = new Users($this->transport);
         $this->webhooks = new Webhooks($this->transport);
     }
