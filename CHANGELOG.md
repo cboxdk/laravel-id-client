@@ -3,6 +3,12 @@
 All notable changes to `cboxdk/laravel-id-client`. Earlier releases are described on
 their GitHub release pages.
 
+## [0.16.1] - 2026-11-07
+
+### Fixed
+
+- Regenerate the production SBOM from the canonical PHP 8.4 / Testbench 11 dependency resolution, including `symfony/polyfill-time`. Runtime APIs and authorization behavior are unchanged. The published 0.16.0 tag remains immutable.
+
 ## [0.16.0] - 2026-11-07
 
 ### Upgrade
