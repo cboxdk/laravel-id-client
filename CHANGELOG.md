@@ -3,6 +3,18 @@
 All notable changes to `cboxdk/laravel-id-client`. Earlier releases are described on
 their GitHub release pages.
 
+## [Unreleased]
+
+## [0.17.0] - 2026-11-08
+
+### Added
+
+- `BackchannelAuthentication` (OpenID CIBA, poll mode) and `DeviceAuthorization` (RFC 8628) start a request, poll the token endpoint and wait for tokens. They discover endpoints from the RFC 8414 metadata, honour `interval` and `slow_down`, carry `resource` (RFC 8707) through to the token request, and return a typed `TokenResult`.
+- Typed exceptions for each refusal: `AuthorizationDenied`, `AuthorizationExpired`, `InvalidGrant`, `InvalidTarget`, `InvalidClient`, `UnknownUser`, `InvalidBindingMessage`, `GrantRateLimited` (429 with `retryAfter`) and `GrantTimedOut`, all under `GrantFailed`.
+- `ClientAuthentication` for `client_secret_basic`, `client_secret_post`, `private_key_jwt` (RS256 or ES256, a fresh assertion per request) and public clients, configured under `client_authentication`.
+- `Testing\FakeTimer`, so tests of the blocking wait finish at once.
+- `CboxId::fake()->backchannelAuthentication()` and `->deviceAuthorization()` return scripted fakes (`pending()`, `approve()`, `deny()`, `expire()`, `throttle()`) with `assertStarted()` and `assertPolled()`. Unscripted, they never grant.
+
 ## [0.16.1] - 2026-11-07
 
 ### Fixed

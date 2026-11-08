@@ -252,6 +252,22 @@ return [
      * document and JWKS are cached.
      */
     'http_timeout' => (int) env('CBOX_ID_HTTP_TIMEOUT', 10),
+
+    /*
+     * How this client authenticates at the token, CIBA and device endpoints
+     * (`BackchannelAuthentication`, `DeviceAuthorization`). `method` is one of
+     * client_secret_basic, client_secret_post, private_key_jwt or none; left empty,
+     * a configured private key means private_key_jwt, a client secret
+     * client_secret_basic, and neither a public client. `private_key` is the PEM
+     * itself or a path to it; `key_id` is the `kid` registered with Cbox ID;
+     * `algorithm` is RS256 or ES256.
+     */
+    'client_authentication' => [
+        'method' => env('CBOX_ID_CLIENT_AUTH_METHOD'),
+        'private_key' => env('CBOX_ID_PRIVATE_KEY'),
+        'key_id' => env('CBOX_ID_KEY_ID'),
+        'algorithm' => env('CBOX_ID_KEY_ALGORITHM', 'RS256'),
+    ],
     'cache_ttl' => (int) env('CBOX_ID_CACHE_TTL', 3600),
 
     /*

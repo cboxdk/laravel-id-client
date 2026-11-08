@@ -33,6 +33,9 @@ container if you prefer constructor injection.
   app when they sign out of Cbox ID.
 - **[Protect your API](protect-your-api.md)** — verify a token presented *to* you,
   and gate routes on scopes.
+- **[CIBA and the device grant](ciba-and-device-grant.md)** — ask a known person to
+  approve an action on their phone, or sign a CLI in with a code, without hand-rolling
+  the polling.
 - **[Integration prompt (for AI agents)](integration-prompt.md)** — a self-contained
   brief to hand Claude Code (or a developer) to wire up login in a new SaaS.
 
