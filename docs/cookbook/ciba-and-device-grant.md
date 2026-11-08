@@ -61,52 +61,65 @@ Cbox ID supports CIBA in poll mode only, and doesn't support
 Start the request in a web request or a job, keep the pending request, and poll from
 a queued job. Never block a web request on `waitForToken()`.
 
+The example below asks a person to approve an agent writing to their Cbox Brain
+over MCP. The resource is Cbox Brain's MCP endpoint, `https://app.cboxbrain.com/mcp`,
+with the scopes `mcp:read` and `mcp:write`.
+
 ```php
 use Cbox\Id\Client\Contracts\BackchannelAuthentication;
 use Cbox\Id\Client\Exceptions\AuthorizationDenied;
 use Cbox\Id\Client\Exceptions\GrantRateLimited;
 use Cbox\Id\Client\ValueObjects\PendingBackchannelAuthentication;
+use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
 
-class RequestExportApproval
+class AskToSaveNotes implements ShouldQueue
 {
-    public function __construct(private BackchannelAuthentication $ciba) {}
+    use Dispatchable, InteractsWithQueue, Queueable;
 
-    public function handle(Export $export): void
+    public function __construct(public AgentTask $task) {}
+
+    public function handle(BackchannelAuthentication $ciba): void
     {
         try {
-            $pending = $this->ciba->start(
-                loginHint: $export->owner->cbox_id,          // usr_… or a confirmed email
-                scope: 'openid exports:approve',
-                bindingMessage: "Approve export #{$export->id}",
-                resource: 'https://api.example.com',
+            $pending = $ciba->start(
+                loginHint: $this->task->user->cbox_id,       // usr_… or a confirmed email
+                scope: 'mcp:read mcp:write',
+                bindingMessage: 'Let the agent save meeting notes to Cbox Brain',
+                resource: 'https://app.cboxbrain.com/mcp',
             );
         } catch (GrantRateLimited $e) {
-            $this->release($e->retryAfter);                // Cbox ID asked us to back off
+            $this->release($e->retryAfter);                 // Cbox ID asked us to back off
 
             return;
         }
 
-        $export->update(['approval' => $pending->toArray()]);
-        WaitForExportApproval::dispatch($export);
+        $this->task->update(['approval' => $pending->toArray()]);
+        WaitForApproval::dispatch($this->task);
     }
 }
 
-class WaitForExportApproval implements ShouldQueue
+class WaitForApproval implements ShouldQueue
 {
+    use Dispatchable, InteractsWithQueue, Queueable;
+
+    public function __construct(public AgentTask $task) {}
+
     public function handle(BackchannelAuthentication $ciba): void
     {
-        $pending = PendingBackchannelAuthentication::fromArray($this->export->approval);
+        $pending = PendingBackchannelAuthentication::fromArray($this->task->approval);
 
         try {
             $tokens = $ciba->waitForToken($pending, maxWait: 240);
         } catch (AuthorizationDenied) {
-            $this->export->markDeclined();
+            $this->task->markDeclined();
 
             return;
         }
 
-        $this->export->runWith($tokens->accessToken);
+        $this->task->runAgainstBrain($tokens->accessToken);  // Bearer token for the MCP endpoint
     }
 }
 ```
@@ -128,7 +141,7 @@ $device = HttpDeviceAuthorization::make(
     ClientAuthentication::none('cid_mycli'),          // a public CLI client
 );
 
-$pending = $device->start('openid offline_access', resource: 'https://api.example.com');
+$pending = $device->start('mcp:read mcp:write', resource: 'https://app.cboxbrain.com/mcp');
 
 echo "Open {$pending->verificationUri} and enter {$pending->userCode}\n";
 // or render $pending->verificationUriComplete as a QR code
@@ -174,7 +187,36 @@ credential: don't log it and don't send it to a browser.
 
 ## Testing
 
-Swap the timer so waits finish at once, and fake Cbox ID with `Http::fake()`:
+`CboxId::fake()` swaps both contracts for scripted fakes. They send no HTTP and
+don't wait:
+
+```php
+use Cbox\Id\Client\Facades\CboxId;
+use Cbox\Id\Client\ValueObjects\TokenResult;
+
+$ciba = CboxId::fake()->backchannelAuthentication();
+$ciba->pending(2)->approve(new TokenResult('at_test', 'Bearer', 900, 'mcp:read mcp:write'));
+// or ->deny(), ->expire(), ->failPoll($exception), ->throttle(retryAfter: 30)
+
+AskToSaveNotes::dispatchSync($task);
+WaitForApproval::dispatchSync($task);
+
+$ciba->assertStarted(
+    loginHint: $task->user->cbox_id,
+    resource: 'https://app.cboxbrain.com/mcp',
+    bindingMessage: 'Let the agent save meeting notes to Cbox Brain',
+);
+$ciba->assertPolled(3);
+```
+
+`CboxId::fake()->deviceAuthorization()` works the same way. Its `start()` returns
+the user code `FakeDeviceAuthorization::USER_CODE`, and it has
+`assertStarted(resource:, scope:)`. If nothing is scripted, a poll stays pending and
+`waitForToken()` throws `GrantTimedOut`, so the fake never grants anything you didn't
+script.
+
+To test the HTTP layer itself, use the real classes with `Http::fake()` and swap the
+timer so waits finish at once:
 
 ```php
 use Cbox\Id\Client\Grants\Timer;

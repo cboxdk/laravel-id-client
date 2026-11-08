@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Cbox\Id\Client\Testing;
 
 use Cbox\Id\Client\AccessTokenVerifier;
+use Cbox\Id\Client\Contracts\BackchannelAuthentication;
+use Cbox\Id\Client\Contracts\DeviceAuthorization;
 use Cbox\Id\Client\Contracts\Management;
 use Cbox\Id\Client\Contracts\PermissionDecisions;
 use Cbox\Id\Client\Contracts\Principal;
@@ -42,6 +44,10 @@ use Illuminate\Contracts\Container\Container;
  *     // Customer API keys:
  *     $cbox->apiKeys()->add('ctx_live_abc', permissions: ['reports:read']);
  *
+ *     // CIBA approvals and device sign-in, scripted:
+ *     $cbox->backchannelAuthentication()->pending()->approve();
+ *     $cbox->deviceAuthorization()->deny();
+ *
  * Installing it swaps the container bindings for the lifetime of the test application;
  * the real `AccessTokenVerifier` stays in place, pointed at an in-memory key, so a token
  * is verified by production code. Any configuration the test left empty is filled with a
@@ -58,6 +64,10 @@ class CboxIdFake
     private readonly FakePermissionDecisions $permissionDecisions;
 
     private readonly FakeApiKeyVerifier $apiKeys;
+
+    private readonly FakeBackchannelAuthentication $backchannel;
+
+    private readonly FakeDeviceAuthorization $device;
 
     private readonly TokenFactory $tokens;
 
@@ -87,6 +97,10 @@ class CboxIdFake
         $this->app->instance(AccessTokenVerifier::class, new AccessTokenVerifier($discovery, $issuer, $audience));
         $this->app->instance(Management::class, $this->management);
         $this->app->instance(VerifiesApiKeys::class, $this->apiKeys);
+        $this->backchannel = new FakeBackchannelAuthentication;
+        $this->device = new FakeDeviceAuthorization($issuer);
+        $this->app->instance(BackchannelAuthentication::class, $this->backchannel);
+        $this->app->instance(DeviceAuthorization::class, $this->device);
 
         CboxId::swap($this->client);
         CboxIdManagement::swap($this->management);
@@ -207,6 +221,18 @@ class CboxIdFake
     public function apiKeys(): FakeApiKeyVerifier
     {
         return $this->apiKeys;
+    }
+
+    /** CIBA, scripted: `->pending()->approve()`, `->deny()`, `->expire()`, `->assertStarted(…)`. */
+    public function backchannelAuthentication(): FakeBackchannelAuthentication
+    {
+        return $this->backchannel;
+    }
+
+    /** The device grant, scripted the same way. */
+    public function deviceAuthorization(): FakeDeviceAuthorization
+    {
+        return $this->device;
     }
 
     public function client(): FakeIdentityClient

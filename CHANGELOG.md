@@ -11,6 +11,7 @@ their GitHub release pages.
 - Typed exceptions for each refusal: `AuthorizationDenied`, `AuthorizationExpired`, `InvalidGrant`, `InvalidTarget`, `InvalidClient`, `UnknownUser`, `InvalidBindingMessage`, `GrantRateLimited` (429 with `retryAfter`) and `GrantTimedOut`, all under `GrantFailed`.
 - `ClientAuthentication` for `client_secret_basic`, `client_secret_post`, `private_key_jwt` (RS256 or ES256, a fresh assertion per request) and public clients, configured under `client_authentication`.
 - `Testing\FakeTimer`, so tests of the blocking wait finish at once.
+- `CboxId::fake()->backchannelAuthentication()` and `->deviceAuthorization()` return scripted fakes (`pending()`, `approve()`, `deny()`, `expire()`, `throttle()`) with `assertStarted()` and `assertPolled()`. Unscripted, they never grant.
 
 ## [0.16.1] - 2026-11-07
 

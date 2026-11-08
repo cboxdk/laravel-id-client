@@ -55,7 +55,7 @@ function tokenBody(array $overrides = []): array
         'access_token' => 'at_123',
         'token_type' => 'Bearer',
         'expires_in' => 900,
-        'scope' => 'openid invoices:read',
+        'scope' => 'mcp:read mcp:write',
         'refresh_token' => 'rt_123',
         'id_token' => 'eyJ.id.token',
     ], $overrides);
@@ -71,7 +71,7 @@ function cibaGrant(): BackchannelAuthentication
     return app(BackchannelAuthentication::class);
 }
 
-function grantPending(int $interval = 5, int $expiresAt = 1_700_000_120, ?string $resource = 'https://api.test'): PendingBackchannelAuthentication
+function grantPending(int $interval = 5, int $expiresAt = 1_700_000_120, ?string $resource = 'https://app.cboxbrain.com/mcp'): PendingBackchannelAuthentication
 {
     return new PendingBackchannelAuthentication('areq_1', 120, $interval, $expiresAt, $resource);
 }
@@ -92,13 +92,13 @@ it('starts a backchannel request at the discovered endpoint with Basic client au
         'id.test/custom/bc' => Http::response(cibaStarted(interval: 3)),
     ]);
 
-    $pending = cibaGrant()->start('usr_01HZY', 'openid invoices:read', 'Approve invoice export #42', 'https://api.test', 300, 'n-1');
+    $pending = cibaGrant()->start('usr_01HZY', 'mcp:read mcp:write', 'Let the agent save notes to Cbox Brain', 'https://app.cboxbrain.com/mcp', 300, 'n-1');
 
     expect($pending->authReqId)->toBe('areq_1')
         ->and($pending->interval)->toBe(3)
         ->and($pending->expiresIn)->toBe(120)
         ->and($pending->expiresAt)->toBe(1_700_000_120)
-        ->and($pending->resource)->toBe('https://api.test');
+        ->and($pending->resource)->toBe('https://app.cboxbrain.com/mcp');
 
     Http::assertSent(function (Request $request): bool {
         if ($request->url() !== GRANT_ISSUER.'/custom/bc') {
@@ -107,9 +107,9 @@ it('starts a backchannel request at the discovered endpoint with Basic client au
 
         expect(grantForm($request))->toBe([
             'login_hint' => 'usr_01HZY',
-            'scope' => 'openid invoices:read',
-            'binding_message' => 'Approve invoice export #42',
-            'resource' => 'https://api.test',
+            'scope' => 'mcp:read mcp:write',
+            'binding_message' => 'Let the agent save notes to Cbox Brain',
+            'resource' => 'https://app.cboxbrain.com/mcp',
             'requested_expiry' => '300',
             'nonce' => 'n-1',
         ])->and($request->header('Authorization')[0])->toBe('Basic '.base64_encode('cid_agent:csec_agent'));
@@ -166,7 +166,7 @@ it('polls pending, slows down by five seconds, then returns the tokens', functio
         ->and($third->tokens?->accessToken)->toBe('at_123')
         ->and($third->tokens?->tokenType)->toBe('Bearer')
         ->and($third->tokens?->expiresIn)->toBe(900)
-        ->and($third->tokens?->scopes())->toBe(['openid', 'invoices:read'])
+        ->and($third->tokens?->scopes())->toBe(['mcp:read', 'mcp:write'])
         ->and($third->tokens?->refreshToken)->toBe('rt_123')
         ->and($third->tokens?->idToken)->toBe('eyJ.id.token');
 
@@ -174,7 +174,7 @@ it('polls pending, slows down by five seconds, then returns the tokens', functio
         && grantForm($request) === [
             'grant_type' => 'urn:openid:params:grant-type:ciba',
             'auth_req_id' => 'areq_1',
-            'resource' => 'https://api.test',
+            'resource' => 'https://app.cboxbrain.com/mcp',
         ]);
 });
 
@@ -404,7 +404,7 @@ it('runs the device grant end to end', function (): void {
     ]);
 
     $device = app(DeviceAuthorization::class);
-    $pending = $device->start('openid offline_access', 'https://api.test');
+    $pending = $device->start('mcp:read mcp:write', 'https://app.cboxbrain.com/mcp');
 
     expect($pending->userCode)->toBe('WDJB-MJHT')
         ->and($pending->verificationUriComplete)->toBe(GRANT_ISSUER.'/device?user_code=WDJB-MJHT')
@@ -417,12 +417,12 @@ it('runs the device grant end to end', function (): void {
         ->and($this->timer->sleeps)->toBe([5, 5]);
 
     Http::assertSent(fn (Request $request): bool => $request->url() === GRANT_ISSUER.'/oauth/device_authorization'
-        && grantForm($request) === ['scope' => 'openid offline_access', 'resource' => 'https://api.test', 'client_id' => 'cid_agent']);
+        && grantForm($request) === ['scope' => 'mcp:read mcp:write', 'resource' => 'https://app.cboxbrain.com/mcp', 'client_id' => 'cid_agent']);
     Http::assertSent(fn (Request $request): bool => $request->url() === GRANT_ISSUER.'/oauth/token'
         && grantForm($request) === [
             'grant_type' => 'urn:ietf:params:oauth:grant-type:device_code',
             'device_code' => 'dc_1',
-            'resource' => 'https://api.test',
+            'resource' => 'https://app.cboxbrain.com/mcp',
             'client_id' => 'cid_agent',
         ]);
 });

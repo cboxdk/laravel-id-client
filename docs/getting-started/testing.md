@@ -82,6 +82,13 @@ $this->withToken('ctx_live_abc')->getJson('/v1/reports')->assertOk();
 $cbox->apiKeys()->unavailable();   // Cbox ID "down": the middleware answers 503
 ```
 
+## CIBA approvals and device sign-in
+
+`$cbox->backchannelAuthentication()` and `$cbox->deviceAuthorization()` are scripted
+fakes. Use `->pending()`, `->approve()`, `->deny()`, `->expire()` and `->throttle()`
+to script them, and `assertStarted(...)` and `assertPolled()` to check them. See
+[CIBA and the device grant](../cookbook/ciba-and-device-grant.md#testing).
+
 ## Back-channel calls
 
 `machineToken()` and `refresh()` mint real tokens; `revoke()` is recorded
