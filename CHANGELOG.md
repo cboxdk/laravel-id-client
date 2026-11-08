@@ -5,6 +5,8 @@ their GitHub release pages.
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-11-08
+
 ### Added
 
 - `BackchannelAuthentication` (OpenID CIBA, poll mode) and `DeviceAuthorization` (RFC 8628) start a request, poll the token endpoint and wait for tokens. They discover endpoints from the RFC 8414 metadata, honour `interval` and `slow_down`, carry `resource` (RFC 8707) through to the token request, and return a typed `TokenResult`.
