@@ -10,6 +10,8 @@ use Cbox\Id\Client\Authz\ManifestPublisher;
 use Cbox\Id\Client\BackchannelLogout\LogoutTokenVerifier;
 use Cbox\Id\Client\BackchannelLogout\SessionRegistry;
 use Cbox\Id\Client\Console\PublishManifestCommand;
+use Cbox\Id\Client\Contracts\BackchannelAuthentication;
+use Cbox\Id\Client\Contracts\DeviceAuthorization;
 use Cbox\Id\Client\Contracts\HasFeatureFlags;
 use Cbox\Id\Client\Contracts\Management;
 use Cbox\Id\Client\Contracts\PermissionDecisions;
@@ -19,6 +21,12 @@ use Cbox\Id\Client\Contracts\VerifiesApiKeys;
 use Cbox\Id\Client\Events\UserPropertiesUpdated;
 use Cbox\Id\Client\Exceptions\ClientConfigurationException;
 use Cbox\Id\Client\Frontend\FrontendClient;
+use Cbox\Id\Client\Grants\AuthorizationServerMetadata;
+use Cbox\Id\Client\Grants\ClientAuthentication;
+use Cbox\Id\Client\Grants\HttpBackchannelAuthentication;
+use Cbox\Id\Client\Grants\HttpDeviceAuthorization;
+use Cbox\Id\Client\Grants\SystemTimer;
+use Cbox\Id\Client\Grants\Timer;
 use Cbox\Id\Client\Http\BackchannelLogoutController;
 use Cbox\Id\Client\Http\EnforceBackchannelLogout;
 use Cbox\Id\Client\Http\RequireConfiguredIdentity;
@@ -137,6 +145,16 @@ class ClientServiceProvider extends ServiceProvider
         $this->app->bind(PersonalAppCatalog::class, static fn () => new PersonalAppCatalog(app(Factory::class), self::configString('cbox-id-client.issuer')));
         $this->app->bind(UserProperties::class, static fn () => new HttpUserProperties(
             app(Factory::class), self::configString('cbox-id-client.issuer'), self::configInt('cbox-id-client.http_timeout', 10),
+        ));
+
+        // CIBA and the device grant. Bound, not singletons, so the HTTP factory and the
+        // timer are resolved when the grant is — which is what lets a test swap either.
+        $this->app->bind(Timer::class, SystemTimer::class);
+        $this->app->bind(BackchannelAuthentication::class, static fn (Container $app): HttpBackchannelAuthentication => new HttpBackchannelAuthentication(
+            ...self::pollingGrantArguments($app),
+        ));
+        $this->app->bind(DeviceAuthorization::class, static fn (Container $app): HttpDeviceAuthorization => new HttpDeviceAuthorization(
+            ...self::pollingGrantArguments($app),
         ));
 
         // The environment management API. Resolvable without a key so an application
@@ -412,6 +430,31 @@ class ClientServiceProvider extends ServiceProvider
         }
 
         Route::post($path, WebhookController::class)->name('cbox-id.webhooks');
+    }
+
+    /**
+     * The shared constructor arguments of the CIBA and device grants, from config.
+     *
+     * @return array{Factory, AuthorizationServerMetadata, ClientAuthentication, Timer, int}
+     */
+    private static function pollingGrantArguments(Container $app): array
+    {
+        $http = $app->make(Factory::class);
+        $timeout = self::configInt('cbox-id-client.http_timeout', 10);
+        $raw = config('cbox-id-client');
+        $config = [];
+
+        foreach (is_array($raw) ? $raw : [] as $key => $value) {
+            $config[(string) $key] = $value;
+        }
+
+        return [
+            $http,
+            new AuthorizationServerMetadata($http, self::configString('cbox-id-client.issuer'), $timeout),
+            ClientAuthentication::fromConfig($config),
+            $app->make(Timer::class),
+            $timeout,
+        ];
     }
 
     private static function configString(string $key): string

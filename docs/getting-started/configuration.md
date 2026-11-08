@@ -41,6 +41,8 @@ CBOX_ID_REDIRECT=https://app.acme.com/auth/callback
 | `backchannel_logout.cache_store` | default cache (`CBOX_ID_BACKCHANNEL_LOGOUT_CACHE`) | Holds the replay cache, session index and revocation list. Must be shared by every web server. |
 | `backchannel_logout.max_age` | `300` (`CBOX_ID_BACKCHANNEL_LOGOUT_MAX_AGE`) | Oldest `iat` accepted, in seconds. |
 | `backchannel_logout.remember_tokens` | `subject` (`CBOX_ID_BACKCHANNEL_LOGOUT_REMEMBER_TOKENS`) | When to cycle remember-me tokens: `subject`, `always`, `never`. |
+| `client_authentication.method` | automatic (`CBOX_ID_CLIENT_AUTH_METHOD`) | How CIBA and the device grant authenticate: `client_secret_basic`, `client_secret_post`, `private_key_jwt` or `none`. Automatic picks `private_key_jwt` when a key is set, `client_secret_basic` when a secret is. See [CIBA and the device grant](../cookbook/ciba-and-device-grant.md). |
+| `client_authentication.private_key` / `key_id` / `algorithm` | — / — / `RS256` (`CBOX_ID_PRIVATE_KEY`, `CBOX_ID_KEY_ID`, `CBOX_ID_KEY_ALGORITHM`) | The PEM key (or a path to it), its registered `kid`, and `RS256` or `ES256`, for `private_key_jwt`. |
 | `api_keys.cache_ttl` | `60` (`CBOX_ID_API_KEY_CACHE_TTL`) | Seconds a live customer API key is cached — how long a revoked key keeps working. `0` asks every time. |
 | `account_path` | `/account` (`CBOX_ID_ACCOUNT_PATH`) | Path of the person's hosted account area that `redirectToProfile()` sends users to (a `return_to` is appended); `apiKeysUrl()` is `{account_path}/api-keys`. |
 | `http_timeout` | `10` (`CBOX_ID_HTTP_TIMEOUT`) | Timeout, in seconds, for back-channel calls. |
