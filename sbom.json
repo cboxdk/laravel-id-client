@@ -1,7 +1,7 @@
 {
     "bomFormat": "CycloneDX",
     "specVersion": "1.5",
-    "serialNumber": "urn:uuid:5ce81c9b-5a7a-434b-a4f9-91dbe93ec9a1",
+    "serialNumber": "urn:uuid:ea1a119a-fa05-486d-b012-80a1d2dd4a52",
     "version": 1,
     "metadata": {
         "tools": [
@@ -261,11 +261,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/laravel/prompts@v0.3.26",
+            "bom-ref": "pkg:composer/laravel/prompts@v0.3.27",
             "group": "laravel",
             "name": "prompts",
-            "version": "v0.3.26",
-            "purl": "pkg:composer/laravel/prompts@v0.3.26",
+            "version": "v0.3.27",
+            "purl": "pkg:composer/laravel/prompts@v0.3.27",
             "description": "Add beautiful and user-friendly forms to your command-line applications.",
             "licenses": [
                 {
