@@ -15,6 +15,7 @@ use Cbox\Id\Client\Exceptions\InvalidState;
 use Cbox\Id\Client\Exceptions\NotConfigured;
 use Cbox\Id\Client\Exceptions\PipeLeaseFailed;
 use Cbox\Id\Client\Support\Discovery;
+use Cbox\Id\Client\Support\HttpTimeouts;
 use Cbox\Id\Client\Support\IssuedMachineToken;
 use Cbox\Id\Client\Support\MachineTokenCache;
 use Cbox\Id\Client\Support\Pkce;
@@ -370,7 +371,7 @@ class IdentityClient
             $params['client_secret'] = $secret;
         }
 
-        $response = Http::asForm()->timeout($this->timeout())->post($this->discovery->endpoint('token_endpoint'), $params);
+        $response = Http::asForm()->timeout($this->timeout())->connectTimeout(HttpTimeouts::connect())->post($this->discovery->endpoint('token_endpoint'), $params);
 
         if (! $response->successful()) {
             // `invalid_grant` means the token is spent, revoked or replayed; a 5xx means
@@ -551,10 +552,15 @@ class IdentityClient
 
         $response = Http::withToken($token)
             ->acceptJson()
-            ->timeout($this->timeout())
+            ->timeout($this->timeout())->connectTimeout(HttpTimeouts::connect())
             ->post(rtrim($this->issuer(), '/').'/api/v1/vault/pipes/'.rawurlencode($provider).'/token', $body);
 
         if (! $response->successful()) {
+            if ($accessToken === null && $response->status() === 401) {
+                // Our kept machine token was refused (revoked, rotated key): the next call asks for a new one.
+                $this->forgetMachineToken(['vault.lease']);
+            }
+
             throw PipeLeaseFailed::fromResponse($response);
         }
 
@@ -696,7 +702,7 @@ class IdentityClient
             $params['resource'] = $resource;
         }
 
-        $response = Http::asForm()->timeout($this->timeout())->post($this->discovery->endpoint('token_endpoint'), $params);
+        $response = Http::asForm()->timeout($this->timeout())->connectTimeout(HttpTimeouts::connect())->post($this->discovery->endpoint('token_endpoint'), $params);
 
         if (! $response->successful()) {
             throw AuthenticationFailed::fromResponse('Machine token request failed', $response);
@@ -720,7 +726,7 @@ class IdentityClient
      */
     public function userinfo(string $accessToken): array
     {
-        $response = Http::withToken($accessToken)->timeout($this->timeout())->get($this->discovery->endpoint('userinfo_endpoint'));
+        $response = Http::withToken($accessToken)->timeout($this->timeout())->connectTimeout(HttpTimeouts::connect())->get($this->discovery->endpoint('userinfo_endpoint'));
 
         if (! $response->successful()) {
             throw AuthenticationFailed::fromResponse('Userinfo request failed', $response);
@@ -739,7 +745,7 @@ class IdentityClient
     {
         $response = Http::asForm()
             ->withBasicAuth($this->clientId(), $this->clientSecret())
-            ->timeout($this->timeout())
+            ->timeout($this->timeout())->connectTimeout(HttpTimeouts::connect())
             ->post($this->discovery->endpoint('introspection_endpoint'), ['token' => $token]);
 
         if (! $response->successful()) {
@@ -774,7 +780,7 @@ class IdentityClient
             $params['token_type_hint'] = $tokenTypeHint;
         }
 
-        $request = Http::asForm()->timeout($this->timeout());
+        $request = Http::asForm()->timeout($this->timeout())->connectTimeout(HttpTimeouts::connect());
         $secret = $this->config['client_secret'] ?? null;
 
         if (is_string($secret) && $secret !== '') {
@@ -838,7 +844,7 @@ class IdentityClient
      */
     private function exchange(string $code, string $verifier): array
     {
-        $response = Http::asForm()->timeout($this->timeout())->post($this->discovery->endpoint('token_endpoint'), [
+        $response = Http::asForm()->timeout($this->timeout())->connectTimeout(HttpTimeouts::connect())->post($this->discovery->endpoint('token_endpoint'), [
             'grant_type' => 'authorization_code',
             'code' => $code,
             'redirect_uri' => $this->redirectUri(),

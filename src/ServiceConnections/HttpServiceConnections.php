@@ -7,6 +7,7 @@ namespace Cbox\Id\Client\ServiceConnections;
 use Cbox\Id\Client\Contracts\ServiceConnections;
 use Cbox\Id\Client\Exceptions\ServiceConnectionFailed;
 use Cbox\Id\Client\IdentityClient;
+use Cbox\Id\Client\Support\HttpTimeouts;
 use Cbox\Id\Client\ValueObjects\ServiceConnection;
 use Cbox\Id\Client\ValueObjects\ServiceConnectionLease;
 use Illuminate\Http\Client\ConnectionException;
@@ -33,7 +34,7 @@ class HttpServiceConnections implements ServiceConnections
     public function status(ServiceConnection $connection): bool
     {
         $this->owned($connection);
-        $body = $this->request($this->identity->machineToken(['service_connections.lease']), 'POST', $connection->id, 'status');
+        $body = $this->request($this->identity->machineToken(['service_connections.lease']), 'POST', $connection->id, 'status', machine: true);
         if (($body['active'] ?? null) === false) {
             return false;
         }
@@ -51,7 +52,7 @@ class HttpServiceConnections implements ServiceConnections
     public function lease(ServiceConnection $connection): ServiceConnectionLease
     {
         $this->owned($connection);
-        $body = $this->request($this->identity->machineToken(['service_connections.lease']), 'POST', $connection->id, 'token');
+        $body = $this->request($this->identity->machineToken(['service_connections.lease']), 'POST', $connection->id, 'token', machine: true);
         if (! is_string($body['access_token'] ?? null) || $body['access_token'] === ''
             || ($body['token_type'] ?? null) !== 'Bearer' || ($body['audience'] ?? null) !== $connection->audience
             || ! is_int($body['expires_in'] ?? null) || $body['expires_in'] < 1
@@ -97,7 +98,7 @@ class HttpServiceConnections implements ServiceConnections
     }
 
     /** @return array<string, mixed> */
-    private function request(#[\SensitiveParameter] string $token, string $method, string $path, string $suffix = ''): array
+    private function request(#[\SensitiveParameter] string $token, string $method, string $path, string $suffix = '', bool $machine = false): array
     {
         $issuer = rtrim($this->issuer, '/');
         if ($token === '' || $this->clientId === '' || filter_var($issuer, FILTER_VALIDATE_URL) === false
@@ -108,10 +109,14 @@ class HttpServiceConnections implements ServiceConnections
         // Only the fixed protocol suffix may introduce a path separator.
         $path = rawurlencode($path).($suffix === '' ? '' : '/'.$suffix);
         try {
-            $response = $this->http->acceptJson()->withToken($token)->withoutRedirecting()->connectTimeout(5)->timeout(20)
+            $response = $this->http->acceptJson()->withToken($token)->withoutRedirecting()->connectTimeout(HttpTimeouts::connect())->timeout(20)
                 ->send($method, $issuer.'/api/v1/service-connections/'.$path);
         } catch (ConnectionException) {
             throw new ServiceConnectionFailed('ID service connections are unavailable.');
+        }
+        if ($machine && $response->status() === 401) {
+            // The kept machine token was refused: the next call asks Cbox ID for a new one.
+            $this->identity->forgetMachineToken(['service_connections.lease']);
         }
         $body = $response->json();
         if (! $response->successful() || ! is_array($body) || array_is_list($body)) {

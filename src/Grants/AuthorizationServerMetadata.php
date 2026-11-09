@@ -6,6 +6,7 @@ namespace Cbox\Id\Client\Grants;
 
 use Cbox\Id\Client\Exceptions\ClientConfigurationException;
 use Cbox\Id\Client\Exceptions\NotConfigured;
+use Cbox\Id\Client\Support\HttpTimeouts;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Factory;
 
@@ -87,7 +88,7 @@ class AuthorizationServerMetadata
         }
 
         try {
-            $response = $this->http->acceptJson()->withoutRedirecting()->timeout($this->timeout)
+            $response = $this->http->acceptJson()->withoutRedirecting()->timeout($this->timeout)->connectTimeout(HttpTimeouts::connect())
                 ->get($issuer.'/.well-known/oauth-authorization-server');
         } catch (ConnectionException) {
             return $this->document = [];

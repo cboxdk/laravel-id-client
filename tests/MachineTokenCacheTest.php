@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Cbox\Id\Client\Exceptions\PipeLeaseFailed;
 use Cbox\Id\Client\IdentityClient;
 use Cbox\Id\Client\Support\Discovery;
 use Cbox\Id\Client\Support\IssuedMachineToken;
@@ -115,8 +116,22 @@ it('falls back to expires_in for an opaque token', function (): void {
     expect($client->machineToken(['api.read']))->toBe('opaque_2');
 });
 
-it('does not cache a token that expires within the margin', function (): void {
+it('keeps a short-lived token for half its life', function (): void {
     fakeTokenEndpoint(static fn (int $n): array => ['access_token' => tokenExpiringIn(30, "t{$n}")]);
+    $client = app(IdentityClient::class);
+
+    $first = $client->machineToken(['api.read']);
+    $this->travel(14)->seconds();
+    expect($client->machineToken(['api.read']))->toBe($first)
+        ->and(tokenRequests())->toBe(1);
+
+    $this->travel(2)->seconds();
+    expect($client->machineToken(['api.read']))->not->toBe($first)
+        ->and(tokenRequests())->toBe(2);
+});
+
+it('does not cache a token that has already expired', function (): void {
+    fakeTokenEndpoint(static fn (int $n): array => ['access_token' => tokenExpiringIn(-5, "t{$n}")]);
     $client = app(IdentityClient::class);
 
     $client->machineToken(['api.read']);
@@ -136,7 +151,10 @@ it('works out how long to keep a token', function (): void {
         ->and($cache->secondsToKeep(new IssuedMachineToken('opaque'), $now))->toBe(240)
         ->and($cache->secondsToKeep(new IssuedMachineToken($jwt($now + 86_400)), $now))->toBe(3600)
         ->and($cache->secondsToKeep(new IssuedMachineToken('opaque', 86_400), $now))->toBe(3600)
-        ->and($cache->secondsToKeep(new IssuedMachineToken($jwt($now + 30)), $now))->toBeLessThanOrEqual(0);
+        ->and($cache->secondsToKeep(new IssuedMachineToken($jwt($now + 30)), $now))->toBe(15)
+        ->and($cache->secondsToKeep(new IssuedMachineToken('opaque', 90), $now))->toBe(45)
+        ->and($cache->secondsToKeep(new IssuedMachineToken('opaque', 120), $now))->toBe(60)
+        ->and($cache->secondsToKeep(new IssuedMachineToken($jwt($now - 5)), $now))->toBeLessThanOrEqual(0);
 });
 
 it('fetches under the cache lock and releases it afterwards', function (): void {
@@ -273,4 +291,13 @@ it('still resolves the client, uncached, when the app has no key', function (): 
     $client->machineToken(['api.read']);
 
     expect(tokenRequests())->toBe(2);
+});
+
+it('forgets the kept token when a pipe lease refuses it', function (): void {
+    Http::fake(['*/api/v1/vault/pipes/*' => Http::response(['error' => 'invalid_token'], 401)]);
+    fakeTokenEndpoint(static fn (int $n): array => ['access_token' => "opaque_{$n}", 'expires_in' => 900]);
+    $client = app(IdentityClient::class);
+
+    expect(fn () => $client->leasePipeToken('github', 'sync'))->toThrow(PipeLeaseFailed::class)
+        ->and($client->machineToken(['vault.lease']))->toBe('opaque_2');
 });

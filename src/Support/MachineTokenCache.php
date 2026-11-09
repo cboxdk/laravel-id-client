@@ -109,9 +109,10 @@ class MachineTokenCache
     }
 
     /**
-     * Seconds to keep a token: its `exp` claim minus the margin, else `expires_in`
-     * minus the margin, else the fallback. Capped at an hour. Zero or less means do
-     * not cache.
+     * Seconds to keep a token: its lifetime (from the `exp` claim, else `expires_in`)
+     * minus the margin, or half the lifetime for a token that lives under two minutes;
+     * the fallback when neither says. Capped at an hour. Zero or less means do not
+     * cache.
      *
      * Only `exp` is read from the token, to know when it ends. Its signature is Cbox
      * ID's to check, not the client's.
@@ -121,11 +122,19 @@ class MachineTokenCache
         $now ??= time();
         $expiresAt = $this->expiryClaim($issued->token);
 
-        $seconds = match (true) {
-            $expiresAt !== null => $expiresAt - $now - self::MARGIN_SECONDS,
-            $issued->expiresIn !== null => $issued->expiresIn - self::MARGIN_SECONDS,
-            default => self::FALLBACK_SECONDS,
+        $lifetime = match (true) {
+            $expiresAt !== null => $expiresAt - $now,
+            $issued->expiresIn !== null => $issued->expiresIn,
+            default => null,
         };
+
+        if ($lifetime === null) {
+            return self::FALLBACK_SECONDS;
+        }
+
+        // A short-lived token is kept for half its life at most, so the margin never eats
+        // the whole of it and the token is still worth reusing.
+        $seconds = $lifetime >= 2 * self::MARGIN_SECONDS ? $lifetime - self::MARGIN_SECONDS : intdiv($lifetime, 2);
 
         return min(self::MAX_SECONDS, $seconds);
     }

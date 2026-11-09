@@ -40,8 +40,9 @@ one tunnel or NAT) share that budget. Asking for a new token per request starves
 
 - The token is stored encrypted with your app key, one entry per client, scope set
   and resource. Scope order does not matter.
-- How long it is kept: the token's `exp` minus 60 seconds, else the response's
-  `expires_in` minus 60 seconds, else 240 seconds. Never longer than an hour.
+- How long it is kept: its lifetime (the token's `exp`, else the response's
+  `expires_in`) minus 60 seconds, or half its lifetime when it lives under two
+  minutes; 240 seconds when neither says. Never longer than an hour.
 - When the cache store supports locks, one worker fetches while the others wait for
   its token (up to five seconds).
 - An entry that cannot be decrypted is dropped and fetched again.
@@ -51,12 +52,21 @@ default cache store. Turn the cache off with `CBOX_ID_TOKEN_CACHE=false`. It is 
 when the app has no `APP_KEY`, and when you build `IdentityClient` yourself without
 passing a `MachineTokenCache`.
 
-If an API refuses a token (a 401), drop it and ask again:
+The package's own calls already do this: a 401 from the decisions endpoint, a pipe
+lease or a service connection drops the kept token. When your own call to an API is
+refused (a 401), drop it and ask again:
 
 ```php
 CboxId::forgetMachineToken(scopes: ['reports.read']);
 $token = CboxId::machineToken(scopes: ['reports.read']);
 ```
+
+### Timeouts
+
+Every call the package makes to Cbox ID carries a connect timeout of three seconds
+(`CBOX_ID_HTTP_CONNECT_TIMEOUT`) next to the overall `CBOX_ID_HTTP_TIMEOUT`. An
+unreachable Cbox ID fails a call in seconds rather than holding a worker for the whole
+timeout.
 
 ## UserInfo (as a user)
 

@@ -11,6 +11,7 @@ use Cbox\Id\Client\Exceptions\CboxIdApiException;
 use Cbox\Id\Client\Exceptions\ClientConfigurationException;
 use Cbox\Id\Client\Exceptions\ManagementNetworkException;
 use Cbox\Id\Client\Exceptions\UnexpectedResponse;
+use Cbox\Id\Client\Support\HttpTimeouts;
 use Closure;
 use Generator;
 use GuzzleHttp\Exception\TransferException;
@@ -339,7 +340,7 @@ class ManagementTransport
     {
         $request = $this->http()
             ->withHeaders($this->headers($payload !== null, $key, $approvalId, $headers))
-            ->withOptions(['timeout' => $this->options->timeout])
+            ->withOptions(['timeout' => $this->options->timeout, 'connect_timeout' => $this->options->connectTimeout ?? HttpTimeouts::connect()])
             ->withoutRedirecting();
 
         if ($payload !== null) {

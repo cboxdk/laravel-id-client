@@ -53,6 +53,7 @@ abstract class ManagementClient
         float $timeout = 30,
         array $headers = [],
         ?Factory $http = null,
+        ?float $connectTimeout = null,
     ) {
         $this->transport = new ManagementTransport(static::plane(), new ClientOptions(
             $baseUrl,
@@ -67,6 +68,7 @@ abstract class ManagementClient
             $timeout,
             $headers,
             $http,
+            $connectTimeout,
         ), static::defaultBaseUrl());
     }
 

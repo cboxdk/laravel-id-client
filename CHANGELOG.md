@@ -5,6 +5,20 @@ their GitHub release pages.
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-11-09
+
+### Added
+
+- `Contracts\KeptPermissionDecisions` (bound to `Decisions\KeptDecisions`): Cbox ID's permission decisions, kept in the cache so pages render from local data and keep rendering while Cbox ID is down. A page view (GET, HEAD) gets the kept answer at once, even a stale one, and a queued `Decisions\RefreshKeptDecision` asks again. A change (POST, PUT, PATCH, DELETE), a call with `acting: true`, and a call outside an HTTP request ask Cbox ID now when the answer is stale. Yes and no are both kept, as plain arrays checked on read. It fetches its own `decisions:read` machine token and asks once more with a new one after a 401. `refresh()` and `forget()` for asking now and dropping an answer.
+- `decisions.fresh_for` (30 s), `decisions.max_age` (one day), `decisions.store`, `decisions.queue_connection` and `decisions.queue` config.
+- `http_connect_timeout` (`CBOX_ID_HTTP_CONNECT_TIMEOUT`, default 3 s): every HTTP call the package makes now has a connect timeout as well as its overall timeout. The management clients take an optional `connectTimeout` constructor argument.
+
+### Changed
+
+- A machine token that lives under two minutes is kept for half its life instead of not at all.
+- A 401 from a pipe lease or a service-connection call drops the kept machine token, so the next call asks for a new one.
+- `PermissionDecisions::check()` is unchanged: it still asks Cbox ID on every call.
+
 ## [0.17.1] - 2026-11-09
 
 ### Fixed

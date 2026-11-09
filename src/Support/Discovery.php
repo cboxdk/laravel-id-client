@@ -94,7 +94,7 @@ class Discovery
 
         /** @var array<string, mixed> $doc */
         $doc = Cache::remember('cbox-id-client:discovery:'.md5($this->issuer), $this->cacheTtl, function (): array {
-            $response = Http::timeout($this->timeout)->get(rtrim($this->issuer, '/').'/.well-known/openid-configuration');
+            $response = Http::timeout($this->timeout)->connectTimeout(HttpTimeouts::connect())->get(rtrim($this->issuer, '/').'/.well-known/openid-configuration');
 
             if (! $response->successful()) {
                 throw ClientConfigurationException::because('Could not load the Cbox ID discovery document from '.$this->issuer.'.');
@@ -131,7 +131,7 @@ class Discovery
 
         /** @var array<string, mixed> $jwks */
         $jwks = Cache::remember($this->jwksCacheKey($uri), $this->cacheTtl, function () use ($uri): array {
-            $response = Http::timeout($this->timeout)->get($uri);
+            $response = Http::timeout($this->timeout)->connectTimeout(HttpTimeouts::connect())->get($uri);
 
             if (! $response->successful()) {
                 throw ClientConfigurationException::because('Could not load the Cbox ID signing keys (JWKS).');

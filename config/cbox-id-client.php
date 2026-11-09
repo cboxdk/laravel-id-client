@@ -264,10 +264,42 @@ return [
     ],
 
     /*
+    |---------------------------------------------------------------------------
+    | Kept permission decisions
+    |---------------------------------------------------------------------------
+    |
+    | `KeptPermissionDecisions` keeps Cbox ID's answers, yes and no, so a page
+    | renders from local data and keeps rendering while Cbox ID is down. An
+    | answer is fresh for `fresh_for` seconds. After that a page view (GET, HEAD)
+    | still gets it at once and a queued job asks Cbox ID again; a change (POST,
+    | PUT, PATCH, DELETE) asks now. Nothing older than `max_age` is used.
+    |
+    | `store` is a cache store every web server and worker shares (empty means
+    | the default store). `queue_connection` and `queue` say where the refresh
+    | job runs (empty means the app defaults).
+    |
+    */
+
+    'decisions' => [
+        'fresh_for' => (int) env('CBOX_ID_DECISIONS_FRESH_FOR', 30),
+        'max_age' => (int) env('CBOX_ID_DECISIONS_MAX_AGE', 86400),
+        'store' => env('CBOX_ID_DECISIONS_STORE'),
+        'queue_connection' => env('CBOX_ID_DECISIONS_QUEUE_CONNECTION'),
+        'queue' => env('CBOX_ID_DECISIONS_QUEUE'),
+    ],
+
+    /*
      * HTTP timeout (seconds) for back-channel calls, and how long the discovery
      * document and JWKS are cached.
      */
     'http_timeout' => (int) env('CBOX_ID_HTTP_TIMEOUT', 10),
+
+    /*
+     * How long (seconds) any call to Cbox ID may spend opening a connection, next to
+     * the timeout above. Short, so an unreachable Cbox ID fails a call in seconds
+     * instead of holding a worker for the whole timeout.
+     */
+    'http_connect_timeout' => (int) env('CBOX_ID_HTTP_CONNECT_TIMEOUT', 3),
 
     /*
      * How this client authenticates at the token, CIBA and device endpoints

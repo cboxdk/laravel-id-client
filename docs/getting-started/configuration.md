@@ -47,7 +47,12 @@ CBOX_ID_REDIRECT=https://app.acme.com/auth/callback
 | `account_path` | `/account` (`CBOX_ID_ACCOUNT_PATH`) | Path of the person's hosted account area that `redirectToProfile()` sends users to (a `return_to` is appended); `apiKeysUrl()` is `{account_path}/api-keys`. |
 | `token_cache.enabled` | `true` (`CBOX_ID_TOKEN_CACHE`) | Keep machine tokens, encrypted with the app key, until 60 seconds before they expire. Off means `machineToken()` asks Cbox ID on every call. See [Call Cbox ID APIs](../cookbook/call-cbox-id-apis.md). |
 | `token_cache.store` | default cache (`CBOX_ID_TOKEN_CACHE_STORE`) | The cache store for machine tokens. Use one every worker shares. |
+| `decisions.fresh_for` | `30` (`CBOX_ID_DECISIONS_FRESH_FOR`) | Seconds a kept permission decision is fresh. After that a page view still gets it and a job asks Cbox ID again; a change asks now. See [Kept permission decisions](../cookbook/kept-permission-decisions.md). |
+| `decisions.max_age` | `86400` (`CBOX_ID_DECISIONS_MAX_AGE`) | The oldest kept decision that is used at all. |
+| `decisions.store` | default cache (`CBOX_ID_DECISIONS_STORE`) | The cache store for kept decisions. Use one every web server and worker shares. |
+| `decisions.queue_connection` / `decisions.queue` | app defaults (`CBOX_ID_DECISIONS_QUEUE_CONNECTION`, `CBOX_ID_DECISIONS_QUEUE`) | Where the `RefreshKeptDecision` job runs. |
 | `http_timeout` | `10` (`CBOX_ID_HTTP_TIMEOUT`) | Timeout, in seconds, for back-channel calls. |
+| `http_connect_timeout` | `3` (`CBOX_ID_HTTP_CONNECT_TIMEOUT`) | Seconds any call to Cbox ID may spend opening a connection. |
 | `cache_ttl` | `3600` (`CBOX_ID_CACHE_TTL`) | How long, in seconds, the discovery document and JWKS are cached. |
 
 ## Notes

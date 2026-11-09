@@ -34,6 +34,7 @@ readonly class ClientOptions
      * @param  float  $timeout  seconds per attempt
      * @param  array<string, string>  $headers  sent on every request (e.g. a `User-Agent`); cannot override `Authorization`
      * @param  Factory|null  $http  the HTTP client factory; default the container's, so `Http::fake()` reaches it
+     * @param  float|null  $connectTimeout  seconds to open a connection; null reads `cbox-id-client.http_connect_timeout` (default 3)
      */
     public function __construct(
         public ?string $baseUrl = null,
@@ -50,5 +51,6 @@ readonly class ClientOptions
         public float $timeout = 30,
         public array $headers = [],
         public ?Factory $http = null,
+        public ?float $connectTimeout = null,
     ) {}
 }

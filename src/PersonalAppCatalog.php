@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cbox\Id\Client;
 
 use Cbox\Id\Client\Exceptions\AuthenticationFailed;
+use Cbox\Id\Client\Support\HttpTimeouts;
 use Cbox\Id\Client\ValueObjects\ResourceAuthorizationResult;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Factory;
@@ -24,7 +25,7 @@ final readonly class PersonalAppCatalog
         }
         $url = $issuer.'/api/v1/me/apps';
         try {
-            $response = $this->http->acceptJson()->withoutRedirecting()->timeout(5)
+            $response = $this->http->acceptJson()->withoutRedirecting()->timeout(5)->connectTimeout(HttpTimeouts::connect())
                 ->withHeaders($grant->requestHeaders('GET', $url))->get($url, ['organization_id' => $organization]);
         } catch (ConnectionException) {
             throw new \RuntimeException('ID app catalog is unavailable.');
