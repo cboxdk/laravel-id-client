@@ -13,11 +13,13 @@ use Cbox\Id\Client\Console\PublishManifestCommand;
 use Cbox\Id\Client\Contracts\BackchannelAuthentication;
 use Cbox\Id\Client\Contracts\DeviceAuthorization;
 use Cbox\Id\Client\Contracts\HasFeatureFlags;
+use Cbox\Id\Client\Contracts\KeptPermissionDecisions;
 use Cbox\Id\Client\Contracts\Management;
 use Cbox\Id\Client\Contracts\PermissionDecisions;
 use Cbox\Id\Client\Contracts\ServiceConnections;
 use Cbox\Id\Client\Contracts\UserProperties;
 use Cbox\Id\Client\Contracts\VerifiesApiKeys;
+use Cbox\Id\Client\Decisions\KeptDecisions;
 use Cbox\Id\Client\Events\UserPropertiesUpdated;
 use Cbox\Id\Client\Exceptions\ClientConfigurationException;
 use Cbox\Id\Client\Frontend\FrontendClient;
@@ -57,6 +59,7 @@ use Illuminate\Contracts\Auth\Access\Gate;
 use Illuminate\Contracts\Container\Container;
 use Illuminate\Contracts\Encryption\StringEncrypter;
 use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Foundation\Http\Kernel as FoundationHttpKernel;
 use Illuminate\Http\Client\Factory;
@@ -82,6 +85,27 @@ class ClientServiceProvider extends ServiceProvider
             self::configString('cbox-id-client.client_id'),
             self::configInt('cbox-id-client.http_timeout', 10),
         ));
+
+        // Kept decisions resolve their collaborators each time, so a test that swaps the
+        // decisions client or the identity client (CboxId::fake()) reaches them.
+        $this->app->bind(KeptPermissionDecisions::class, KeptDecisions::class);
+        $this->app->bind(KeptDecisions::class, static function (Application $app): KeptDecisions {
+            $store = self::configString('cbox-id-client.decisions.store');
+            $connection = self::configString('cbox-id-client.decisions.queue_connection');
+            $queue = self::configString('cbox-id-client.decisions.queue');
+
+            return new KeptDecisions(
+                $app->make(PermissionDecisions::class),
+                $app->make(IdentityClient::class),
+                Cache::store($store !== '' ? $store : null),
+                $app,
+                self::configString('cbox-id-client.client_id'),
+                self::configInt('cbox-id-client.decisions.fresh_for', 30),
+                self::configInt('cbox-id-client.decisions.max_age', 86_400),
+                $connection !== '' ? $connection : null,
+                $queue !== '' ? $queue : null,
+            );
+        });
 
         $this->app->singleton(ManifestPublisher::class, static function (): ManifestPublisher {
             $issuer = self::configString('cbox-id-client.issuer');

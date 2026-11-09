@@ -130,6 +130,19 @@ Switch teams with `CboxId::switchOrganization($id)` (or `selectOrganization()` /
 `cbox-id.api-key:reports:read`. The whole walkthrough is
 [Multi-tenant apps](docs/cookbook/multi-tenant-apps.md).
 
+## Live permission checks that survive Cbox ID being down
+
+To ask Cbox ID about a person's current permissions without making every page wait on
+it, resolve `KeptPermissionDecisions`. Pages get the last answer from your cache at once
+and a queued job refreshes a stale one; a POST, PUT, PATCH or DELETE asks Cbox ID now.
+While Cbox ID is down, pages keep their last answer.
+
+```php
+$decision = app(KeptPermissionDecisions::class)->check($subject, $organizationId, ['invoices:approve']);
+```
+
+See [Kept permission decisions](docs/cookbook/kept-permission-decisions.md).
+
 ## Feature flags
 
 Request the `feature_flags` scope and the person's flags arrive in the token. Ask any

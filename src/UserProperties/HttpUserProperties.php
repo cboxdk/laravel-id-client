@@ -7,6 +7,7 @@ namespace Cbox\Id\Client\UserProperties;
 use Cbox\Id\Client\Contracts\UserProperties;
 use Cbox\Id\Client\Exceptions\ClientConfigurationException;
 use Cbox\Id\Client\Exceptions\UserPropertiesFailed;
+use Cbox\Id\Client\Support\HttpTimeouts;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Factory;
 use InvalidArgumentException;
@@ -38,7 +39,7 @@ class HttpUserProperties implements UserProperties
             throw new InvalidArgumentException('User properties require a subject, namespace and access token.');
         }
         $url = rtrim($this->issuer, '/').'/oauth/users/'.rawurlencode($user).'/properties/'.rawurlencode($namespace);
-        $request = $this->http->acceptJson()->withoutRedirecting()->timeout($this->timeout)->connectTimeout(min(3, $this->timeout));
+        $request = $this->http->acceptJson()->withoutRedirecting()->timeout($this->timeout)->connectTimeout(min(HttpTimeouts::connect(), max(1, $this->timeout)));
         $request = $request->withToken($token->accessToken, $token->proof === null ? 'Bearer' : 'DPoP');
         if ($token->proof !== null) {
             $request = $request->withHeaders(['DPoP' => ($token->proof)($method, $url, $token->accessToken)]);

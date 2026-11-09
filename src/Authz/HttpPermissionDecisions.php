@@ -7,6 +7,7 @@ namespace Cbox\Id\Client\Authz;
 use Cbox\Id\Client\Contracts\PermissionDecisions;
 use Cbox\Id\Client\Enums\OrganizationRole;
 use Cbox\Id\Client\Exceptions\AuthenticationFailed;
+use Cbox\Id\Client\Support\HttpTimeouts;
 use Illuminate\Support\Facades\Http;
 use SensitiveParameter;
 use Throwable;
@@ -33,7 +34,7 @@ class HttpPermissionDecisions implements PermissionDecisions
         $permissions = array_values(array_unique($permissions));
         $response = null;
         try {
-            $response = Http::acceptJson()->withToken($accessToken)->withoutRedirecting()->timeout(max(1, $this->timeout))
+            $response = Http::acceptJson()->withToken($accessToken)->withoutRedirecting()->timeout(max(1, $this->timeout))->connectTimeout(HttpTimeouts::connect())
                 ->withOptions(['stream' => true, 'read_timeout' => max(1, $this->timeout)])
                 ->post(rtrim($this->issuer, '/').'/oauth/decisions', ['permission' => $permissions, 'subject' => $subject, 'org' => $organization]);
             if ($response->status() !== 200) {

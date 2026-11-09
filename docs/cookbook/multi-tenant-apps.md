@@ -338,6 +338,10 @@ permit an action without organization membership. This call does not establish a
 browser session, validate a previously presented resource token or terminate an
 open connection. Keep authentication, logout handling and resource ownership checks.
 
+This asks Cbox ID on every call, and throws when Cbox ID is unreachable. For checks a
+page makes on every view, use [kept permission decisions](kept-permission-decisions.md)
+instead: pages read the last answer and keep working while Cbox ID is down.
+
 In consumer tests, `CboxId::fake()->permissionDecisions()->queue($decision)` supplies
 an outcome; an empty queue denies by default. Queue `AuthenticationFailed` to test
 an unavailable identity service. The fake records token hashes, never plaintext

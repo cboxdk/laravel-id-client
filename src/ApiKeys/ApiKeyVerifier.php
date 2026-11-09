@@ -9,6 +9,7 @@ use Cbox\Id\Client\Exceptions\ApiKeyRejected;
 use Cbox\Id\Client\Exceptions\ApiKeyVerificationUnavailable;
 use Cbox\Id\Client\Exceptions\NotConfigured;
 use Cbox\Id\Client\Support\Claims;
+use Cbox\Id\Client\Support\HttpTimeouts;
 use Cbox\Id\Client\ValueObjects\VerifiedApiKey;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -82,7 +83,7 @@ class ApiKeyVerifier implements VerifiesApiKeys
             $response = Http::asForm()
                 ->withBasicAuth($this->clientId, $this->clientSecret)
                 ->acceptJson()
-                ->timeout($this->timeout)
+                ->timeout($this->timeout)->connectTimeout(HttpTimeouts::connect())
                 ->post(rtrim($this->issuer, '/').self::ENDPOINT, ['key' => $key]);
         } catch (Throwable $e) {
             throw ApiKeyVerificationUnavailable::unreachable($e);

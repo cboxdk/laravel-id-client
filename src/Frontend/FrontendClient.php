@@ -6,6 +6,7 @@ namespace Cbox\Id\Client\Frontend;
 
 use Cbox\Id\Client\Exceptions\ClientConfigurationException;
 use Cbox\Id\Client\Exceptions\FrontendApiUnavailable;
+use Cbox\Id\Client\Support\HttpTimeouts;
 use Cbox\Id\Client\ValueObjects\FrontendConfig;
 use Cbox\Id\Client\ValueObjects\FrontendSession;
 use Illuminate\Support\Facades\Cache;
@@ -123,7 +124,7 @@ class FrontendClient
     private function get(string $path, array $headers = []): array
     {
         try {
-            $response = Http::timeout($this->timeout)
+            $response = Http::timeout($this->timeout)->connectTimeout(HttpTimeouts::connect())
                 ->withHeaders([
                     // A HEADER, NEVER A QUERY STRING. A query string puts the key in
                     // server logs, in `Referer` on every outbound link, and in browser

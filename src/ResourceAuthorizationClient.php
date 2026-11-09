@@ -7,6 +7,7 @@ namespace Cbox\Id\Client;
 use Cbox\Id\Client\Exceptions\AuthenticationFailed;
 use Cbox\Id\Client\Exceptions\InvalidState;
 use Cbox\Id\Client\Support\Discovery;
+use Cbox\Id\Client\Support\HttpTimeouts;
 use Cbox\Id\Client\Support\Pkce;
 use Cbox\Id\Client\ValueObjects\DpopKey;
 use Cbox\Id\Client\ValueObjects\PendingResourceAuthorization;
@@ -97,7 +98,7 @@ final readonly class ResourceAuthorizationClient
         }
         try {
             $endpoint = $this->endpoint('token_endpoint');
-            $http = Http::asForm()->withoutRedirecting()->timeout(10);
+            $http = Http::asForm()->withoutRedirecting()->timeout(10)->connectTimeout(HttpTimeouts::connect());
             if ($holder instanceof DpopKey) {
                 $http = $http->withHeaders(['DPoP' => $holder->proof('POST', $endpoint)]);
             }

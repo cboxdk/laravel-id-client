@@ -28,6 +28,7 @@ use Cbox\Id\Client\Management\Data\Role;
 use Cbox\Id\Client\Management\Data\RoleAssignment;
 use Cbox\Id\Client\Management\Data\SupportSession;
 use Cbox\Id\Client\Support\Claims;
+use Cbox\Id\Client\Support\HttpTimeouts;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Throwable;
@@ -274,7 +275,7 @@ class HttpManagementClient implements Management
             throw NotConfigured::key('issuer', 'call the environment management API');
         }
 
-        $request = Http::withToken($this->key)->acceptJson()->asJson()->timeout($this->timeout);
+        $request = Http::withToken($this->key)->acceptJson()->asJson()->timeout($this->timeout)->connectTimeout(HttpTimeouts::connect());
         $url = $this->baseUrl.$path.($query !== [] ? '?'.http_build_query($query) : '');
 
         try {

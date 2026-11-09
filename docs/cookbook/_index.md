@@ -23,6 +23,9 @@ container if you prefer constructor injection.
 - **[Multi-tenant apps](multi-tenant-apps.md)** — teams, tiers, roles and
   permissions, switching organizations, invitations, staff and support sessions, and
   your customers' API keys.
+- **[Kept permission decisions](kept-permission-decisions.md)** — ask Cbox ID about a
+  person's permissions without making pages wait on it, and keep pages working while it
+  is down.
 - **[Management API](management-api.md)** — the typed, generated clients for the
   environment, workspace, platform and account planes: idempotent writes, approvals,
   pagination and Audit Logs.

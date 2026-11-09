@@ -14,6 +14,7 @@ use Cbox\Id\Client\Exceptions\InvalidClient;
 use Cbox\Id\Client\Exceptions\InvalidGrant;
 use Cbox\Id\Client\Exceptions\InvalidTarget;
 use Cbox\Id\Client\Exceptions\UnknownUser;
+use Cbox\Id\Client\Support\HttpTimeouts;
 use Cbox\Id\Client\ValueObjects\PollResult;
 use Cbox\Id\Client\ValueObjects\TokenResult;
 use Closure;
@@ -50,7 +51,7 @@ abstract class PollingGrant
     protected function send(string $url, array $params): Response
     {
         $request = $this->client->authenticate(
-            $this->http->asForm()->acceptJson()->withoutRedirecting()->timeout($this->timeout),
+            $this->http->asForm()->acceptJson()->withoutRedirecting()->timeout($this->timeout)->connectTimeout(HttpTimeouts::connect()),
         );
 
         try {

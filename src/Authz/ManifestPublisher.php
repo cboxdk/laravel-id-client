@@ -7,6 +7,7 @@ namespace Cbox\Id\Client\Authz;
 use Cbox\Id\Client\Exceptions\ClientConfigurationException;
 use Cbox\Id\Client\Support\Claims;
 use Cbox\Id\Client\Support\Discovery;
+use Cbox\Id\Client\Support\HttpTimeouts;
 use Illuminate\Support\Facades\Http;
 use Throwable;
 
@@ -140,7 +141,7 @@ class ManifestPublisher
         try {
             $response = Http::withToken($this->accessToken())
                 ->withoutRedirecting()
-                ->timeout($this->timeout)
+                ->timeout($this->timeout)->connectTimeout(HttpTimeouts::connect())
                 ->acceptJson()
                 ->post(rtrim($this->issuer, '/').'/api/v1/apps/manifest', $manifest);
         } catch (ClientConfigurationException $exception) {
@@ -189,7 +190,7 @@ class ManifestPublisher
         }
         $response = Http::asForm()
             ->withoutRedirecting()
-            ->timeout($this->timeout)
+            ->timeout($this->timeout)->connectTimeout(HttpTimeouts::connect())
             ->post($endpoint, [
                 'grant_type' => 'client_credentials',
                 'client_id' => $this->clientId,
