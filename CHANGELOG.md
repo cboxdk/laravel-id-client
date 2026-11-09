@@ -5,6 +5,10 @@ their GitHub release pages.
 
 ## [Unreleased]
 
+### Added
+
+- `internal_routes` (`CBOX_INTERNAL_ROUTES`): `public-host=internal-base-url` pairs. An HTTPS request on port 443 to a listed host goes to its in-cluster address instead, with the same path and query, the public `Host`, and `X-Forwarded-Proto: https`, `X-Forwarded-Host` and `X-Forwarded-Port: 443`. It is a global request middleware on Laravel's HTTP client, so it covers this package's calls and the application's own `Http::` calls. The issuer, discovery and token `iss`/`aud` checks keep using the public URL. Internal hosts must end in `.svc` or `.svc.cluster.local`; other entries are ignored with a logged warning. Empty (the default) changes nothing.
+
 ## [0.18.0] - 2026-11-09
 
 ### Added
