@@ -5,6 +5,18 @@ their GitHub release pages.
 
 ## [Unreleased]
 
+## [0.17.1] - 2026-11-09
+
+### Fixed
+
+- `machineToken()` no longer asks Cbox ID for a new token on every call. It keeps each token in the app's cache, encrypted with the app key, until 60 seconds before it expires (from the token's `exp`, else `expires_in`, else 240 seconds; at most an hour), and fetches under a cache lock so concurrent workers ask once. Cbox ID throttles token requests per source address, so per-request tokens from one app caused 429s for every app behind the same address. Entries that cannot be decrypted are dropped and fetched again.
+
+### Added
+
+- `forgetMachineToken($scopes, $resource)` drops a cached token, for when an API refuses it.
+- `token_cache.enabled` (`CBOX_ID_TOKEN_CACHE`, default on) and `token_cache.store` (`CBOX_ID_TOKEN_CACHE_STORE`, default store) config.
+- `IdentityClient` takes an optional fourth constructor argument, a `Support\MachineTokenCache`. A client built by hand without one caches nothing, as before.
+
 ## [0.17.0] - 2026-11-08
 
 ### Added

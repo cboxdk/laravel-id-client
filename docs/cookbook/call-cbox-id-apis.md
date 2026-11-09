@@ -31,8 +31,32 @@ restriction:
 $token = CboxId::machineToken(scopes: ['reports.read'], resource: 'https://api.acme.com');
 ```
 
-Mint tokens per unit of work; they're short-lived by design. Don't cache one for the
-life of the process.
+### Token reuse
+
+`machineToken()` keeps each token in your cache and returns it again until 60
+seconds before it expires, so you can call it on every request. Cbox ID throttles
+token requests per source address, and apps that share an address (a cluster behind
+one tunnel or NAT) share that budget. Asking for a new token per request starves them.
+
+- The token is stored encrypted with your app key, one entry per client, scope set
+  and resource. Scope order does not matter.
+- How long it is kept: the token's `exp` minus 60 seconds, else the response's
+  `expires_in` minus 60 seconds, else 240 seconds. Never longer than an hour.
+- When the cache store supports locks, one worker fetches while the others wait for
+  its token (up to five seconds).
+- An entry that cannot be decrypted is dropped and fetched again.
+
+Pick a store every worker shares with `CBOX_ID_TOKEN_CACHE_STORE`; it defaults to your
+default cache store. Turn the cache off with `CBOX_ID_TOKEN_CACHE=false`. It is also off
+when the app has no `APP_KEY`, and when you build `IdentityClient` yourself without
+passing a `MachineTokenCache`.
+
+If an API refuses a token (a 401), drop it and ask again:
+
+```php
+CboxId::forgetMachineToken(scopes: ['reports.read']);
+$token = CboxId::machineToken(scopes: ['reports.read']);
+```
 
 ## UserInfo (as a user)
 

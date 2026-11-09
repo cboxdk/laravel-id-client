@@ -45,6 +45,8 @@ CBOX_ID_REDIRECT=https://app.acme.com/auth/callback
 | `client_authentication.private_key` / `key_id` / `algorithm` | — / — / `RS256` (`CBOX_ID_PRIVATE_KEY`, `CBOX_ID_KEY_ID`, `CBOX_ID_KEY_ALGORITHM`) | The PEM key (or a path to it), its registered `kid`, and `RS256` or `ES256`, for `private_key_jwt`. |
 | `api_keys.cache_ttl` | `60` (`CBOX_ID_API_KEY_CACHE_TTL`) | Seconds a live customer API key is cached — how long a revoked key keeps working. `0` asks every time. |
 | `account_path` | `/account` (`CBOX_ID_ACCOUNT_PATH`) | Path of the person's hosted account area that `redirectToProfile()` sends users to (a `return_to` is appended); `apiKeysUrl()` is `{account_path}/api-keys`. |
+| `token_cache.enabled` | `true` (`CBOX_ID_TOKEN_CACHE`) | Keep machine tokens, encrypted with the app key, until 60 seconds before they expire. Off means `machineToken()` asks Cbox ID on every call. See [Call Cbox ID APIs](../cookbook/call-cbox-id-apis.md). |
+| `token_cache.store` | default cache (`CBOX_ID_TOKEN_CACHE_STORE`) | The cache store for machine tokens. Use one every worker shares. |
 | `http_timeout` | `10` (`CBOX_ID_HTTP_TIMEOUT`) | Timeout, in seconds, for back-channel calls. |
 | `cache_ttl` | `3600` (`CBOX_ID_CACHE_TTL`) | How long, in seconds, the discovery document and JWKS are cached. |
 

@@ -15,6 +15,8 @@ use Cbox\Id\Client\Exceptions\InvalidState;
 use Cbox\Id\Client\Exceptions\NotConfigured;
 use Cbox\Id\Client\Exceptions\PipeLeaseFailed;
 use Cbox\Id\Client\Support\Discovery;
+use Cbox\Id\Client\Support\IssuedMachineToken;
+use Cbox\Id\Client\Support\MachineTokenCache;
 use Cbox\Id\Client\Support\Pkce;
 use Cbox\Id\Client\Tenancy\CurrentPrincipal;
 use Cbox\Id\Client\Tenancy\SessionIdentityStore;
@@ -82,11 +84,16 @@ class IdentityClient
 
     /**
      * @param  array<string, mixed>  $config
+     * @param  MachineTokenCache|null  $machineTokens  where {@see machineToken()} keeps its
+     *                                                 tokens. The service provider passes one
+     *                                                 unless `token_cache.enabled` is false;
+     *                                                 without one every call asks Cbox ID.
      */
     public function __construct(
         private readonly array $config,
         private readonly Discovery $discovery,
         private readonly SessionIdentityStore $sessions = new SessionIdentityStore,
+        private readonly ?MachineTokenCache $machineTokens = null,
     ) {}
 
     /**
@@ -627,9 +634,53 @@ class IdentityClient
      * A machine (client-credentials) access token for calling Cbox ID APIs as your
      * app, not on a user's behalf.
      *
+     * The token is reused until shortly before it expires when the client has a token
+     * cache, which the service provider gives it by default (`token_cache` in the
+     * config). Cbox ID throttles token requests per source address, so asking on every
+     * request can starve other apps behind the same address.
+     *
      * @param  list<string>  $scopes
      */
     public function machineToken(array $scopes = [], ?string $resource = null): string
+    {
+        if ($this->machineTokens === null) {
+            return $this->requestMachineToken($scopes, $resource)->token;
+        }
+
+        return $this->machineTokens->remember(
+            $this->machineTokenKey($this->machineTokens, $scopes, $resource),
+            fn (): IssuedMachineToken => $this->requestMachineToken($scopes, $resource),
+        );
+    }
+
+    /**
+     * Drop the cached machine token for these scopes and resource, so the next
+     * {@see machineToken()} call asks Cbox ID for a fresh one. Call it when an API
+     * refuses the token (a 401). Does nothing when the client has no token cache.
+     *
+     * @param  list<string>  $scopes
+     */
+    public function forgetMachineToken(array $scopes = [], ?string $resource = null): void
+    {
+        if ($this->machineTokens !== null) {
+            $this->machineTokens->forget($this->machineTokenKey($this->machineTokens, $scopes, $resource));
+        }
+    }
+
+    /**
+     * @param  list<string>  $scopes
+     */
+    private function machineTokenKey(MachineTokenCache $cache, array $scopes, ?string $resource): string
+    {
+        $issuer = $this->config['issuer'] ?? null;
+
+        return $cache->key(is_string($issuer) ? $issuer : '', $this->clientId(), $scopes, $resource);
+    }
+
+    /**
+     * @param  list<string>  $scopes
+     */
+    private function requestMachineToken(array $scopes, ?string $resource): IssuedMachineToken
     {
         $params = [
             'grant_type' => 'client_credentials',
@@ -653,11 +704,13 @@ class IdentityClient
 
         $token = $response->json('access_token');
 
-        if (! is_string($token)) {
+        if (! is_string($token) || $token === '') {
             throw AuthenticationFailed::because('The token response had no access_token.');
         }
 
-        return $token;
+        $expiresIn = $response->json('expires_in');
+
+        return new IssuedMachineToken($token, is_numeric($expiresIn) ? (int) $expiresIn : null);
     }
 
     /**

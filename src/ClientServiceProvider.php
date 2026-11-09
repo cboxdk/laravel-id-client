@@ -43,6 +43,7 @@ use Cbox\Id\Client\Management\ManagementClients;
 use Cbox\Id\Client\Management\WorkspaceClient;
 use Cbox\Id\Client\ServiceConnections\HttpServiceConnections;
 use Cbox\Id\Client\Support\Discovery;
+use Cbox\Id\Client\Support\MachineTokenCache;
 use Cbox\Id\Client\Tenancy\CurrentPrincipal;
 use Cbox\Id\Client\Tenancy\PermissionGate;
 use Cbox\Id\Client\Tenancy\SessionIdentityStore;
@@ -54,6 +55,7 @@ use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Contracts\Auth\Access\Gate;
 use Illuminate\Contracts\Container\Container;
+use Illuminate\Contracts\Encryption\StringEncrypter;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Foundation\Http\Kernel as FoundationHttpKernel;
@@ -120,7 +122,12 @@ class ClientServiceProvider extends ServiceProvider
             $cacheTtl = is_numeric($config['cache_ttl'] ?? null) ? (int) $config['cache_ttl'] : 3600;
             $timeout = is_numeric($config['http_timeout'] ?? null) ? (int) $config['http_timeout'] : 10;
 
-            return new IdentityClient($config, new Discovery($issuer, $cacheTtl, $timeout), $app->make(SessionIdentityStore::class));
+            return new IdentityClient(
+                $config,
+                new Discovery($issuer, $cacheTtl, $timeout),
+                $app->make(SessionIdentityStore::class),
+                self::machineTokenCache($app),
+            );
         });
 
         $this->app->singleton(ResourceAuthorizationClient::class, static function (Container $app): ResourceAuthorizationClient {
@@ -455,6 +462,25 @@ class ClientServiceProvider extends ServiceProvider
             $app->make(Timer::class),
             $timeout,
         ];
+    }
+
+    /**
+     * The cache `machineToken()` keeps its tokens in, or null when it is switched off.
+     * It also stays off without an app key, because the token is only ever stored
+     * encrypted, and an app without a key should still be able to sign people in.
+     */
+    private static function machineTokenCache(Container $app): ?MachineTokenCache
+    {
+        if (filter_var(config('cbox-id-client.token_cache.enabled', true), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === false
+            || self::configString('app.key') === ''
+            || ! $app->bound('cache')
+            || ! $app->bound('encrypter')) {
+            return null;
+        }
+
+        $store = self::configString('cbox-id-client.token_cache.store');
+
+        return new MachineTokenCache(Cache::store($store !== '' ? $store : null), $app->make(StringEncrypter::class));
     }
 
     private static function configString(string $key): string

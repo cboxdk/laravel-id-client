@@ -248,6 +248,22 @@ return [
     'account_path' => env('CBOX_ID_ACCOUNT_PATH', '/account'),
 
     /*
+     * Machine token cache. `machineToken()` keeps each client-credentials token,
+     * encrypted with the app key, until 60 seconds before it expires (at most an
+     * hour), and fetches under a cache lock so concurrent workers ask once. Cbox ID
+     * throttles token requests per source address, so apps that share an address
+     * must not ask on every request.
+     *
+     * `store` is a cache store from config/cache.php; empty means the default
+     * store. Use one every worker shares (redis, database). Set `enabled` to false
+     * to ask Cbox ID on every call.
+     */
+    'token_cache' => [
+        'enabled' => (bool) env('CBOX_ID_TOKEN_CACHE', true),
+        'store' => env('CBOX_ID_TOKEN_CACHE_STORE'),
+    ],
+
+    /*
      * HTTP timeout (seconds) for back-channel calls, and how long the discovery
      * document and JWKS are cached.
      */
