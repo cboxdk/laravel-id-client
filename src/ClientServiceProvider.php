@@ -45,6 +45,7 @@ use Cbox\Id\Client\Management\ManagementClients;
 use Cbox\Id\Client\Management\WorkspaceClient;
 use Cbox\Id\Client\ServiceConnections\HttpServiceConnections;
 use Cbox\Id\Client\Support\Discovery;
+use Cbox\Id\Client\Support\InternalRoutes;
 use Cbox\Id\Client\Support\MachineTokenCache;
 use Cbox\Id\Client\Tenancy\CurrentPrincipal;
 use Cbox\Id\Client\Tenancy\PermissionGate;
@@ -66,6 +67,7 @@ use Illuminate\Http\Client\Factory;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\View\Compilers\BladeCompiler;
@@ -304,6 +306,8 @@ class ClientServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->registerInternalRoutes();
+
         if ($this->app->runningInConsole()) {
             $this->commands([PublishManifestCommand::class]);
 
@@ -357,6 +361,35 @@ class ClientServiceProvider extends ServiceProvider
         if (config('cbox-id-client.authorization.gate') === true) {
             PermissionGate::register($this->app->make(Gate::class), $this->app->make(CurrentPrincipal::class));
         }
+    }
+
+    /**
+     * `CBOX_INTERNAL_ROUTES`: HTTPS calls to the listed public hosts go to their
+     * in-cluster address instead. Registered on the application's HTTP client factory,
+     * so it covers this package's calls and the application's own `Http::` calls, and
+     * only once a request is being sent: everything above the transport still sees the
+     * public URL. Empty, nothing is registered.
+     */
+    private function registerInternalRoutes(): void
+    {
+        $routes = InternalRoutes::fromConfig(
+            config('cbox-id-client.internal_routes'),
+            allowLoopback: $this->app->environment('testing'),
+        );
+
+        foreach ($routes->rejected as $reason) {
+            Log::warning('Cbox internal route ignored: '.$reason);
+        }
+
+        $this->app->instance(InternalRoutes::class, $routes);
+
+        if ($routes->isEmpty()) {
+            return;
+        }
+
+        $this->callAfterResolving(Factory::class, static function (Factory $http) use ($routes): void {
+            $http->globalRequestMiddleware($routes->rewrite(...));
+        });
     }
 
     /**

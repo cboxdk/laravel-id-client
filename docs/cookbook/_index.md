@@ -39,6 +39,8 @@ container if you prefer constructor injection.
 - **[CIBA and the device grant](ciba-and-device-grant.md)** — ask a known person to
   approve an action on their phone, or sign a CLI in with a code, without hand-rolling
   the polling.
+- **[In-cluster routing](in-cluster-routing.md)** — send calls to Cbox ID and other
+  services to their address inside your Kubernetes cluster with `CBOX_INTERNAL_ROUTES`.
 - **[Integration prompt (for AI agents)](integration-prompt.md)** — a self-contained
   brief to hand Claude Code (or a developer) to wire up login in a new SaaS.
 

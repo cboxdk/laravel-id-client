@@ -302,6 +302,21 @@ return [
     'http_connect_timeout' => (int) env('CBOX_ID_HTTP_CONNECT_TIMEOUT', 3),
 
     /*
+     * Route HTTPS calls to known public hosts inside the cluster instead of out
+     * through the internet and back. `public-host=internal-base-url` pairs, comma
+     * separated, e.g.
+     *
+     *   cbox.cboxid.com=http://cbox-id.cbox-id.svc.cluster.local
+     *
+     * Applies to every call made through Laravel's HTTP client, the application's own
+     * included. The request keeps the public `Host` and gets `X-Forwarded-Proto`,
+     * `X-Forwarded-Host` and `X-Forwarded-Port`. Internal hosts must end in `.svc` or
+     * `.svc.cluster.local`; other entries are ignored with a logged warning. Empty
+     * turns it off.
+     */
+    'internal_routes' => env('CBOX_INTERNAL_ROUTES', ''),
+
+    /*
      * How this client authenticates at the token, CIBA and device endpoints
      * (`BackchannelAuthentication`, `DeviceAuthorization`). `method` is one of
      * client_secret_basic, client_secret_post, private_key_jwt or none; left empty,

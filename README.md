@@ -258,6 +258,10 @@ CboxId::revoke($refreshToken, 'refresh_token');      // RFC 7009
 Revoking a refresh token drops the whole token family — that's what "sign out
 everywhere" needs.
 
+Running in the same Kubernetes cluster as Cbox ID? Set `CBOX_INTERNAL_ROUTES` to send
+these calls to its service address inside the cluster instead of out and back in. See
+[In-cluster routing](docs/cookbook/in-cluster-routing.md).
+
 ## Verify a webhook / action
 
 ```php
