@@ -168,3 +168,16 @@ it('reads only the personal catalog for the authorized subject and organization'
     expect($page['refresh_after'])->toBe(60)->and($page['apps'][0]['key'])->toBe('signals');
     Http::assertSent(fn ($req) => $req->hasHeader('Authorization', 'Bearer token') && $req->url() === 'https://id.example/api/v1/me/apps?organization_id=org-a');
 });
+
+it('passes the light and dark icon through, and refuses a dark icon from another origin', function (): void {
+    $grant = new ResourceAuthorizationResult('token', 'user-a', 'org-a', 'https://id.example/mcp', ['account:apps:read'], time() + 600, []);
+    $catalog = new PersonalAppCatalog(app(Factory::class), 'https://id.example');
+    $row = ['key' => 'billing', 'name' => 'Billing', 'description' => null, 'launch_url' => 'https://billing.example/', 'icon_url' => 'https://id.example/app-icons/1/'.str_repeat('a', 64), 'icon_dark_url' => 'https://id.example/app-icons/1/'.str_repeat('b', 64)];
+    Http::fake(['id.example/*' => Http::sequence()
+        ->push(['data' => [$row], 'meta' => ['revision' => str_repeat('a', 64), 'refresh_after' => 60]])
+        ->push(['data' => [[...$row, 'icon_dark_url' => null]], 'meta' => ['revision' => str_repeat('a', 64), 'refresh_after' => 60]])
+        ->push(['data' => [[...$row, 'icon_dark_url' => 'https://evil.example/x.png']], 'meta' => ['revision' => str_repeat('a', 64), 'refresh_after' => 60]])]);
+    expect($catalog->read($grant, 'user-a', 'org-a')['apps'][0])->toMatchArray(['icon_url' => $row['icon_url'], 'icon_dark_url' => $row['icon_dark_url']]);
+    expect($catalog->read($grant, 'user-a', 'org-a')['apps'][0]['icon_dark_url'])->toBeNull();
+    expect(fn () => $catalog->read($grant, 'user-a', 'org-a'))->toThrow(RuntimeException::class);
+});
