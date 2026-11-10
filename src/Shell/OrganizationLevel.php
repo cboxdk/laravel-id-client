@@ -20,8 +20,8 @@ use Cbox\Id\Client\Exceptions\ManagementNetworkException;
 use Cbox\Id\Client\Exceptions\NotConfigured;
 use Cbox\Id\Client\Exceptions\ValidationFailed;
 use Cbox\Id\Client\Http\BindOrganizationFromUrl;
-use Cbox\Id\Client\IdentityClient;
 use Cbox\Id\Client\Management\Data\NewOrganization;
+use Cbox\Id\Client\Management\HttpManagementClient;
 use Cbox\Id\Client\Tenancy\CurrentPrincipal;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
@@ -38,8 +38,10 @@ use Illuminate\Validation\ValidationException;
  * that organization (see {@see BindOrganizationFromUrl}).
  *
  * "New organization" creates it through the management API with the person as its Owner
- * and lands on its settings page. Without a management key it falls back to Cbox ID's
- * hosted "create an organization" step, which the person is sent to.
+ * and lands on its settings page. It needs a management key with `organizations:write`
+ * (`CBOX_ID_MANAGEMENT_KEY`). Without one, or in a support session, the menu offers no
+ * "New organization" at all: the shell never sends the person to another product to
+ * create something (spec §5.7).
  */
 class OrganizationLevel implements ContextLevel, CreatesContextItems
 {
@@ -47,7 +49,6 @@ class OrganizationLevel implements ContextLevel, CreatesContextItems
         private readonly OrganizationDirectory $directory,
         private readonly CurrentPrincipal $principals,
         private readonly Management $management,
-        private readonly IdentityClient $identity,
         private readonly string $routeParameter = 'org',
         private readonly string $path = '/orgs',
         private readonly string $detailsPath = '/orgs/{slug}/settings',
@@ -113,10 +114,20 @@ class OrganizationLevel implements ContextLevel, CreatesContextItems
     }
 
     /**
+     * A signed-in person, not in a support session, and a management client that has a key.
+     * Local: reads configuration only.
+     */
+    public function canCreate(Request $request, array $ancestors): bool
+    {
+        $principal = $this->principals->resolve($request->user(), $request);
+
+        return $principal instanceof Principal && ! $principal->isSupportSession()
+            && (! $this->management instanceof HttpManagementClient || $this->management->isConfigured());
+    }
+
+    /**
      * Create the organization with the person as Owner (management API), remember it in
-     * the local directory and land on its details page. Without a management key, send
-     * the person to Cbox ID's hosted step instead: `id` is null and `detailsUrl` is that
-     * step's URL, a full-page navigation.
+     * the local directory and land on its details page.
      *
      * @throws ValidationException when Cbox ID refuses the name or cannot be reached
      */
@@ -131,7 +142,7 @@ class OrganizationLevel implements ContextLevel, CreatesContextItems
         try {
             $created = $this->management->createOrganization(new NewOrganization($name, ownerUserId: $principal->subjectId()));
         } catch (NotConfigured) {
-            return $this->hosted($request);
+            abort(403, 'Creating an organization needs CBOX_ID_MANAGEMENT_KEY.');
         } catch (ValidationFailed $e) {
             $messages = $e->errors['name'] ?? $e->errors['slug'] ?? [];
 
@@ -144,17 +155,6 @@ class OrganizationLevel implements ContextLevel, CreatesContextItems
         $this->directory->remember($request, $organization);
 
         return new CreatedContextItem($organization->id, str_replace('{slug}', rawurlencode($organization->slug), $this->detailsPath));
-    }
-
-    private function hosted(Request $request): CreatedContextItem
-    {
-        // After the hosted step the callback lands on the organization picker, where the
-        // new organization is now listed.
-        if ($request->hasSession()) {
-            $request->session()->put('url.intended', url($this->path));
-        }
-
-        return new CreatedContextItem(null, $this->identity->createOrganization()->getTargetUrl());
     }
 
     private static function item(MirroredOrganization $organization): ContextItem

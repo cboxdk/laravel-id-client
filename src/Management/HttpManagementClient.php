@@ -53,6 +53,12 @@ class HttpManagementClient implements Management
         private readonly int $timeout = 10,
     ) {}
 
+    /** Whether it has a key and a URL, so a call can be made at all. Local; calls nothing. */
+    public function isConfigured(): bool
+    {
+        return $this->key !== '' && $this->baseUrl !== '';
+    }
+
     public function organizations(?string $after = null, int $limit = 50): Page
     {
         return Page::fromResponse($this->get('/organizations', $this->cursor($after, $limit)), Organization::fromArray(...));

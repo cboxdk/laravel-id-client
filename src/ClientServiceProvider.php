@@ -157,7 +157,6 @@ class ClientServiceProvider extends ServiceProvider
                 $app->make(OrganizationDirectory::class),
                 $app->make(CurrentPrincipal::class),
                 $app->make(Management::class),
-                $app->make(IdentityClient::class),
                 self::configString('cbox-id-client.shell.route_parameter') ?: 'org',
                 self::configString('cbox-id-client.shell.organizations_path') ?: '/orgs',
                 self::configString('cbox-id-client.shell.details_path') ?: '/orgs/{slug}/settings',
