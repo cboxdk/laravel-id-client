@@ -20,7 +20,11 @@
         "illuminate/http": "^12.0 || ^13.0",
         "illuminate/support": "^12.0 || ^13.0"
     },
+    "suggest": {
+        "cboxdk/laravel-console-kit": "The shared Cbox shell: Shell\\OrganizationLevel plugs the person's organizations into its context selectors."
+    },
     "require-dev": {
+        "cboxdk/laravel-console-kit": "dev-sd/shell-v1",
         "larastan/larastan": "^3.0",
         "laravel/pint": "^1.18",
         "orchestra/testbench": "^10.0 || ^11.0",
@@ -73,5 +77,11 @@
         "allow-plugins": {
             "pestphp/pest-plugin": true
         }
-    }
+    },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/cboxdk/laravel-console-kit"
+        }
+    ]
 }

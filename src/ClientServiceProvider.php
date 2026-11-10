@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cbox\Id\Client;
 
+use Cbox\Console\Kit\Contracts\ContextLevel;
 use Cbox\Id\Client\ApiKeys\ApiKeyVerifier;
 use Cbox\Id\Client\AppCatalog\AppCatalog;
 use Cbox\Id\Client\AppCatalog\AppCatalogStore;
@@ -20,6 +21,7 @@ use Cbox\Id\Client\Contracts\DeviceAuthorization;
 use Cbox\Id\Client\Contracts\HasFeatureFlags;
 use Cbox\Id\Client\Contracts\KeptPermissionDecisions;
 use Cbox\Id\Client\Contracts\Management;
+use Cbox\Id\Client\Contracts\OrganizationDirectory;
 use Cbox\Id\Client\Contracts\PermissionDecisions;
 use Cbox\Id\Client\Contracts\ResolvesAppCatalogContext;
 use Cbox\Id\Client\Contracts\ServiceConnections;
@@ -36,6 +38,7 @@ use Cbox\Id\Client\Grants\HttpDeviceAuthorization;
 use Cbox\Id\Client\Grants\SystemTimer;
 use Cbox\Id\Client\Grants\Timer;
 use Cbox\Id\Client\Http\BackchannelLogoutController;
+use Cbox\Id\Client\Http\BindOrganizationFromUrl;
 use Cbox\Id\Client\Http\EnforceBackchannelLogout;
 use Cbox\Id\Client\Http\RequireConfiguredIdentity;
 use Cbox\Id\Client\Http\RequireFeature;
@@ -50,6 +53,8 @@ use Cbox\Id\Client\Management\HttpManagementClient;
 use Cbox\Id\Client\Management\ManagementClients;
 use Cbox\Id\Client\Management\WorkspaceClient;
 use Cbox\Id\Client\ServiceConnections\HttpServiceConnections;
+use Cbox\Id\Client\Shell\OrganizationLevel;
+use Cbox\Id\Client\Shell\SessionOrganizationDirectory;
 use Cbox\Id\Client\Support\Discovery;
 use Cbox\Id\Client\Support\InternalRoutes;
 use Cbox\Id\Client\Support\MachineTokenCache;
@@ -140,6 +145,25 @@ class ClientServiceProvider extends ServiceProvider
 
         $this->app->singleton(SessionIdentityStore::class);
         $this->app->singleton(CurrentPrincipal::class);
+
+        // The person's organizations, from local data. bindIf: an app that mirrors
+        // memberships by webhook binds its own directory over its tables.
+        $this->app->bindIf(OrganizationDirectory::class, SessionOrganizationDirectory::class);
+
+        // The shared shell's Organization level, only when console-kit (suggested, not
+        // required) is installed: the class implements its ContextLevel contract.
+        if (interface_exists(ContextLevel::class)) {
+            $this->app->bind(OrganizationLevel::class, static fn (Container $app): OrganizationLevel => new OrganizationLevel(
+                $app->make(OrganizationDirectory::class),
+                $app->make(CurrentPrincipal::class),
+                $app->make(Management::class),
+                $app->make(IdentityClient::class),
+                self::configString('cbox-id-client.shell.route_parameter') ?: 'org',
+                self::configString('cbox-id-client.shell.organizations_path') ?: '/orgs',
+                self::configString('cbox-id-client.shell.details_path') ?: '/orgs/{slug}/settings',
+                __('Organization'),
+            ));
+        }
 
         $this->app->singleton(IdentityClient::class, static function (Container $app): IdentityClient {
             $raw = config('cbox-id-client');
@@ -361,6 +385,7 @@ class ClientServiceProvider extends ServiceProvider
         $router->aliasMiddleware('cbox-id.configured', RequireConfiguredIdentity::class);
         $router->aliasMiddleware('cbox-id.session', EnforceBackchannelLogout::class);
         $router->aliasMiddleware('cbox-id.feature', RequireFeature::class);
+        $router->aliasMiddleware('cbox-id.org-url', BindOrganizationFromUrl::class);
 
         $this->registerFeatureFlagShortcuts($router);
 
