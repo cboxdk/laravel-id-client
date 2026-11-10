@@ -5,6 +5,18 @@ their GitHub release pages.
 
 ## [Unreleased]
 
+### Added
+
+- The shared shell's Organization level, `Shell\OrganizationLevel`, when `cboxdk/laravel-console-kit` is installed (suggested, not required; the binding is guarded with `interface_exists`). It reads the person's organizations from the app's local `Contracts\OrganizationDirectory`, never from Cbox ID on a page. "New organization" creates it through the management API with the person as Owner and answers `{id, detailsUrl}`; without a management key it answers `{id: null, detailsUrl}` with Cbox ID's hosted create step.
+- `Contracts\OrganizationDirectory`, bound to `Shell\SessionOrganizationDirectory` (the `organizations` claim of the sign-in). Apps that mirror memberships bind their own.
+- `cbox-id.org-url` middleware (`Http\BindOrganizationFromUrl`): the URL's `/orgs/{slug}` decides the organization. A slug the person does not belong to is a `404`; another organization of theirs re-binds the session through `switchOrganization()` and returns to the same URL (`409` + `X-Inertia-Location` for Inertia). A support session, or a re-bind that came back still bound elsewhere within a minute, is a `403`.
+- `cbox-id-client.shell` config: `route_parameter`, `organizations_path`, `details_path`.
+- The app catalog exposes `purpose`, `hue`, `admission_url` and `enabled` per app, and apps the organization does not have yet (`enabled: false`, with `admission_url` instead of `launch_url`).
+
+### Changed
+
+- An app's `launch_url` in the catalog is now `?string`: `null` for an app that is not enabled. A catalog an older version cached is read again.
+
 ## [0.19.2] - 2026-11-10
 
 ### Changed

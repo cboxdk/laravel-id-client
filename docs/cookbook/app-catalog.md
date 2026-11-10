@@ -158,8 +158,23 @@ must work without one, so it has only `web`. Paths and middleware are under
 
 The catalog answers:
 
-- `200` `{apps: [{key, name, description, launch_url, icon_url, icon_dark_url}], revision, refresh_after}`.
+- `200` `{apps: [{key, name, description, launch_url, icon_url, icon_dark_url, purpose, hue, admission_url, enabled}], revision, refresh_after}`.
   The apps are in the order Cbox ID returns them; the SDK does not sort them.
+
+Each app carries:
+
+| Field | Meaning |
+|---|---|
+| `enabled` | `true` for an app the organization has. `false` for one it does not have yet: the switcher shows it dimmed under "More from Cbox". |
+| `launch_url` | Where an enabled app opens. `null` for an app that is not enabled. |
+| `admission_url` | For an app that is not enabled: its signup or admission page, in the same organization. |
+| `purpose` | One line for the tile ("Identity and sign-in"), or `null`. |
+| `hue` | The app's fixed colour: a hex colour (`#4f46e5`) or an OKLCH hue angle (`258`). Anything else is dropped. |
+
+All four are optional on Cbox ID's side. An older Cbox ID that sends none of them answers
+enabled apps only, with `purpose`, `hue` and `admission_url` null. An enabled app without
+a `launch_url`, or one that is not enabled without an `admission_url`, makes the answer
+malformed. A catalog cached by an older SDK version is read again.
 - `401` `{signin_url}` when only a new sign-in can help: in machine mode, the person is
   no longer a member; in grant mode, no grant can be had on the server. The page navigates
   there on its own; there is no button. With a live Cbox ID session the person sees a
@@ -225,7 +240,7 @@ list of apps, and it is kept per person and organization.
 ## Checks
 
 Every catalog answer is checked before it is served or cached: app keys, names, HTTPS
-launch URLs, and icons served by the issuer. A malformed answer counts as Cbox ID being
+launch and admission URLs, the hue, and icons served by the issuer. A malformed answer counts as Cbox ID being
 unavailable.
 
 In grant mode, a grant is kept only when it is signed by the issuer, is for exactly this person,
