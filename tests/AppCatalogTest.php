@@ -606,7 +606,7 @@ it('serves the catalog as private JSON in Cbox ID order, without credentials', f
     $response = $this->getJson('https://app.test/apps/catalog')->assertOk();
 
     expect($response->json('apps.*.key'))->toBe(['work', 'billing', 'agents'])
-        ->and($response->json('apps.0'))->toBe(['key' => 'work', 'name' => 'Work', 'description' => 'Time', 'launch_url' => 'https://work.test/', 'icon_url' => 'https://id.test/app-icons/1/a', 'icon_dark_url' => 'https://id.test/app-icons/1/b'])
+        ->and($response->json('apps.0'))->toBe(['key' => 'work', 'name' => 'Work', 'description' => 'Time', 'launch_url' => 'https://work.test/', 'icon_url' => 'https://id.test/app-icons/1/a', 'icon_dark_url' => 'https://id.test/app-icons/1/b', 'purpose' => null, 'hue' => null, 'admission_url' => null, 'enabled' => true])
         ->and($response->json('revision'))->toBe(str_repeat('c', 64))
         ->and($response->json('refresh_after'))->toBe(45)
         ->and($response->getContent())->not->toContain('grant-token');

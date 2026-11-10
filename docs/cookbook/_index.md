@@ -34,6 +34,8 @@ container if you prefer constructor injection.
   consistency tokens; leasing a person's connected-account token.
 - **[App catalog (Switch app)](app-catalog.md)** — serve the person's apps to the app
   switcher with one route line, renewed on the server so nobody clicks "reconnect".
+- **[Organizations in the shared shell](shared-shell.md)** — the shell's Organization
+  level on local data, the token following `/orgs/{slug}`, and "New organization".
 - **[Back-channel logout](back-channel-logout.md)** — end a person's sessions in your
   app when they sign out of Cbox ID.
 - **[Protect your API](protect-your-api.md)** — verify a token presented *to* you,

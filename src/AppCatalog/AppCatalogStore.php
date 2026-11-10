@@ -71,25 +71,25 @@ final readonly class AppCatalogStore
     }
 
     /**
-     * @return array{apps:list<array{key:string,name:string,description:?string,launch_url:string,icon_url:?string,icon_dark_url:?string}>,revision:string,refresh_after:int}|null
+     * @return array{apps:list<array{key:string,name:string,description:?string,launch_url:?string,icon_url:?string,icon_dark_url:?string,purpose:?string,hue:?string,admission_url:?string,enabled:bool}>,revision:string,refresh_after:int}|null
      */
     public function catalog(Session $session, AppCatalogContext $context): ?array
     {
         $cached = $session->get($this->bucket($context).'.catalog');
 
         if (! is_array($cached) || ! is_int($cached['expires'] ?? null) || $cached['expires'] <= time()
-            || ! is_array($cached['payload'] ?? null)) {
+            || ! is_array($cached['payload'] ?? null) || ! CatalogPayload::isCurrent($cached['payload'])) {
             return null;
         }
 
-        /** @var array{apps:list<array{key:string,name:string,description:?string,launch_url:string,icon_url:?string,icon_dark_url:?string}>,revision:string,refresh_after:int} $payload */
+        /** @var array{apps:list<array{key:string,name:string,description:?string,launch_url:?string,icon_url:?string,icon_dark_url:?string,purpose:?string,hue:?string,admission_url:?string,enabled:bool}>,revision:string,refresh_after:int} $payload */
         $payload = $cached['payload'];
 
         return [...$payload, 'refresh_after' => max(1, $cached['expires'] - time())];
     }
 
     /**
-     * @param  array{apps:list<array{key:string,name:string,description:?string,launch_url:string,icon_url:?string,icon_dark_url:?string}>,revision:string,refresh_after:int}  $catalog
+     * @param  array{apps:list<array{key:string,name:string,description:?string,launch_url:?string,icon_url:?string,icon_dark_url:?string,purpose:?string,hue:?string,admission_url:?string,enabled:bool}>,revision:string,refresh_after:int}  $catalog
      */
     public function rememberCatalog(Session $session, AppCatalogContext $context, array $catalog, int $expires): void
     {

@@ -207,6 +207,24 @@ return [
 
     /*
     |---------------------------------------------------------------------------
+    | The shared shell (with cboxdk/laravel-console-kit)
+    |---------------------------------------------------------------------------
+    |
+    | Where the shell's Organization level points. The URL standard puts the
+    | organization behind `/orgs/{slug}`; `route_parameter` is the route parameter
+    | that carries the slug. "New organization" lands on `details_path`, with
+    | `{slug}` replaced by the new organization's slug.
+    |
+    */
+
+    'shell' => [
+        'route_parameter' => 'org',
+        'organizations_path' => '/orgs',
+        'details_path' => '/orgs/{slug}/settings',
+    ],
+
+    /*
+    |---------------------------------------------------------------------------
     | Environment management API
     |---------------------------------------------------------------------------
     |

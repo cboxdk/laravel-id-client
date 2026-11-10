@@ -106,7 +106,7 @@ final readonly class AppCatalog
     /**
      * The person's catalog, in Cbox ID's order.
      *
-     * @return array{apps:list<array{key:string,name:string,description:?string,launch_url:string,icon_url:?string,icon_dark_url:?string}>,revision:string,refresh_after:int}
+     * @return array{apps:list<array{key:string,name:string,description:?string,launch_url:?string,icon_url:?string,icon_dark_url:?string,purpose:?string,hue:?string,admission_url:?string,enabled:bool}>,revision:string,refresh_after:int}
      *
      * @throws SignInRequired when only a new sign-in can get a grant
      * @throws CatalogUnavailable when Cbox ID cannot answer right now
@@ -126,7 +126,7 @@ final readonly class AppCatalog
     }
 
     /**
-     * @return array{apps:list<array{key:string,name:string,description:?string,launch_url:string,icon_url:?string,icon_dark_url:?string}>,revision:string,refresh_after:int}
+     * @return array{apps:list<array{key:string,name:string,description:?string,launch_url:?string,icon_url:?string,icon_dark_url:?string,purpose:?string,hue:?string,admission_url:?string,enabled:bool}>,revision:string,refresh_after:int}
      *
      * @throws SignInRequired
      * @throws CatalogUnavailable
@@ -281,7 +281,7 @@ final readonly class AppCatalog
     }
 
     /**
-     * @return array{apps:list<array{key:string,name:string,description:?string,launch_url:string,icon_url:?string,icon_dark_url:?string}>,revision:string,refresh_after:int}
+     * @return array{apps:list<array{key:string,name:string,description:?string,launch_url:?string,icon_url:?string,icon_dark_url:?string,purpose:?string,hue:?string,admission_url:?string,enabled:bool}>,revision:string,refresh_after:int}
      */
     private function fetch(Session $session, AppCatalogContext $context, ResourceAuthorizationResult $grant): array
     {
