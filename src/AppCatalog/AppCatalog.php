@@ -17,12 +17,12 @@ use Throwable;
 /**
  * The app switcher's catalog, for one browser session.
  *
- * At sign-in, {@see rememberSignIn()} trades the login token for a catalog grant and
- * keeps the person's refresh token (when the login got one). Afterwards {@see read()}
- * serves the catalog and renews the grant on the server when it is missing or about to
- * expire: refresh the person's tokens, then exchange again. Nobody clicks anything. When
- * that is impossible, {@see SignInRequired} says so and the route answers with where to
- * sign in.
+ * At sign-in, {@see rememberSignIn()} only seals the login access token and the person's
+ * refresh token (when the login got one) into the session: no network call. {@see read()}
+ * serves the catalog and gets the grant on the server when it is missing or about to
+ * expire: exchange the login token while it lives, otherwise refresh the person's tokens
+ * and exchange the new one. Nobody clicks anything. When that is impossible,
+ * {@see SignInRequired} says so and the route answers with where to sign in.
  *
  * Renewal runs under a cache lock per session, so two tabs never present the same
  * refresh token: Cbox ID rotates it on every use and revokes the family on a replay.
@@ -40,11 +40,13 @@ final readonly class AppCatalog
     ) {}
 
     /**
-     * Keep what the catalog needs from a sign-in that just completed. Call it only with
-     * the identity THIS request's callback verified. Never throws: a sign-in does not fail
-     * because the catalog could not be prepared, and a missing grant is renewed later.
+     * Keep what the catalog will need from a sign-in that just completed: the login
+     * access token (until it expires) and the refresh token, when there is one, both
+     * sealed in the session. No network call: a callback, an SSO hop included, does the
+     * code exchange and nothing else. The first catalog read exchanges the login token.
      *
-     * Returns whether a catalog grant is now held.
+     * Call it only with the identity THIS request's callback verified. Never throws.
+     * Returns whether anything was kept.
      */
     public function rememberSignIn(Session $session, CboxUser $identity): bool
     {
@@ -55,28 +57,28 @@ final readonly class AppCatalog
 
         // A new sign-in starts a new token family; the old one is not ours any more.
         $this->store->forgetRefreshToken($session, $identity->id);
+        $this->store->forgetLoginToken($session);
+
+        $organization = $identity->organizationId !== null && $identity->organizationId !== '' ? $identity->organizationId : null;
+        $kept = false;
 
         if (is_string($identity->refreshToken) && $identity->refreshToken !== '') {
             $this->store->rememberRefreshToken($session, new StoredRefreshToken(
-                $identity->refreshToken, $identity->id, $identity->organizationId,
+                $identity->refreshToken, $identity->id, $organization,
             ), shared: false);
+            $kept = true;
         }
 
-        if ($identity->organizationId === null || $identity->organizationId === '') {
-            return false;
+        if ($organization !== null) {
+            // An unknown lifetime is taken as one minute, never as "forever".
+            $lifetime = $identity->expiresIn > 0 ? $identity->expiresIn : 60;
+            $this->store->rememberLoginToken($session, new StoredLoginToken(
+                $identity->accessToken, $identity->id, $organization, time() + $lifetime,
+            ));
+            $kept = true;
         }
 
-        $context = new AppCatalogContext($identity->id, $identity->organizationId);
-
-        try {
-            $this->store->rememberGrant($session, $this->exchange->exchange($identity->accessToken, $context));
-
-            return true;
-        } catch (Throwable) {
-            $this->store->forgetGrant($session, $context);
-
-            return false;
-        }
+        return $kept;
     }
 
     /**
@@ -170,6 +172,22 @@ final readonly class AppCatalog
             $this->store->rememberGrant($session, $shared);
 
             return $shared;
+        }
+
+        // First read after sign-in: the login token is still good, so exchange it and
+        // drop it. It is used once; a refused or expired one falls through to refresh.
+        $login = $this->store->loginToken($session, $context);
+
+        if ($login instanceof StoredLoginToken) {
+            try {
+                $grant = $this->exchange->exchange($login->token, $context);
+                $this->store->forgetLoginToken($session);
+                $this->store->rememberGrant($session, $grant);
+
+                return $grant;
+            } catch (SignInRequired) {
+                $this->store->forgetLoginToken($session);
+            }
         }
 
         $stored = $this->store->refreshToken($session, $context->subject);

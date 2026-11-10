@@ -356,10 +356,11 @@ class IdentityClient
     }
 
     /**
-     * Prepare the app catalog from a sign-in this request just verified: exchange the
-     * login token for a catalog grant and keep the refresh token, sealed, in the
-     * session. {@see authenticate()} does this itself when `app_catalog.enabled` is on;
-     * call it when you build the `CboxUser` some other way. Never throws.
+     * Prepare the app catalog from a sign-in this request just verified: keep the login
+     * access token and the refresh token, sealed, in the session, for the first catalog
+     * read to exchange. No network call. {@see authenticate()} does this itself when
+     * `app_catalog.enabled` is on; call it when you build the `CboxUser` some other way.
+     * Never throws.
      */
     public function rememberAppCatalogSignIn(CboxUser $user): bool
     {

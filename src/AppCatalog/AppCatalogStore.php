@@ -136,6 +136,47 @@ final readonly class AppCatalogStore
         $this->cache->forget($this->cacheKey($session, 'refresh', null, $subject));
     }
 
+    /**
+     * The login access token kept for the first exchange, while it is valid for at
+     * least another 30 seconds and belongs to this person and organization.
+     */
+    public function loginToken(Session $session, AppCatalogContext $context): ?StoredLoginToken
+    {
+        $sealed = $session->get(self::SESSION_KEY.'.login');
+
+        if (! is_string($sealed)) {
+            return null;
+        }
+
+        try {
+            $data = json_decode(Crypt::decryptString($sealed), true, flags: JSON_THROW_ON_ERROR);
+        } catch (DecryptException|\JsonException) {
+            return null;
+        }
+
+        if (! is_array($data) || ! is_string($data['token'] ?? null) || $data['token'] === ''
+            || ($data['subject'] ?? null) !== $context->subject || ($data['organization'] ?? null) !== $context->organizationId
+            || ! is_int($data['expires'] ?? null) || $data['expires'] <= time() + 30
+            || ($data['issuer'] ?? null) !== $this->issuer || ($data['client'] ?? null) !== $this->clientId) {
+            return null;
+        }
+
+        return new StoredLoginToken($data['token'], $context->subject, $context->organizationId, $data['expires']);
+    }
+
+    public function rememberLoginToken(Session $session, StoredLoginToken $token): void
+    {
+        $session->put(self::SESSION_KEY.'.login', Crypt::encryptString(json_encode([
+            'token' => $token->token, 'subject' => $token->subject, 'organization' => $token->organizationId,
+            'expires' => $token->expiresAt, 'issuer' => $this->issuer, 'client' => $this->clientId,
+        ], JSON_THROW_ON_ERROR)));
+    }
+
+    public function forgetLoginToken(Session $session): void
+    {
+        $session->forget(self::SESSION_KEY.'.login');
+    }
+
     /** Forget everything this session holds for the catalog (logout). */
     public function forgetAll(Session $session): void
     {

@@ -9,6 +9,7 @@ use Cbox\Id\Client\AppCatalog\CatalogGrantExchange;
 use Cbox\Id\Client\AppCatalog\CatalogUnavailable;
 use Cbox\Id\Client\AppCatalog\Http\AppCatalogController;
 use Cbox\Id\Client\AppCatalog\SignInRequired;
+use Cbox\Id\Client\AppCatalog\StoredLoginToken;
 use Cbox\Id\Client\AppCatalog\StoredRefreshToken;
 use Cbox\Id\Client\Facades\CboxId;
 use Cbox\Id\Client\IdentityClient;
@@ -288,54 +289,111 @@ it('adds only the catalog scope to the login, and leaves offline_access to the a
     expect($query['scope'])->toBe('openid email');
 });
 
-it('exchanges the login token and keeps the sealed refresh token during the callback', function (): void {
+function catalogCallback(): Request
+{
     session(['cbox-id-client.state' => 'st_1', 'cbox-id-client.verifier' => 'ver_1', 'cbox-id-client.nonce' => 'nonce_1']);
 
-    $user = app(IdentityClient::class)->authenticate(Request::create('https://app.test/callback', 'GET', ['state' => 'st_1', 'code' => 'code_1']));
+    return Request::create('https://app.test/callback', 'GET', ['state' => 'st_1', 'code' => 'code_1']);
+}
 
-    expect($user->id)->toBe('usr_1')
-        ->and($this->id->subjectTokens)->toBe(['at_login'])
-        ->and(app(AppCatalogStore::class)->grant(session()->driver(), catalogContext()))->toBeInstanceOf(ResourceAuthorizationResult::class)
-        ->and(app(AppCatalogStore::class)->refreshToken(session()->driver(), 'usr_1')?->token)->toBe('rt_0')
-        ->and(json_encode(session()->all()))->not->toContain('rt_0')->not->toContain('"at_login"');
+it('makes the sign-in callback an SSO hop: one token call, no exchange', function (): void {
+    app(IdentityClient::class)->authenticate(catalogCallback());
+
+    $tokenCalls = Http::recorded(fn (ClientRequest $request): bool => $request->url() === CATALOG_ISSUER.'/oauth/token')->values();
+    expect($tokenCalls)->toHaveCount(1)
+        ->and($tokenCalls[0][0]['grant_type'])->toBe('authorization_code')
+        ->and($this->id->exchanges)->toBe(0);
+
+    // Everything else the callback asked is what the login itself needs.
+    $other = Http::recorded(fn (ClientRequest $request): bool => $request->url() !== CATALOG_ISSUER.'/oauth/token')
+        ->map(fn (array $pair): string => (string) parse_url($pair[0]->url(), PHP_URL_PATH))->unique()->sort()->values()->all();
+    expect($other)->toBe(['/.well-known/jwks.json', '/.well-known/openid-configuration', '/oauth/userinfo']);
 });
 
-it('keeps no refresh token when the login did not get one', function (): void {
+it('seals the login token and the refresh token at sign-in, and exchanges on the first read', function (): void {
+    app(IdentityClient::class)->authenticate(catalogCallback());
+    $session = session()->driver();
+    $store = app(AppCatalogStore::class);
+
+    expect($store->loginToken($session, catalogContext())?->token)->toBe('at_login')
+        ->and($store->refreshToken($session, 'usr_1')?->token)->toBe('rt_0')
+        ->and($store->grant($session, catalogContext()))->toBeNull()
+        ->and(json_encode(session()->all()))->not->toContain('rt_0')->not->toContain('"at_login"');
+
+    expect(catalogService()->read($session, catalogContext())['apps'])->toHaveCount(3)
+        ->and($this->id->subjectTokens)->toBe(['at_login'])
+        ->and($this->id->refreshes)->toBe(0)
+        ->and($store->loginToken($session, catalogContext()))->toBeNull()
+        ->and($store->grant($session, catalogContext()))->not->toBeNull();
+});
+
+it('keeps no refresh token when the login did not get one, and still exchanges the login token', function (): void {
     $this->id->refreshIssues = false;
-    session(['cbox-id-client.state' => 'st_1', 'cbox-id-client.verifier' => 'ver_1', 'cbox-id-client.nonce' => 'nonce_1']);
+    app(IdentityClient::class)->authenticate(catalogCallback());
+    $session = session()->driver();
 
-    app(IdentityClient::class)->authenticate(Request::create('https://app.test/callback', 'GET', ['state' => 'st_1', 'code' => 'code_1']));
-
-    expect(app(AppCatalogStore::class)->refreshToken(session()->driver(), 'usr_1'))->toBeNull()
-        ->and(app(AppCatalogStore::class)->grant(session()->driver(), catalogContext()))->not->toBeNull();
+    expect(app(AppCatalogStore::class)->refreshToken($session, 'usr_1'))->toBeNull();
+    expect(catalogService()->read($session, catalogContext())['apps'])->toHaveCount(3);
 });
 
 it('does nothing at sign-in while the catalog is off', function (): void {
     config(['cbox-id-client.app_catalog.enabled' => false]);
     app()->forgetInstance(IdentityClient::class);
-    session(['cbox-id-client.state' => 'st_1', 'cbox-id-client.verifier' => 'ver_1', 'cbox-id-client.nonce' => 'nonce_1']);
 
-    app(IdentityClient::class)->authenticate(Request::create('https://app.test/callback', 'GET', ['state' => 'st_1', 'code' => 'code_1']));
+    app(IdentityClient::class)->authenticate(catalogCallback());
 
-    expect($this->id->exchanges)->toBe(0)->and(session()->has(AppCatalogStore::SESSION_KEY))->toBeFalse();
+    expect(session()->has(AppCatalogStore::SESSION_KEY))->toBeFalse();
 });
 
-it('never fails a sign-in because the catalog could not be prepared', function (): void {
+it('refreshes first when the login token has expired, then exchanges', function (): void {
+    $session = catalogSession();
+    $store = app(AppCatalogStore::class);
+    $store->rememberLoginToken($session, new StoredLoginToken('at_login', 'usr_1', 'org_1', time() + 10));
+    $store->rememberRefreshToken($session, new StoredRefreshToken('rt_0', 'usr_1', 'org_1'));
+
+    catalogService()->read($session, catalogContext());
+
+    expect($this->id->refreshes)->toBe(1)->and($this->id->subjectTokens)->toBe(['at_refreshed_1']);
+});
+
+it('falls back to the refresh token when ID refuses the login token', function (): void {
+    $session = catalogSession();
+    $store = app(AppCatalogStore::class);
+    $store->rememberLoginToken($session, new StoredLoginToken('at_login', 'usr_1', 'org_1', time() + 300));
+    $store->rememberRefreshToken($session, new StoredRefreshToken('rt_0', 'usr_1', 'org_1'));
+    $this->id->exchangeStatus = 400;
+
+    expect(fn () => catalogService()->read($session, catalogContext()))->toThrow(SignInRequired::class)
+        ->and($this->id->subjectTokens)->toBe(['at_login', 'at_refreshed_1'])
+        ->and($store->loginToken($session, catalogContext()))->toBeNull();
+});
+
+it('keeps the login token through an ID outage', function (): void {
+    $session = catalogSession();
+    $store = app(AppCatalogStore::class);
+    $store->rememberLoginToken($session, new StoredLoginToken('at_login', 'usr_1', 'org_1', time() + 300));
     $this->id->exchangeStatus = 503;
-    session(['cbox-id-client.state' => 'st_1', 'cbox-id-client.verifier' => 'ver_1', 'cbox-id-client.nonce' => 'nonce_1']);
 
-    $user = app(IdentityClient::class)->authenticate(Request::create('https://app.test/callback', 'GET', ['state' => 'st_1', 'code' => 'code_1']));
+    expect(fn () => catalogService()->read($session, catalogContext()))->toThrow(CatalogUnavailable::class)
+        ->and($store->loginToken($session, catalogContext())?->token)->toBe('at_login');
+});
 
-    expect($user->id)->toBe('usr_1')
-        ->and(app(AppCatalogStore::class)->grant(session()->driver(), catalogContext()))->toBeNull()
-        ->and(app(AppCatalogStore::class)->refreshToken(session()->driver(), 'usr_1')?->token)->toBe('rt_0');
+it('never exchanges a login token for another person or organization', function (): void {
+    $session = catalogSession();
+    app(AppCatalogStore::class)->rememberLoginToken($session, new StoredLoginToken('at_login', 'usr_1', 'org_1', time() + 300));
+
+    expect(fn () => catalogService()->read($session, new AppCatalogContext('usr_1', 'org_2')))->toThrow(SignInRequired::class)
+        ->and(fn () => catalogService()->read($session, new AppCatalogContext('usr_2', 'org_1')))->toThrow(SignInRequired::class)
+        ->and($this->id->exchanges)->toBe(0);
 });
 
 it('refuses catalog grants that are not exactly this person, team, client, scope and key', function (array $claims): void {
+    $session = catalogSession();
+    app(AppCatalogStore::class)->rememberLoginToken($session, new StoredLoginToken('at_login', 'usr_1', 'org_1', time() + 300));
     $this->id->grantClaims = $claims;
 
-    expect(CboxId::rememberAppCatalogSignIn(catalogUser()))->toBeFalse()
-        ->and(app(AppCatalogStore::class)->grant(session()->driver(), catalogContext()))->toBeNull();
+    expect(fn () => catalogService()->read($session, catalogContext()))->toThrow(SignInRequired::class)
+        ->and(app(AppCatalogStore::class)->grant($session, catalogContext()))->toBeNull();
 })->with([
     'subject' => [['sub' => 'usr_other']], 'team' => [['org' => 'org_other']],
     'client' => [['client_id' => 'other_client']], 'issuer' => [['iss' => 'https://other.test']],
@@ -346,17 +404,19 @@ it('refuses catalog grants that are not exactly this person, team, client, scope
 ]);
 
 it('refuses a bearer downgrade and a wrong issued token type', function (array $response): void {
+    $session = catalogSession();
+    app(AppCatalogStore::class)->rememberLoginToken($session, new StoredLoginToken('at_login', 'usr_1', 'org_1', time() + 300));
     $this->id->exchangeResponse = $response;
 
-    expect(CboxId::rememberAppCatalogSignIn(catalogUser()))->toBeFalse();
+    expect(fn () => catalogService()->read($session, catalogContext()))->toThrow(SignInRequired::class);
 })->with([[['token_type' => 'Bearer']], [['issued_token_type' => 'urn:ietf:params:oauth:token-type:id_token']]]);
 
-it('does not prepare a catalog for a support session or a cookie session', function (): void {
-    expect(CboxId::rememberAppCatalogSignIn(catalogUser(claims: ['act' => ['sub' => 'staff']])))->toBeFalse();
+it('keeps nothing for a support session or a cookie session', function (): void {
+    expect(CboxId::rememberAppCatalogSignIn(catalogUser(claims: ['act' => ['sub' => 'staff']])))->toBeFalse()
+        ->and(session()->has(AppCatalogStore::SESSION_KEY))->toBeFalse();
 
     config(['session.driver' => 'cookie']);
-    expect(CboxId::rememberAppCatalogSignIn(catalogUser()))->toBeFalse()
-        ->and($this->id->exchanges)->toBe(0);
+    expect(CboxId::rememberAppCatalogSignIn(catalogUser()))->toBeFalse();
 });
 
 // --- Silent renewal ----------------------------------------------------------------

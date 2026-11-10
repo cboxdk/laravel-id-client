@@ -36,15 +36,17 @@ block the session need a cache with locks, which those drivers already have.
 ## What happens at sign-in
 
 With the catalog on, every login asks for `account:apps:read` as well. When your callback
-calls `CboxId::authenticate($request)`, the SDK:
+calls `CboxId::authenticate($request)`, the SDK keeps two things, sealed in the session:
 
-1. trades the login token for a catalog grant (RFC 8693 token exchange, bound to a fresh
-   DPoP key), and keeps it sealed in the session;
-2. keeps the person's refresh token, sealed in the session, when the token response had
-   one.
+1. the login access token, until it expires;
+2. the person's refresh token, when the token response had one.
 
-Nothing of this can fail the sign-in. If Cbox ID cannot hand out a grant right now, the
-catalog gets one later.
+That is all the callback does for the catalog. It makes no extra call to Cbox ID, so an
+app switch with a live Cbox ID session stays a plain SSO hop: one call to the token
+endpoint, plus the discovery, keys and UserInfo the login itself needs.
+
+The first catalog read trades the login token for a catalog grant (RFC 8693 token
+exchange, bound to a fresh DPoP key) and drops the login token.
 
 If you build the `CboxUser` some other way, call it yourself:
 
@@ -80,19 +82,20 @@ browser.
 
 ## Renewal without a click
 
-When the grant is missing or expires within five minutes, the catalog route renews it on
-the server:
+When the grant is missing or expires within five minutes, the catalog route gets a new
+one on the server, under a cache lock per session:
 
-1. refresh the person's Cbox ID tokens with the kept refresh token;
-2. store the new refresh token at once (Cbox ID rotates it on every use);
-3. exchange the new access token for a new catalog grant.
+1. if the login access token is still valid, exchange it, then drop it;
+2. otherwise refresh the person's Cbox ID tokens with the kept refresh token, store the
+   new refresh token at once (Cbox ID rotates it on every use), and exchange the new
+   access token;
+3. otherwise answer `401` with `signin_url`.
 
-A cache lock per session makes two tabs renew one at a time. That matters: Cbox ID
-treats a refresh token presented twice as stolen, and revokes the whole family. The
-newest refresh token and grant are also kept in the cache, keyed by the session, because
-a page request that started before a renewal writes its older copy of the session back
-when it ends. Under the lock the cache copy is read first, so the token presented is
-always the newest one.
+The lock makes two tabs renew one at a time. That matters: Cbox ID treats a refresh token
+presented twice as stolen, and revokes the whole family. The newest refresh token and
+grant are also kept in the cache, keyed by the session, because a page request that
+started before a renewal writes its older copy of the session back when it ends. Under
+the lock the cache copy is read first, so the token presented is always the newest one.
 
 If the renewal fails while the old grant is still valid, the old grant is used and the
 renewal is tried again on the next read. When renewal is impossible (no refresh token,
@@ -102,9 +105,9 @@ signed in to), the answer is `401` with `signin_url`.
 ### Without `offline_access`
 
 Cbox ID gives out a refresh token only when the login asked for `offline_access`. The SDK
-does not add that scope for you. Without it, there is nothing to renew with on the
-server, so when the grant expires the catalog answers `401` with `signin_url`, and the
-page makes one trip through sign-in. No click is needed, but the page does reload. Add
+does not add that scope for you. Without it, the first grant still comes from the login
+token, but there is nothing to renew it with on the server. When it expires the catalog
+answers `401` with `signin_url`, and the page makes one trip through sign-in. No click is needed, but the page does reload. Add
 `offline_access` to `CBOX_ID_SCOPES` to avoid that.
 
 If your app already keeps the login's refresh token and refreshes it itself, do not let

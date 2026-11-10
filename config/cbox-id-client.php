@@ -114,8 +114,9 @@ return [
     | `CboxId::appCatalogRoutes()` as same-origin JSON for the app switcher.
     |
     | `enabled` — sign-in asks for `account:apps:read` too, and the callback
-    | (`authenticate()`) exchanges the login token for a catalog grant on its
-    | own. Needs a server-side session driver.
+    | (`authenticate()`) seals the login token into the session, with no extra
+    | call. The first catalog read exchanges it for a catalog grant. Needs a
+    | server-side session driver.
     |
     | The grant is renewed on the server, never with a click: with the person's
     | refresh token when the login asked for `offline_access` (add it to
