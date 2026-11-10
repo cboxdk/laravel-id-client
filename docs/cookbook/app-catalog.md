@@ -159,7 +159,10 @@ must work without one, so it has only `web`. Paths and middleware are under
 The catalog answers:
 
 - `200` `{apps: [{key, name, description, launch_url, icon_url, icon_dark_url, purpose, hue, admission_url, enabled}], revision, refresh_after}`.
-  The apps are in the order Cbox ID returns them; the SDK does not sort them.
+  The apps are in the order Cbox ID returns them; the SDK does not sort them. By default
+  only the organization's own apps (`enabled: true`) are in the answer, so a switcher that
+  reads `launch_url` as a string keeps working. `?include=available` adds the apps it does
+  not have yet; cbox-ui's switcher (through console-kit's shell) asks for them.
 
 Each app carries:
 

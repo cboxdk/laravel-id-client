@@ -48,9 +48,14 @@ The level and the middleware read `Contracts\OrganizationDirectory`: the person'
 organizations from the app's own data. Neither calls Cbox ID while a page renders.
 
 The default, `SessionOrganizationDirectory`, reads the `organizations` claim the person
-signed in with (and the bound `org`). An organization joined since then shows up after
-the next sign-in or switch, and a slug the claim does not carry falls back to the id. An
-app that mirrors memberships by webhook should bind its own directory:
+signed in with (and the bound `org`). It is for local work and tests, not production:
+
+- it knows only the organizations of the last sign-in;
+- a slug the claim does not carry falls back to the id, so URLs read `/orgs/org_…`
+  instead of `/orgs/{slug}`.
+
+Outside `local` and `testing` it logs a warning, once per process. In production, bind a
+directory over your webhook mirror of Cbox ID's organizations and memberships:
 
 ```php
 $this->app->bind(OrganizationDirectory::class, MirroredOrganizations::class);
@@ -66,13 +71,19 @@ Switching organization in the shell changes the URL only. On the next page,
 bound to:
 
 - **Same organization:** the page renders.
-- **Not a member** (the directory does not know the slug): `404`.
+- **A slug the directory does not know:** it may be news to the directory (the person
+  joined after signing in). A page load refreshes the sign-in once, still bound to the
+  current organization, and comes back to the same URL. If the slug is still unknown, or
+  it was refreshed within the last minute: `404`.
 - **Another organization the person belongs to:** the middleware stores the URL as the
   intended URL and calls `switchOrganization()`. With a live Cbox ID session the person
   sees no prompt. Your callback ends with `redirect()->intended()`, so they land on the
   same URL, now bound to the new organization. An Inertia visit gets `409` with
-  `X-Inertia-Location`, so the browser does this as a full page load. A JSON request gets
-  `409 {error: "organization_rebind", location}`.
+  `X-Inertia-Location`, so the browser does this as a full page load.
+- **Anything but a page load** (a JSON call, or a POST from a stale tab) makes no round
+  trip and leaves the session alone. It gets `409 {error: "organization_rebind",
+  location}`, where `location` is the page to load in full: the same URL for a GET, the
+  page the request came from otherwise. Nothing is replayed as a GET.
 - **Still bound elsewhere within a minute** (Cbox ID refused the switch): `403`, not a
   loop.
 - **A support session** is pinned to its organization: `403`.
@@ -87,6 +98,6 @@ bound to:
   organization is created with the person as Owner, kept in the directory
   (`remember()`), and the answer is `{id, detailsUrl}` with `details_path`. A name Cbox ID
   refuses is a `422` on `name` with its message.
-- **Without one:** the answer is `{id: null, detailsUrl}`, where `detailsUrl` is Cbox ID's
-  hosted "create an organization" step. The shell sends the person there as a full page
-  load; they come back to `/orgs`. The hosted step asks for the name again.
+- **Without one, or in a support session:** the menu has no "New organization", and the
+  create endpoint answers `403`. The shell never sends the person to another product to
+  create something (spec §5.7), so give every app that uses the shell a management key.

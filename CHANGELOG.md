@@ -7,15 +7,16 @@ their GitHub release pages.
 
 ### Added
 
-- The shared shell's Organization level, `Shell\OrganizationLevel`, when `cboxdk/laravel-console-kit` is installed (suggested, not required; the binding is guarded with `interface_exists`). It reads the person's organizations from the app's local `Contracts\OrganizationDirectory`, never from Cbox ID on a page. "New organization" creates it through the management API with the person as Owner and answers `{id, detailsUrl}`; without a management key it answers `{id: null, detailsUrl}` with Cbox ID's hosted create step.
-- `Contracts\OrganizationDirectory`, bound to `Shell\SessionOrganizationDirectory` (the `organizations` claim of the sign-in). Apps that mirror memberships bind their own.
-- `cbox-id.org-url` middleware (`Http\BindOrganizationFromUrl`): the URL's `/orgs/{slug}` decides the organization. A slug the person does not belong to is a `404`; another organization of theirs re-binds the session through `switchOrganization()` and returns to the same URL (`409` + `X-Inertia-Location` for Inertia). A support session, or a re-bind that came back still bound elsewhere within a minute, is a `403`.
+- The shared shell's Organization level, `Shell\OrganizationLevel`, when `cboxdk/laravel-console-kit` is installed (suggested, not required; the binding is guarded with `interface_exists`). It reads the person's organizations from the app's local `Contracts\OrganizationDirectory`, never from Cbox ID on a page. "New organization" creates it through the management API with the person as Owner and answers `{id, detailsUrl}`. It is offered only with a management key and outside a support session; otherwise the menu has no "New organization" and the endpoint answers `403`.
+- `Contracts\OrganizationDirectory`, bound to `Shell\SessionOrganizationDirectory` (the `organizations` claim of the sign-in). That default is for local work and tests and logs a warning elsewhere; production apps bind one over their webhook mirror.
+- `HttpManagementClient::isConfigured()`.
+- `cbox-id.org-url` middleware (`Http\BindOrganizationFromUrl`): the URL's `/orgs/{slug}` decides the organization. A slug the directory does not know refreshes the sign-in once, then is a `404`; another organization of theirs re-binds the session through `switchOrganization()` and returns to the same URL (`409` + `X-Inertia-Location` for Inertia). Only GET and HEAD page loads make a round trip; anything else gets `409 {error: "organization_rebind", location}` and the session is left alone. A support session, or a re-bind that came back still bound elsewhere within a minute, is a `403`.
 - `cbox-id-client.shell` config: `route_parameter`, `organizations_path`, `details_path`.
-- The app catalog exposes `purpose`, `hue`, `admission_url` and `enabled` per app, and apps the organization does not have yet (`enabled: false`, with `admission_url` instead of `launch_url`).
+- The app catalog exposes `purpose`, `hue`, `admission_url` and `enabled` per app, and, with `?include=available`, apps the organization does not have yet (`enabled: false`, with `admission_url` instead of `launch_url`). Without it the answer holds only enabled apps, as before.
 
 ### Changed
 
-- An app's `launch_url` in the catalog is now `?string`: `null` for an app that is not enabled. A catalog an older version cached is read again.
+- An app's `launch_url` in the catalog is now `?string`: `null` only for an app that is not enabled, which is sent only with `?include=available`. A catalog an older version cached is read again.
 
 ## [0.19.2] - 2026-11-10
 
