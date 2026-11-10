@@ -15,7 +15,7 @@ final readonly class PersonalAppCatalog
 {
     public function __construct(private Factory $http, private string $issuer) {}
 
-    /** @return array{apps:list<array{key:string,name:string,description:?string,launch_url:string,icon_url:?string}>,revision:string,refresh_after:int} */
+    /** @return array{apps:list<array{key:string,name:string,description:?string,launch_url:string,icon_url:?string,icon_dark_url:?string}>,revision:string,refresh_after:int} */
     public function read(ResourceAuthorizationResult $grant, string $subject, string $organization): array
     {
         $issuer = rtrim($this->issuer, '/');
@@ -47,16 +47,27 @@ final readonly class PersonalAppCatalog
                 || ! self::secureUrl($row['launch_url'] ?? null)) {
                 throw new \RuntimeException('ID returned an invalid app catalog entry.');
             }
-            $icon = $row['icon_url'] ?? null;
-            if ($icon !== null && (! self::secureUrl($icon) || ! str_starts_with($icon, $issuer.'/'))) {
-                throw new \RuntimeException('ID returned an invalid catalog icon origin.');
-            }
+            $icon = self::icon($row['icon_url'] ?? null, $issuer);
+            $dark = self::icon($row['icon_dark_url'] ?? null, $issuer);
             $description = $row['description'] ?? null;
             $apps[$row['key']] = ['key' => $row['key'], 'name' => $row['name'], 'description' => is_string($description) ? $description : null,
-                'launch_url' => $row['launch_url'], 'icon_url' => $icon];
+                'launch_url' => $row['launch_url'], 'icon_url' => $icon, 'icon_dark_url' => $dark];
         }
 
         return ['apps' => array_values($apps), 'revision' => $revision, 'refresh_after' => min(60, $refresh, max(0, $grant->expiresAt - time()))];
+    }
+
+    /** An icon is served by ID itself: null, or an HTTPS URL on the issuer. */
+    private static function icon(mixed $url, string $issuer): ?string
+    {
+        if ($url === null) {
+            return null;
+        }
+        if (! self::secureUrl($url) || ! str_starts_with($url, $issuer.'/')) {
+            throw new \RuntimeException('ID returned an invalid catalog icon origin.');
+        }
+
+        return $url;
     }
 
     /** @phpstan-assert-if-true string $url */

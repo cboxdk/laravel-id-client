@@ -5,6 +5,12 @@ their GitHub release pages.
 
 ## [Unreleased]
 
+## [0.18.2] - 2026-11-10
+
+### Added
+
+- `PersonalAppCatalog` passes each app's `icon_dark_url` through next to `icon_url`, with the same check that it is an HTTPS URL on the issuer. `null` when the app has no dark icon. Cbox ID's catalog is the one source of every app's light and dark icon; apps render those instead of keeping their own copy.
+
 ## [0.18.1] - 2026-11-10
 
 ### Added
