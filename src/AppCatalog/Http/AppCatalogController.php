@@ -23,7 +23,9 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * The app switcher's same-origin endpoints. Thin: {@see AppCatalog} does the work.
  *
- *  - catalog   JSON `{apps, revision, refresh_after}`; 401 `{signin_url}` when only a
+ *  - catalog   JSON `{apps, revision, refresh_after}`, the organization's apps (add
+ *              `?include=available` for the ones it does not have yet, `enabled: false`);
+ *              401 `{signin_url}` when only a
  *              sign-in can help (the page navigates there by itself); 503
  *              `{error: catalog_unavailable}` when Cbox ID cannot answer right now.
  *  - authorize / callback  the browser flow for a catalog grant, kept for pages that
@@ -51,7 +53,7 @@ final readonly class AppCatalogController
         $session = $request->session();
 
         try {
-            return self::json($this->catalog->read($session, $context));
+            return self::json(self::visible($this->catalog->read($session, $context), $request));
         } catch (SignInRequired $e) {
             // The page is sent to sign in at most once per five minutes. The mark is set
             // when a sign-in actually starts (`/apps/signin`, or a completed sign-in),
@@ -71,6 +73,25 @@ final readonly class AppCatalogController
         } catch (CatalogUnavailable) {
             return self::json(['error' => 'catalog_unavailable'], 503);
         }
+    }
+
+    /**
+     * Apps the organization does not have yet (`enabled: false`, no `launch_url`) are sent
+     * only to a caller that asks for them with `?include=available`: cbox-ui's switcher
+     * does. Older switchers read `launch_url` as a string and never see them.
+     *
+     * @param  array{apps:list<array{key:string,name:string,description:?string,launch_url:?string,icon_url:?string,icon_dark_url:?string,purpose:?string,hue:?string,admission_url:?string,enabled:bool}>,revision:string,refresh_after:int}  $catalog
+     * @return array{apps:list<array{key:string,name:string,description:?string,launch_url:?string,icon_url:?string,icon_dark_url:?string,purpose:?string,hue:?string,admission_url:?string,enabled:bool}>,revision:string,refresh_after:int}
+     */
+    private static function visible(array $catalog, Request $request): array
+    {
+        if ($request->query('include') === 'available') {
+            return $catalog;
+        }
+
+        $catalog['apps'] = array_values(array_filter($catalog['apps'], static fn (array $app): bool => $app['enabled']));
+
+        return $catalog;
     }
 
     public function authorize(Request $request, ResourceAuthorizationClient $authorization, AppCatalogStore $store): Response

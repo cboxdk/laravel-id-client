@@ -69,6 +69,9 @@ final class FakeMachineCatalogId
 
     public bool $catalogDown = false;
 
+    /** @var list<array<string, mixed>>|null the apps the machine read answers; null for {@see apps()} */
+    public ?array $apps = null;
+
     public int $catalogReads = 0;
 
     public int $tokenRequests = 0;
@@ -139,7 +142,7 @@ final class FakeMachineCatalogId
             return Http::response($this->catalogBody, $this->catalogStatus);
         }
 
-        return Http::response(['data' => self::apps(), 'meta' => ['revision' => str_repeat('d', 64), 'refresh_after' => $this->refreshAfter]]);
+        return Http::response(['data' => $this->apps ?? self::apps(), 'meta' => ['revision' => str_repeat('d', 64), 'refresh_after' => $this->refreshAfter]]);
     }
 
     private function personal()
@@ -345,4 +348,17 @@ it('reads again past an answer an older SDK cached without the new fields', func
 
     $this->getJson('https://app.test/apps/catalog')->assertOk()->assertJsonPath('apps.0.enabled', true);
     expect($this->id->catalogReads)->toBe(2);
+});
+
+it('leaves out apps the organization does not have unless the switcher asks for them', function (): void {
+    machineSignIn($this);
+    $this->id->apps = [
+        ...FakeMachineCatalogId::apps(),
+        ['key' => 'engage', 'name' => 'Engage', 'enabled' => false, 'admission_url' => 'https://engage.test/signup'],
+    ];
+
+    // An older switcher reads launch_url as a string: it never sees an app without one.
+    expect($this->getJson('https://app.test/apps/catalog')->assertOk()->json('apps.*.key'))->toBe(['work', 'billing'])
+        ->and($this->getJson('https://app.test/apps/catalog?include=available')->assertOk()->json('apps.2'))
+        ->toMatchArray(['key' => 'engage', 'enabled' => false, 'launch_url' => null, 'admission_url' => 'https://engage.test/signup']);
 });
