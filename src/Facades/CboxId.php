@@ -15,6 +15,8 @@ use Illuminate\Support\Facades\Facade;
  * @method static \Illuminate\Http\RedirectResponse createOrganization(list<string>|null $scopes = null)
  * @method static \Illuminate\Http\RedirectResponse addAccount(list<string>|null $scopes = null, ?string $state = null)
  * @method static \Cbox\Id\Client\ValueObjects\CboxUser authenticate(\Illuminate\Http\Request $request)
+ * @method static void appCatalogRoutes()
+ * @method static bool rememberAppCatalogSignIn(\Cbox\Id\Client\ValueObjects\CboxUser $user)
  * @method static \Cbox\Id\Client\ValueObjects\RefreshedTokens refresh(string $refreshToken, bool $remember = false)
  * @method static \Cbox\Id\Client\Contracts\Principal|null principal()
  * @method static \Cbox\Id\Client\ValueObjects\Organization|null currentOrganization()

@@ -32,6 +32,8 @@ container if you prefer constructor injection.
 - **[Feature flags, fine-grained authorization and Pipes](feature-flags-fga-and-pipes.md)** —
   `hasFeature()`, the `feature:` middleware and `@feature`; relationship checks with
   consistency tokens; leasing a person's connected-account token.
+- **[App catalog (Switch app)](app-catalog.md)** — serve the person's apps to the app
+  switcher with one route line, renewed on the server so nobody clicks "reconnect".
 - **[Back-channel logout](back-channel-logout.md)** — end a person's sessions in your
   app when they sign out of Cbox ID.
 - **[Protect your API](protect-your-api.md)** — verify a token presented *to* you,
