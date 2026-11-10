@@ -110,19 +110,22 @@ return [
     | App catalog (Switch app)
     |---------------------------------------------------------------------------
     |
-    | The person's apps, read from Cbox ID under their own grant and served by
+    | The person's apps, read from Cbox ID and served by
     | `CboxId::appCatalogRoutes()` as same-origin JSON for the app switcher.
     |
-    | `enabled` — sign-in asks for `account:apps:read` too, and the callback
-    | (`authenticate()`) seals the login token into the session, with no extra
-    | call. The first catalog read exchanges it for a catalog grant. Needs a
-    | server-side session driver.
+    | `mode` — `machine` (default): the app reads each person's catalog with its
+    | own client-credentials token (scope `app_catalog:resolve`), cached in the
+    | app's cache and served from there when Cbox ID is slow or down. Nothing
+    | is kept in the session and nobody is sent to sign in for it, unless the
+    | person has left the organization. While Cbox ID has not given the client
+    | `app_catalog:resolve` yet, reads fall back to `grant` and a warning is
+    | logged once an hour.
     |
-    | The grant is renewed on the server, never with a click: with the person's
-    | refresh token when the login asked for `offline_access` (add it to
-    | CBOX_ID_SCOPES — it is not added for you), else by sending the page to
-    | the sign-in route, which is a round trip the person does not see while
-    | their Cbox ID session lives.
+    | `grant` — the 0.19.0 flow: sign-in also asks for `account:apps:read`, the
+    | callback seals the login token (and the refresh token, with
+    | `offline_access`) into the session, and the catalog route exchanges it
+    | for a per-person grant and renews it on the server, or sends the page to
+    | sign in. Needs a server-side session driver.
     |
     | `signin_route` — a route name of your own sign-in launch to use instead
     | of the SDK's `cbox-id.apps.signin`. It is given `return_to` and
@@ -132,6 +135,7 @@ return [
 
     'app_catalog' => [
         'enabled' => (bool) env('CBOX_APP_CATALOG_ENABLED', false),
+        'mode' => env('CBOX_APP_CATALOG_MODE', 'machine'),
         'path' => env('CBOX_APP_CATALOG_PATH', '/apps/catalog'),
         'authorize_path' => '/apps/authorize',
         'callback_path' => '/apps/callback',
@@ -141,10 +145,12 @@ return [
         // sign-in route must not, because it is how a person signs in again.
         'middleware' => ['web', 'auth'],
         'signin_middleware' => ['web'],
-        // Renew this many seconds before the grant expires.
+        // Grant mode: renew this many seconds before the grant expires.
         'renew_before' => 300,
-        // The cache that holds the renewal lock and the newest rotated tokens. It
-        // must support locks and be shared by every web server.
+        // The cache that holds the machine-mode catalog (fresh for refresh_after,
+        // kept a day as the fallback answer) and, in grant mode, the renewal lock and
+        // the newest rotated tokens. It must support locks and be shared by every
+        // web server.
         'cache_store' => env('CBOX_APP_CATALOG_CACHE_STORE'),
     ],
 

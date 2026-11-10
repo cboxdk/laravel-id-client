@@ -5,6 +5,21 @@ their GitHub release pages.
 
 ## [Unreleased]
 
+## [0.19.2] - 2026-11-10
+
+### Changed
+
+- The app catalog reads the person's catalog with the app's own machine token by default (`app_catalog.mode`, `CBOX_APP_CATALOG_MODE=machine`): `GET {issuer}/api/v1/app-catalog/for-user?user_id=…&organization_id=…` with the cached `client_credentials` token for `app_catalog:resolve`, through `CBOX_INTERNAL_ROUTES` when set, with a 1 s connect and 2 s total timeout. The switcher no longer needs a sign-in hop or a reconnect: nothing per person is kept in the session. The 0.19.0 grant flow failed in production when a login callback was aborted, and for sessions from before 0.19 that had no token to renew with.
+- Answers are cached per issuer, client, person and organization in the catalog's cache store, fresh for `refresh_after` (at least 60 s). The last good answer is kept for 24 h and served (`200`, `refresh_after` 30) when Cbox ID errors, rate-limits or times out. With no earlier answer the route answers `503 {error: "catalog_unavailable"}`. A `404` from Cbox ID (the person is no longer an active member) answers `401 {signin_url}`. A refused machine token is dropped and asked for again once.
+- In machine mode, logins no longer ask for `account:apps:read`, and `authenticate()` keeps no login or refresh token for the catalog. `rememberAppCatalogSignIn()` returns `false`.
+- While Cbox ID has not given the client `app_catalog:resolve` (the token request is refused with `invalid_scope` or `unauthorized_client`, or the endpoint answers `403` `insufficient_scope`/`invalid_scope`), a read falls back to the grant flow. The warning is logged at most once an hour, and the machine read is retried after five minutes. While the fallback has been used within the hour, sign-ins prepare a grant again, so the fallback can actually get one.
+- `CBOX_APP_CATALOG_MODE=grant` keeps the 0.19.0 behaviour.
+
+### Fixed
+
+- The app catalog's sign-in loop guard was set when the catalog answered `401`, not when a sign-in happened, so a poll the page did not follow left the person on `503` for five minutes. It is now set when `/apps/signin` is opened, or when a grant-mode sign-in completes, which covers an app's own launch route. Inside five minutes of that the route answers `503`; after that it answers `401` again.
+- `CboxId::appCatalogRoutes()` no longer builds the identity client while routes load, so a test that sets the Cbox ID config after the routes are loaded gets that config.
+
 ## [0.19.1] - 2026-11-10
 
 ### Added

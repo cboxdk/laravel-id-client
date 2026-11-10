@@ -8,6 +8,7 @@ use Cbox\Id\Client\ApiKeys\ApiKeyVerifier;
 use Cbox\Id\Client\AppCatalog\AppCatalog;
 use Cbox\Id\Client\AppCatalog\AppCatalogStore;
 use Cbox\Id\Client\AppCatalog\CatalogGrantExchange;
+use Cbox\Id\Client\AppCatalog\MachineAppCatalog;
 use Cbox\Id\Client\AppCatalog\SessionAppCatalogContext;
 use Cbox\Id\Client\Authz\HttpPermissionDecisions;
 use Cbox\Id\Client\Authz\ManifestPublisher;
@@ -402,7 +403,23 @@ class ClientServiceProvider extends ServiceProvider
             $app->make(IdentityClient::class),
             self::appCatalogCache()['locks'],
             max(0, self::configInt('cbox-id-client.app_catalog.renew_before', 300)),
+            10,
+            self::appCatalogMode() === 'grant' ? null : $app->make(MachineAppCatalog::class),
         ));
+
+        $this->app->bind(MachineAppCatalog::class, static fn (Container $app): MachineAppCatalog => new MachineAppCatalog(
+            $app->make(Factory::class),
+            $app->make(IdentityClient::class),
+            self::appCatalogCache()['repository'],
+            self::configString('cbox-id-client.issuer'),
+            self::configString('cbox-id-client.client_id'),
+        ));
+    }
+
+    /** `machine` (the default) or `grant`; see the `app_catalog` config. */
+    private static function appCatalogMode(): string
+    {
+        return strtolower(self::configString('cbox-id-client.app_catalog.mode')) === 'grant' ? 'grant' : 'machine';
     }
 
     /**

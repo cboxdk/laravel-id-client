@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cbox\Id\Client\Facades;
 
+use Cbox\Id\Client\AppCatalog\AppCatalogRoutes;
 use Cbox\Id\Client\IdentityClient;
 use Cbox\Id\Client\Testing\CboxIdFake;
 use Illuminate\Support\Facades\Facade;
@@ -15,7 +16,6 @@ use Illuminate\Support\Facades\Facade;
  * @method static \Illuminate\Http\RedirectResponse createOrganization(list<string>|null $scopes = null)
  * @method static \Illuminate\Http\RedirectResponse addAccount(list<string>|null $scopes = null, ?string $state = null)
  * @method static \Cbox\Id\Client\ValueObjects\CboxUser authenticate(\Illuminate\Http\Request $request)
- * @method static void appCatalogRoutes()
  * @method static bool rememberAppCatalogSignIn(\Cbox\Id\Client\ValueObjects\CboxUser $user)
  * @method static \Cbox\Id\Client\ValueObjects\RefreshedTokens refresh(string $refreshToken, bool $remember = false)
  * @method static \Cbox\Id\Client\Contracts\Principal|null principal()
@@ -49,6 +49,18 @@ class CboxId extends Facade
     public static function fake(): CboxIdFake
     {
         return new CboxIdFake(static::getFacadeApplication() ?? app());
+    }
+
+    /**
+     * Register the app switcher's routes. See {@see AppCatalogRoutes}.
+     *
+     * Defined here rather than forwarded, so loading the routes never builds the
+     * identity client: a test that sets the Cbox ID config after the routes are loaded
+     * still gets a client with that config.
+     */
+    public static function appCatalogRoutes(): void
+    {
+        AppCatalogRoutes::register();
     }
 
     protected static function getFacadeAccessor(): string

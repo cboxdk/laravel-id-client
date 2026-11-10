@@ -50,6 +50,7 @@ beforeEach(function (): void {
         'cbox-id-client.redirect' => 'https://app.test/callback',
         'cbox-id-client.scopes' => ['openid', 'profile', 'email', 'offline_access'],
         'cbox-id-client.app_catalog.enabled' => true,
+        'cbox-id-client.app_catalog.mode' => 'grant',
         'session.driver' => 'array',
         'app.url' => 'https://app.test',
     ]);
@@ -620,14 +621,33 @@ it('answers 401 with where to sign in, never a reconnect link', function (): voi
     expect($response->json())->toBe(['signin_url' => '/apps/signin?return_to=%2Fprojects%2F42&organization=org_1']);
 });
 
-it('sends the page to sign in at most once per five minutes, so a broken exchange cannot loop', function (): void {
+it('marks a sign-in only when one starts, not when the catalog answers 401', function (): void {
     signInLocally($this);
 
+    // A 401 the page did not follow (a background poll, a closed tab) blocks nothing.
     $this->getJson('https://app.test/apps/catalog')->assertUnauthorized();
+    $this->getJson('https://app.test/apps/catalog')->assertUnauthorized();
+    expect(session()->has(AppCatalogController::SIGNIN_SENT_KEY))->toBeFalse();
+
+    // The page followed it: still no grant that soon after means 503, not another trip.
+    $this->get('https://app.test/apps/signin?return_to=/x&organization=org_1')->assertRedirect();
+    expect(session(AppCatalogController::SIGNIN_SENT_KEY))->toBeInt();
     $this->getJson('https://app.test/apps/catalog')->assertStatus(503)->assertExactJson(['error' => 'catalog_unavailable']);
 
+    // After the window, sign in again: 401, not 503.
     session()->put(AppCatalogController::SIGNIN_SENT_KEY, time() - 301);
     $this->getJson('https://app.test/apps/catalog')->assertUnauthorized();
+    $this->getJson('https://app.test/apps/catalog')->assertUnauthorized();
+});
+
+it('counts a completed sign-in as a sign-in sent, for an app\'s own launch route', function (): void {
+    $this->id->exchangeStatus = 400;
+    $this->id->refreshIssues = false;
+    app(IdentityClient::class)->authenticate(catalogCallback());
+
+    expect(session(AppCatalogController::SIGNIN_SENT_KEY))->toBeInt();
+    signInLocally($this);
+    $this->getJson('https://app.test/apps/catalog')->assertStatus(503);
 });
 
 it('takes the return path from the page when the request names none, and only a local one', function (string $referer, string $expected): void {

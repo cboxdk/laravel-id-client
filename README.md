@@ -182,11 +182,10 @@ Set `CBOX_APP_CATALOG_ENABLED=true` and add one line to `routes/web.php`:
 CboxId::appCatalogRoutes();
 ```
 
-`GET /apps/catalog` serves the person's apps as JSON. The sign-in callback only seals the
-login token (no extra call); the first read exchanges it for the grant, and the route
-renews it on the server with the person's refresh token
-(add `offline_access` to `CBOX_ID_SCOPES`). When only a new sign-in can help it answers
-`401 {signin_url}`, and the page goes there by itself. See
+`GET /apps/catalog` serves the person's apps as JSON. The app reads them with its own
+machine token (give the client `app_catalog:resolve`), caches them, and serves the last
+good answer when Cbox ID is slow or down. Login is untouched and nobody is sent to sign in
+for the catalog, unless they have left the organization. See
 [App catalog](docs/cookbook/app-catalog.md).
 
 ## Refresh tokens

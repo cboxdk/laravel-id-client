@@ -24,7 +24,7 @@ use Symfony\Component\HttpFoundation\Response;
  * The app switcher's same-origin endpoints. Thin: {@see AppCatalog} does the work.
  *
  *  - catalog   JSON `{apps, revision, refresh_after}`; 401 `{signin_url}` when only a
- *              sign-in can get a grant (the page navigates there by itself); 503
+ *              sign-in can help (the page navigates there by itself); 503
  *              `{error: catalog_unavailable}` when Cbox ID cannot answer right now.
  *  - authorize / callback  the browser flow for a catalog grant, kept for pages that
  *              still start it.
@@ -32,7 +32,7 @@ use Symfony\Component\HttpFoundation\Response;
  */
 final readonly class AppCatalogController
 {
-    /** When this session was last sent to sign in for a grant. Outlives the catalog's own keys. */
+    /** When this session last started a sign-in for the catalog. Outlives the catalog's own keys. */
     public const SIGNIN_SENT_KEY = 'cbox-id-client.app-catalog-signin-sent';
 
     public function __construct(
@@ -53,9 +53,12 @@ final readonly class AppCatalogController
         try {
             return self::json($this->catalog->read($session, $context));
         } catch (SignInRequired $e) {
-            // At most one trip through sign-in per five minutes. A second refusal that
-            // soon means the sign-in does not produce a grant (a client not allowed token
-            // exchange, say), and sending the page again would be a redirect loop.
+            // The page is sent to sign in at most once per five minutes. The mark is set
+            // when a sign-in actually starts (`/apps/signin`, or a completed sign-in),
+            // never by this answer: a 401 the page did not follow must not block the next
+            // one. Still no grant that soon after a sign-in means the sign-in does not
+            // produce one (a client not allowed token exchange, say), and sending the page
+            // again would be a redirect loop.
             $last = $session->get(self::SIGNIN_SENT_KEY);
 
             if (is_int($last) && $last > time() - 300) {
@@ -63,8 +66,6 @@ final readonly class AppCatalogController
 
                 return self::json(['error' => 'catalog_unavailable'], 503);
             }
-
-            $session->put(self::SIGNIN_SENT_KEY, time());
 
             return self::json(['signin_url' => self::signinUrl($request, $context)], 401);
         } catch (CatalogUnavailable) {
@@ -113,6 +114,7 @@ final readonly class AppCatalogController
     {
         $organization = $request->query('organization');
         $request->session()->put('url.intended', url(self::returnPath($request->query('return_to'))));
+        $request->session()->put(self::SIGNIN_SENT_KEY, time());
 
         return $identity->redirect(organization: self::organization($organization));
     }

@@ -338,7 +338,7 @@ class IdentityClient
             $this->sessions->remember(Identity::fromPrincipal($user));
         }
 
-        if ($this->appCatalogEnabled()) {
+        if ($this->appCatalogSignInGrant()) {
             $this->rememberAppCatalogSignIn($user);
         }
 
@@ -348,7 +348,8 @@ class IdentityClient
     /**
      * Register the app switcher's routes: the catalog JSON, the grant's authorize and
      * callback, and the sign-in launch. Call it once, from `routes/web.php`. See
-     * {@see AppCatalogRoutes}.
+     * {@see AppCatalogRoutes}. `CboxId::appCatalogRoutes()` registers them without
+     * building this client.
      */
     public function appCatalogRoutes(): void
     {
@@ -360,6 +361,7 @@ class IdentityClient
      * access token and the refresh token, sealed, in the session, for the first catalog
      * read to exchange. No network call. {@see authenticate()} does this itself when
      * `app_catalog.enabled` is on; call it when you build the `CboxUser` some other way.
+     * In machine mode (the default) there is nothing to prepare and it returns false.
      * Never throws.
      */
     public function rememberAppCatalogSignIn(CboxUser $user): bool
@@ -1084,9 +1086,10 @@ class IdentityClient
 
         $scopes = $scopes === [] ? ['openid', 'profile', 'email'] : $scopes;
 
-        // The login token is what the catalog grant is exchanged from, and an exchange
-        // never widens: the scope has to be on the login already.
-        if ($this->appCatalogEnabled() && ! in_array(AppCatalogStore::SCOPE, $scopes, true)) {
+        // In grant mode the login token is what the catalog grant is exchanged from, and
+        // an exchange never widens: the scope has to be on the login already. In machine
+        // mode the app reads the catalog with its own token and the login needs nothing.
+        if ($this->appCatalogSignInGrant() && ! in_array(AppCatalogStore::SCOPE, $scopes, true)) {
             $scopes[] = AppCatalogStore::SCOPE;
         }
 
@@ -1098,6 +1101,33 @@ class IdentityClient
         $catalog = $this->config['app_catalog'] ?? null;
 
         return is_array($catalog) && filter_var($catalog['enabled'] ?? false, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /**
+     * Whether a sign-in prepares the catalog's per-person grant: in grant mode, and in
+     * machine mode only while Cbox ID has not given this client `app_catalog:resolve`
+     * (the catalog fell back to the grant within the last hour).
+     */
+    private function appCatalogSignInGrant(): bool
+    {
+        if (! $this->appCatalogEnabled()) {
+            return false;
+        }
+
+        $catalog = $this->config['app_catalog'] ?? null;
+        $mode = is_array($catalog) && is_string($catalog['mode'] ?? null) ? strtolower($catalog['mode']) : 'machine';
+
+        if ($mode === 'grant') {
+            return true;
+        }
+
+        try {
+            return app(AppCatalog::class)->usesSignInGrant();
+        } catch (Throwable $e) {
+            report($e);
+
+            return false;
+        }
     }
 
     private function timeout(): int
