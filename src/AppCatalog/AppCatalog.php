@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cbox\Id\Client\AppCatalog;
 
+use Cbox\Id\Client\AppCatalog\Http\AppCatalogController;
 use Cbox\Id\Client\Exceptions\AuthenticationFailed;
 use Cbox\Id\Client\IdentityClient;
 use Cbox\Id\Client\PersonalAppCatalog;
@@ -17,7 +18,13 @@ use Throwable;
 /**
  * The app switcher's catalog, for one browser session.
  *
- * At sign-in, {@see rememberSignIn()} only seals the login access token and the person's
+ * Machine mode (the default, `app_catalog.mode`): the app reads the person's catalog
+ * with its own machine token, see {@see MachineAppCatalog}. Nothing is kept in the
+ * session and no sign-in is ever needed for the catalog, except when the person is no
+ * longer a member. While Cbox ID has not given this client `app_catalog:resolve` yet,
+ * a read falls back to the grant mode below.
+ *
+ * Grant mode: at sign-in, {@see rememberSignIn()} only seals the login access token and the person's
  * refresh token (when the login got one) into the session: no network call. {@see read()}
  * serves the catalog and gets the grant on the server when it is missing or about to
  * expire: exchange the login token while it lives, otherwise refresh the person's tokens
@@ -37,7 +44,17 @@ final readonly class AppCatalog
         private LockProvider $locks,
         private int $renewBefore = 300,
         private int $lockWait = 10,
+        private ?MachineAppCatalog $machine = null,
     ) {}
+
+    /**
+     * Whether sign-ins should prepare a per-person grant: always in grant mode, and in
+     * machine mode only while the fallback to the grant was needed within the last hour.
+     */
+    public function usesSignInGrant(): bool
+    {
+        return ! $this->machine instanceof MachineAppCatalog || $this->machine->grantFallbackActive();
+    }
 
     /**
      * Keep what the catalog will need from a sign-in that just completed: the login
@@ -50,7 +67,7 @@ final readonly class AppCatalog
      */
     public function rememberSignIn(Session $session, CboxUser $identity): bool
     {
-        if (self::cookieSessions() || $identity->id === '' || $identity->accessToken === ''
+        if (! $this->usesSignInGrant() || self::cookieSessions() || $identity->id === '' || $identity->accessToken === ''
             || array_key_exists('act', $identity->claims)) {
             return false;
         }
@@ -58,6 +75,11 @@ final readonly class AppCatalog
         // A new sign-in starts a new token family; the old one is not ours any more.
         $this->store->forgetRefreshToken($session, $identity->id);
         $this->store->forgetLoginToken($session);
+
+        // A sign-in just happened. If it still gives no grant, the catalog route answers
+        // 503 for a few minutes rather than sending the page straight back to sign in.
+        // (`/apps/signin` marks it too; this covers an app's own sign-in launch.)
+        $session->put(AppCatalogController::SIGNIN_SENT_KEY, time());
 
         $organization = $identity->organizationId !== null && $identity->organizationId !== '' ? $identity->organizationId : null;
         $kept = false;
@@ -90,6 +112,26 @@ final readonly class AppCatalog
      * @throws CatalogUnavailable when Cbox ID cannot answer right now
      */
     public function read(Session $session, AppCatalogContext $context): array
+    {
+        if ($this->machine instanceof MachineAppCatalog) {
+            try {
+                return $this->machine->read($context);
+            } catch (MachineCatalogRefused $e) {
+                // Not set up for the machine read yet: this request uses the person's grant.
+                $this->machine->noteFallback($e->getMessage());
+            }
+        }
+
+        return $this->readWithGrant($session, $context);
+    }
+
+    /**
+     * @return array{apps:list<array{key:string,name:string,description:?string,launch_url:string,icon_url:?string,icon_dark_url:?string}>,revision:string,refresh_after:int}
+     *
+     * @throws SignInRequired
+     * @throws CatalogUnavailable
+     */
+    private function readWithGrant(Session $session, AppCatalogContext $context): array
     {
         if (self::cookieSessions()) {
             throw CatalogUnavailable::because('The app catalog needs a server-side session driver; the cookie driver would put its credentials in the browser.');

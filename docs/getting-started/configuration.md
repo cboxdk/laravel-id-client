@@ -36,12 +36,13 @@ CBOX_ID_REDIRECT=https://app.acme.com/auth/callback
 | `organizations.picker` | `true` (`CBOX_ID_ORGANIZATION_PICKER`) | Send a browser without an organization to the hosted picker from `cbox-id.org`, instead of a 403. |
 | `management.key` | — (`CBOX_ID_MANAGEMENT_KEY`) | An environment API key (`cbid_env_…`) for `CboxIdManagement`. Server-side only. |
 | `management.url` | `{issuer}/api/v1` (`CBOX_ID_MANAGEMENT_URL`) | Base URL of the environment management API. |
-| `app_catalog.enabled` | `false` (`CBOX_APP_CATALOG_ENABLED`) | Ask for `account:apps:read` at login and prepare the app switcher's catalog grant in the callback. See [App catalog](../cookbook/app-catalog.md). |
+| `app_catalog.enabled` | `false` (`CBOX_APP_CATALOG_ENABLED`) | Turn on the app switcher's catalog. See [App catalog](../cookbook/app-catalog.md). |
+| `app_catalog.mode` | `machine` (`CBOX_APP_CATALOG_MODE`) | `machine`: the app reads each person's catalog with its own `app_catalog:resolve` token, cached and served stale when Cbox ID is down; login is untouched. `grant`: the 0.19.0 flow, where login asks for `account:apps:read` and the callback prepares a per-person grant. Machine mode falls back to `grant` while the client lacks `app_catalog:resolve`. |
 | `app_catalog.path` | `/apps/catalog` (`CBOX_APP_CATALOG_PATH`) | Where `CboxId::appCatalogRoutes()` serves the catalog JSON. `authorize_path`, `callback_path` and `signin_path` default to `/apps/authorize`, `/apps/callback` and `/apps/signin`. |
 | `app_catalog.signin_route` | none (`CBOX_APP_CATALOG_SIGNIN_ROUTE`) | Name of your own sign-in launch route, used instead of `/apps/signin` in a `401 {signin_url}`. |
 | `app_catalog.middleware` | `['web', 'auth']` | Middleware of the catalog, authorize and callback routes. `signin_middleware` (`['web']`) is the sign-in route's. |
-| `app_catalog.renew_before` | `300` | Renew the grant this many seconds before it expires. |
-| `app_catalog.cache_store` | default cache (`CBOX_APP_CATALOG_CACHE_STORE`) | Holds the renewal lock and the newest rotated tokens. Must support locks and be shared by every web server. |
+| `app_catalog.renew_before` | `300` | Grant mode: renew the grant this many seconds before it expires. |
+| `app_catalog.cache_store` | default cache (`CBOX_APP_CATALOG_CACHE_STORE`) | Holds the machine-mode catalog (fresh for `refresh_after`, at least 60 s; the last good answer for 24 h) and, in grant mode, the renewal lock and the newest rotated tokens. Must support locks and be shared by every web server. |
 | `backchannel_logout.enabled` | `false` (`CBOX_ID_BACKCHANNEL_LOGOUT`) | Mount the back-channel logout receiver and sign out ended sessions. See [Back-channel logout](../cookbook/back-channel-logout.md). |
 | `backchannel_logout.path` | `/cbox-id/backchannel-logout` (`CBOX_ID_BACKCHANNEL_LOGOUT_PATH`) | Where the receiver listens — register `{app_url}{path}` in the console. |
 | `backchannel_logout.cache_store` | default cache (`CBOX_ID_BACKCHANNEL_LOGOUT_CACHE`) | Holds the replay cache, session index and revocation list. Must be shared by every web server. |

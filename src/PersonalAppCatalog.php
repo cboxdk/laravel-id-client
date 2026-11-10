@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cbox\Id\Client;
 
+use Cbox\Id\Client\AppCatalog\CatalogPayload;
 use Cbox\Id\Client\Exceptions\AuthenticationFailed;
 use Cbox\Id\Client\Support\HttpTimeouts;
 use Cbox\Id\Client\ValueObjects\ResourceAuthorizationResult;
@@ -33,47 +34,8 @@ final readonly class PersonalAppCatalog
         if ($response->unauthorized() || $response->forbidden()) {
             throw AuthenticationFailed::because('ID refused this app catalog grant.');
         }
-        $rows = $response->json('data');
-        $revision = $response->json('meta.revision');
-        $refresh = $response->json('meta.refresh_after');
-        if (! $response->successful() || ! is_array($rows) || ! array_is_list($rows) || ! is_string($revision)
-            || ! preg_match('/^[a-f0-9]{64}$/D', $revision) || ! is_int($refresh) || $refresh < 1) {
-            throw new \RuntimeException('ID app catalog response is unavailable or malformed.');
-        }
-        $apps = [];
-        foreach ($rows as $row) {
-            if (! is_array($row) || ! is_string($row['key'] ?? null) || ! preg_match('/^[a-z][a-z0-9_-]{0,63}$/D', $row['key'])
-                || ! is_string($row['name'] ?? null) || $row['name'] === '' || isset($apps[$row['key']])
-                || ! self::secureUrl($row['launch_url'] ?? null)) {
-                throw new \RuntimeException('ID returned an invalid app catalog entry.');
-            }
-            $icon = self::icon($row['icon_url'] ?? null, $issuer);
-            $dark = self::icon($row['icon_dark_url'] ?? null, $issuer);
-            $description = $row['description'] ?? null;
-            $apps[$row['key']] = ['key' => $row['key'], 'name' => $row['name'], 'description' => is_string($description) ? $description : null,
-                'launch_url' => $row['launch_url'], 'icon_url' => $icon, 'icon_dark_url' => $dark];
-        }
+        $catalog = CatalogPayload::parse($response, $issuer);
 
-        return ['apps' => array_values($apps), 'revision' => $revision, 'refresh_after' => min(60, $refresh, max(0, $grant->expiresAt - time()))];
-    }
-
-    /** An icon is served by ID itself: null, or an HTTPS URL on the issuer. */
-    private static function icon(mixed $url, string $issuer): ?string
-    {
-        if ($url === null) {
-            return null;
-        }
-        if (! self::secureUrl($url) || ! str_starts_with($url, $issuer.'/')) {
-            throw new \RuntimeException('ID returned an invalid catalog icon origin.');
-        }
-
-        return $url;
-    }
-
-    /** @phpstan-assert-if-true string $url */
-    private static function secureUrl(mixed $url): bool
-    {
-        return is_string($url) && filter_var($url, FILTER_VALIDATE_URL) !== false && parse_url($url, PHP_URL_SCHEME) === 'https'
-            && parse_url($url, PHP_URL_USER) === null && ! str_contains($url, '\\');
+        return [...$catalog, 'refresh_after' => min(60, $catalog['refresh_after'], max(0, $grant->expiresAt - time()))];
     }
 }
