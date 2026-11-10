@@ -19,7 +19,9 @@ use Cbox\Id\Client\Shell\OrganizationLevel;
 use Cbox\Id\Client\Shell\SessionOrganizationDirectory;
 use Cbox\Id\Client\Testing\CboxIdFake;
 use Cbox\Id\Client\Tests\Fixtures\LocalUser;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -133,9 +135,28 @@ it('asks an Inertia visit to make the round trip as a full page load', function 
     $this->get('/orgs/acme', ['X-Inertia' => 'true'])
         ->assertStatus(409)
         ->assertHeader('X-Inertia-Location');
+});
 
-    session()->forget(BindOrganizationFromUrl::ATTEMPT_KEY);
-    $this->getJson('/orgs/acme')->assertStatus(409)->assertJsonPath('error', 'organization_rebind');
+it('tells a JSON call where to load the page, and leaves the session alone', function (): void {
+    $this->getJson('/orgs/acme')->assertStatus(409)
+        ->assertJsonPath('error', 'organization_rebind')
+        ->assertJsonPath('location', 'http://localhost/orgs/acme');
+
+    expect(session()->has(BindOrganizationFromUrl::ATTEMPT_KEY))->toBeFalse()
+        ->and(session()->has('url.intended'))->toBeFalse();
+});
+
+it('never re-binds a POST from a stale tab: 409, the body is not dropped into a redirect', function (): void {
+    Route::middleware(['web', 'auth', 'cbox-id.org-url'])->post('/orgs/{org}/invoices', fn () => 'created');
+
+    $this->withoutMiddleware(ValidateCsrfToken::class)
+        ->from('/orgs/acme/invoices')
+        ->post('/orgs/acme/invoices', ['amount' => 100])
+        ->assertStatus(409)
+        ->assertJsonPath('location', 'http://localhost/orgs/acme/invoices');
+
+    expect(session()->has(BindOrganizationFromUrl::ATTEMPT_KEY))->toBeFalse()
+        ->and(session()->has('url.intended'))->toBeFalse();
 });
 
 it('refuses rather than loops when Cbox ID comes back still bound elsewhere', function (): void {
@@ -147,8 +168,33 @@ it('refuses rather than loops when Cbox ID comes back still bound elsewhere', fu
     $this->get('/orgs/acme')->assertRedirect();
 });
 
-it('answers 404 for an organization the person does not belong to', function (): void {
+it('refreshes the sign-in once for an organization it does not know, then answers 404', function (): void {
+    $response = $this->get('/orgs/globex/settings')->assertRedirect();
+    parse_str((string) parse_url($response->headers->get('Location'), PHP_URL_QUERY), $query);
+
+    // Still bound to the current organization: only the organizations claim is renewed.
+    expect($response->headers->get('Location'))->toStartWith(CboxIdFake::ISSUER)
+        ->and($query['organization'] ?? null)->toBe('org_1')
+        ->and(session('url.intended'))->toBe('http://localhost/orgs/globex/settings');
+
+    // Back from Cbox ID, and Globex is still not one of theirs.
     $this->get('/orgs/globex/settings')->assertNotFound();
+    $this->getJson('/orgs/initech')->assertNotFound();
+});
+
+it('finds an organization the person joined after signing in, after the refresh', function (): void {
+    $this->get('/orgs/globex')->assertRedirect();
+
+    $this->cbox->actingAs('usr_1', organization: 'org_1', role: OrganizationRole::Owner, organizationName: 'Cbox', claims: [
+        'organizations' => [
+            ['id' => 'org_1', 'name' => 'Cbox', 'slug' => 'cbox', 'role' => 'owner'],
+            ['id' => 'org_3', 'name' => 'Globex', 'slug' => 'globex', 'role' => 'member'],
+        ],
+    ]);
+
+    // Known now, bound elsewhere: the usual silent re-bind.
+    parse_str((string) parse_url($this->get('/orgs/globex')->assertRedirect()->headers->get('Location'), PHP_URL_QUERY), $query);
+    expect($query['organization'])->toBe('org_3');
 });
 
 it('pins a support session to its organization', function (): void {
@@ -184,18 +230,25 @@ it('says why when Cbox ID refuses the name or is unreachable', function (): void
         ->assertUnprocessable()->assertJsonPath('errors.name.0', 'That slug is already in use.');
 });
 
-it('falls back to Cbox ID\'s hosted create step without a management key', function (): void {
+it('offers no "New organization" without a management key, and never sends the person to Cbox ID to create one', function (): void {
     app()->instance(Management::class, new HttpManagementClient('', '', 5));
     app()->forgetInstance(OrganizationLevel::class);
     Console::shell()->levels(app(OrganizationLevel::class));
 
-    $response = $this->postJson('/shell/context/organization', ['name' => 'Globex'])->assertCreated();
-    parse_str((string) parse_url($response->json('detailsUrl'), PHP_URL_QUERY), $query);
+    $shell = $this->getJson('/shell-prop/orgs/cbox/settings')->assertOk()->json();
+    expect($shell['context']['levels'][0])->not->toHaveKey('createUrl');
 
-    expect($response->json('id'))->toBeNull()
-        ->and($response->json('detailsUrl'))->toStartWith(CboxIdFake::ISSUER)
-        ->and($query['prompt'])->toBe('create_organization')
-        ->and(session('url.intended'))->toBe('http://localhost/orgs');
+    $this->postJson('/shell/context/organization', ['name' => 'Globex'])->assertForbidden();
+});
+
+it('offers no "New organization" in a support session', function (): void {
+    actAsMemberOf($this->cbox, 'org_1', actor: 'usr_support');
+
+    $shell = $this->getJson('/shell-prop/orgs/cbox/settings')->assertOk()->json();
+    expect($shell['context']['levels'][0])->not->toHaveKey('createUrl');
+
+    $this->postJson('/shell/context/organization', ['name' => 'Globex'])->assertForbidden();
+    $this->cbox->management()->assertNothingCalled();
 });
 
 it('pages and searches the session directory, falling back to the id for a missing slug', function (): void {
@@ -229,4 +282,19 @@ it('knows no organizations without a principal', function (): void {
         ->and($level->find($request, 'org_1', []))->toBeNull()
         ->and($level->url(new ContextItem('org_1', 'Cbox', 'cbox'), []))->toBe('/orgs/cbox')
         ->and($level->allUrl([]))->toBe('/orgs');
+});
+
+it('warns once when the session directory is used outside local and testing', function (): void {
+    $reset = fn () => (new ReflectionClass(SessionOrganizationDirectory::class))->setStaticPropertyValue('warned', false);
+    $reset();
+    Log::spy();
+
+    app()->detectEnvironment(fn () => 'production');
+    app(SessionOrganizationDirectory::class);
+    app(SessionOrganizationDirectory::class);
+
+    Log::shouldHaveReceived('warning')->once()->withArgs(fn (string $message) => str_contains($message, 'webhook mirror'));
+
+    app()->detectEnvironment(fn () => 'testing');
+    $reset();
 });

@@ -11,6 +11,7 @@ use Cbox\Id\Client\Support\Claims;
 use Cbox\Id\Client\Tenancy\CurrentPrincipal;
 use Cbox\Id\Client\ValueObjects\Identity;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 /**
  * The default {@see OrganizationDirectory}: the organizations the person signed in with.
@@ -18,16 +19,28 @@ use Illuminate\Http\Request;
  * `org`), plus any organization created in this session. Local, no call to Cbox ID.
  *
  * It knows only what the last sign-in said. An organization the person joined since then
- * shows up after their next sign-in or organization switch. An app that mirrors
- * memberships by webhook should bind its own directory over that table.
+ * shows up after their next sign-in (the `cbox-id.org-url` middleware refreshes the sign-in
+ * once when a URL names a slug it does not know). A slug the claim does not carry falls
+ * back to the id, so the URL still resolves, but reads `/orgs/org_…`.
  *
- * A slug the claim does not carry falls back to the id, so the URL still resolves.
+ * NOT FOR PRODUCTION. It is the zero-setup default for local work and tests. A production
+ * app binds an {@see OrganizationDirectory} over its webhook mirror of Cbox ID's
+ * organizations and memberships; outside `local` and `testing` this one logs a warning
+ * (once per process) when it is used.
  */
 class SessionOrganizationDirectory implements OrganizationDirectory
 {
     public const SESSION_KEY = 'cbox-id-client.shell.created-organizations';
 
-    public function __construct(private readonly CurrentPrincipal $principals) {}
+    private static bool $warned = false;
+
+    public function __construct(private readonly CurrentPrincipal $principals)
+    {
+        if (! self::$warned && ! app()->environment(['local', 'testing'])) {
+            self::$warned = true;
+            Log::warning('Cbox ID: the shell uses SessionOrganizationDirectory, which only knows the organizations of the last sign-in. Bind an OrganizationDirectory over your webhook mirror in production.');
+        }
+    }
 
     public function organizations(Request $request, ?string $search = null, ?string $cursor = null, int $limit = 25): MirroredOrganizationPage
     {
