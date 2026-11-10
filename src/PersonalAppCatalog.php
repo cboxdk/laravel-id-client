@@ -16,7 +16,7 @@ final readonly class PersonalAppCatalog
 {
     public function __construct(private Factory $http, private string $issuer) {}
 
-    /** @return array{apps:list<array{key:string,name:string,description:?string,launch_url:string,icon_url:?string,icon_dark_url:?string}>,revision:string,refresh_after:int} */
+    /** @return array{apps:list<array{key:string,name:string,description:?string,launch_url:?string,icon_url:?string,icon_dark_url:?string,purpose:?string,hue:?string,admission_url:?string,enabled:bool}>,revision:string,refresh_after:int} */
     public function read(ResourceAuthorizationResult $grant, string $subject, string $organization): array
     {
         $issuer = rtrim($this->issuer, '/');

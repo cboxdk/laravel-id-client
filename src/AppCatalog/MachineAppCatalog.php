@@ -54,7 +54,7 @@ final readonly class MachineAppCatalog
     ) {}
 
     /**
-     * @return array{apps:list<array{key:string,name:string,description:?string,launch_url:string,icon_url:?string,icon_dark_url:?string}>,revision:string,refresh_after:int}
+     * @return array{apps:list<array{key:string,name:string,description:?string,launch_url:?string,icon_url:?string,icon_dark_url:?string,purpose:?string,hue:?string,admission_url:?string,enabled:bool}>,revision:string,refresh_after:int}
      *
      * @throws SignInRequired when the person is no longer an active member of the organization
      * @throws CatalogUnavailable when Cbox ID cannot answer and there is no earlier answer
@@ -118,7 +118,7 @@ final readonly class MachineAppCatalog
     }
 
     /**
-     * @return array{apps:list<array{key:string,name:string,description:?string,launch_url:string,icon_url:?string,icon_dark_url:?string}>,revision:string,refresh_after:int}
+     * @return array{apps:list<array{key:string,name:string,description:?string,launch_url:?string,icon_url:?string,icon_dark_url:?string,purpose:?string,hue:?string,admission_url:?string,enabled:bool}>,revision:string,refresh_after:int}
      */
     private function fetch(AppCatalogContext $context, bool $retried = false): array
     {
@@ -192,17 +192,18 @@ final readonly class MachineAppCatalog
     }
 
     /**
-     * @return array{payload: array{apps:list<array{key:string,name:string,description:?string,launch_url:string,icon_url:?string,icon_dark_url:?string}>,revision:string,refresh_after:int}, fresh_until: int}|null
+     * @return array{payload: array{apps:list<array{key:string,name:string,description:?string,launch_url:?string,icon_url:?string,icon_dark_url:?string,purpose:?string,hue:?string,admission_url:?string,enabled:bool}>,revision:string,refresh_after:int}, fresh_until: int}|null
      */
     private function kept(string $key): ?array
     {
         $kept = $this->cache->get($key);
 
-        if (! is_array($kept) || ! is_int($kept['fresh_until'] ?? null) || ! is_array($kept['payload'] ?? null)) {
+        if (! is_array($kept) || ! is_int($kept['fresh_until'] ?? null) || ! is_array($kept['payload'] ?? null)
+            || ! CatalogPayload::isCurrent($kept['payload'])) {
             return null;
         }
 
-        /** @var array{payload: array{apps:list<array{key:string,name:string,description:?string,launch_url:string,icon_url:?string,icon_dark_url:?string}>,revision:string,refresh_after:int}, fresh_until: int} $kept */
+        /** @var array{payload: array{apps:list<array{key:string,name:string,description:?string,launch_url:?string,icon_url:?string,icon_dark_url:?string,purpose:?string,hue:?string,admission_url:?string,enabled:bool}>,revision:string,refresh_after:int}, fresh_until: int} $kept */
         return $kept;
     }
 

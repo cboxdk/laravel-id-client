@@ -328,3 +328,21 @@ it('registers the routes without building the identity client', function (): voi
 
     expect(app('router')->getRoutes()->match(Request::create('https://app.test/switcher/catalog'))->getName())->toBe('cbox-id.apps.catalog');
 });
+
+it('reads again past an answer an older SDK cached without the new fields', function (): void {
+    machineSignIn($this);
+
+    $this->getJson('https://app.test/apps/catalog')->assertOk();
+    expect($this->id->catalogReads)->toBe(1);
+
+    // Rewrite the kept answer into the 0.19 shape: no enabled, no admission_url.
+    $store = Cache::store();
+    $key = collect(array_keys((fn () => $this->storage)->call($store->getStore())))
+        ->first(fn (string $k) => str_contains($k, 'app-catalog:machine:catalog:'));
+    $kept = $store->get($key);
+    $kept['payload']['apps'] = array_map(fn (array $app) => array_diff_key($app, ['enabled' => 1, 'admission_url' => 1, 'purpose' => 1, 'hue' => 1]), $kept['payload']['apps']);
+    $store->put($key, $kept, 3600);
+
+    $this->getJson('https://app.test/apps/catalog')->assertOk()->assertJsonPath('apps.0.enabled', true);
+    expect($this->id->catalogReads)->toBe(2);
+});
