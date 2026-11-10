@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Cbox\Id\Client;
 
 use Cbox\Id\Client\ApiKeys\ApiKeyVerifier;
+use Cbox\Id\Client\AppCatalog\AppCatalog;
+use Cbox\Id\Client\AppCatalog\AppCatalogRoutes;
+use Cbox\Id\Client\AppCatalog\AppCatalogStore;
 use Cbox\Id\Client\Contracts\Principal;
 use Cbox\Id\Client\Contracts\VerifiesApiKeys;
 use Cbox\Id\Client\Enums\Prompt;
@@ -30,6 +33,7 @@ use Cbox\Id\Client\ValueObjects\VerifiedApiKey;
 use Cbox\Id\Client\Webhooks\StandardWebhookSignature;
 use Firebase\JWT\JWK;
 use Firebase\JWT\JWT;
+use Illuminate\Contracts\Session\Session;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -334,7 +338,45 @@ class IdentityClient
             $this->sessions->remember(Identity::fromPrincipal($user));
         }
 
+        if ($this->appCatalogEnabled()) {
+            $this->rememberAppCatalogSignIn($user);
+        }
+
         return $user;
+    }
+
+    /**
+     * Register the app switcher's routes: the catalog JSON, the grant's authorize and
+     * callback, and the sign-in launch. Call it once, from `routes/web.php`. See
+     * {@see AppCatalogRoutes}.
+     */
+    public function appCatalogRoutes(): void
+    {
+        AppCatalogRoutes::register();
+    }
+
+    /**
+     * Prepare the app catalog from a sign-in this request just verified: keep the login
+     * access token and the refresh token, sealed, in the session, for the first catalog
+     * read to exchange. No network call. {@see authenticate()} does this itself when
+     * `app_catalog.enabled` is on; call it when you build the `CboxUser` some other way.
+     * Never throws.
+     */
+    public function rememberAppCatalogSignIn(CboxUser $user): bool
+    {
+        $session = session()->driver();
+
+        if (! $session instanceof Session) {
+            return false;
+        }
+
+        try {
+            return app(AppCatalog::class)->rememberSignIn($session, $user);
+        } catch (Throwable $e) {
+            report($e);
+
+            return false;
+        }
     }
 
     /**
@@ -1040,7 +1082,22 @@ class IdentityClient
 
         $scopes = is_array($scopes) ? array_values(array_filter($scopes, static fn (mixed $s): bool => is_string($s) && $s !== '')) : [];
 
-        return $scopes === [] ? ['openid', 'profile', 'email'] : $scopes;
+        $scopes = $scopes === [] ? ['openid', 'profile', 'email'] : $scopes;
+
+        // The login token is what the catalog grant is exchanged from, and an exchange
+        // never widens: the scope has to be on the login already.
+        if ($this->appCatalogEnabled() && ! in_array(AppCatalogStore::SCOPE, $scopes, true)) {
+            $scopes[] = AppCatalogStore::SCOPE;
+        }
+
+        return $scopes;
+    }
+
+    private function appCatalogEnabled(): bool
+    {
+        $catalog = $this->config['app_catalog'] ?? null;
+
+        return is_array($catalog) && filter_var($catalog['enabled'] ?? false, FILTER_VALIDATE_BOOLEAN);
     }
 
     private function timeout(): int

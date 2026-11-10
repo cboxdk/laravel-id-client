@@ -5,6 +5,17 @@ their GitHub release pages.
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-11-10
+
+### Added
+
+- App catalog module (`Cbox\Id\Client\AppCatalog`), replacing the copy every Cbox app kept in `app/Chrome`. `CboxId::appCatalogRoutes()` registers `GET /apps/catalog` (JSON `{apps, revision, refresh_after}` in Cbox ID's order), `/apps/authorize`, `/apps/callback` and `/apps/signin`.
+- With `app_catalog.enabled` (`CBOX_APP_CATALOG_ENABLED`), logins also ask for `account:apps:read`, and `authenticate()` seals the login access token (until it expires) and the refresh token (when there is one) into the session. No extra call to Cbox ID: the callback stays an SSO hop. `CboxId::rememberAppCatalogSignIn($user)` does the same for a `CboxUser` built another way.
+- The catalog route gets a grant on the server when it is missing or within five minutes of expiry: exchange the login token while it is valid (RFC 8693, DPoP-bound) and drop it; otherwise refresh the person's tokens, store the rotated refresh token, and exchange the new access token. It runs under a cache lock per session, and reads the newest rotated token from the cache, so a spent refresh token is never presented. When only a sign-in can help it answers `401 {signin_url}` (your app's sign-in with `return_to` and `organization`), at most once per five minutes; when Cbox ID is down, `503 {error: catalog_unavailable}`.
+- `Contracts\ResolvesAppCatalogContext` decides whose catalog a request reads. The default is the session's signed-in identity; bind your own when the URL names the organization.
+- Grants are kept only when signed for exactly this person, organization and client, with no `act`, exactly `account:apps:read`, audience `{issuer}/mcp` and our DPoP key. The cookie session driver is refused. `Logout` forgets the grant and the refresh token.
+- `offline_access` is not added for you. Without it Cbox ID issues no refresh token: the first grant still comes from the login token, but an expired grant means one trip through sign-in instead of a server-side renewal.
+
 ## [0.18.2] - 2026-11-10
 
 ### Added

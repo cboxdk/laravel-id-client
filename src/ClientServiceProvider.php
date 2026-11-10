@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace Cbox\Id\Client;
 
 use Cbox\Id\Client\ApiKeys\ApiKeyVerifier;
+use Cbox\Id\Client\AppCatalog\AppCatalog;
+use Cbox\Id\Client\AppCatalog\AppCatalogStore;
+use Cbox\Id\Client\AppCatalog\CatalogGrantExchange;
+use Cbox\Id\Client\AppCatalog\SessionAppCatalogContext;
 use Cbox\Id\Client\Authz\HttpPermissionDecisions;
 use Cbox\Id\Client\Authz\ManifestPublisher;
 use Cbox\Id\Client\BackchannelLogout\LogoutTokenVerifier;
@@ -16,6 +20,7 @@ use Cbox\Id\Client\Contracts\HasFeatureFlags;
 use Cbox\Id\Client\Contracts\KeptPermissionDecisions;
 use Cbox\Id\Client\Contracts\Management;
 use Cbox\Id\Client\Contracts\PermissionDecisions;
+use Cbox\Id\Client\Contracts\ResolvesAppCatalogContext;
 use Cbox\Id\Client\Contracts\ServiceConnections;
 use Cbox\Id\Client\Contracts\UserProperties;
 use Cbox\Id\Client\Contracts\VerifiesApiKeys;
@@ -57,11 +62,14 @@ use Cbox\Id\Client\Webhooks\WebhookHandlers;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Contracts\Auth\Access\Gate;
+use Illuminate\Contracts\Cache\LockProvider;
+use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Contracts\Container\Container;
 use Illuminate\Contracts\Encryption\StringEncrypter;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
+use Illuminate\Contracts\Session\Session;
 use Illuminate\Foundation\Http\Kernel as FoundationHttpKernel;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Routing\Router;
@@ -176,6 +184,7 @@ class ClientServiceProvider extends ServiceProvider
         });
 
         $this->app->bind(PersonalAppCatalog::class, static fn () => new PersonalAppCatalog(app(Factory::class), self::configString('cbox-id-client.issuer')));
+        $this->registerAppCatalog();
         $this->app->bind(UserProperties::class, static fn () => new HttpUserProperties(
             app(Factory::class), self::configString('cbox-id-client.issuer'), self::configInt('cbox-id-client.http_timeout', 10),
         ));
@@ -364,6 +373,60 @@ class ClientServiceProvider extends ServiceProvider
     }
 
     /**
+     * The app switcher's catalog. Bound, not singletons: each resolves the HTTP factory,
+     * the identity client and the cache when it is used, so a test can swap any of them.
+     */
+    private function registerAppCatalog(): void
+    {
+        $this->app->bind(ResolvesAppCatalogContext::class, SessionAppCatalogContext::class);
+
+        $this->app->bind(AppCatalogStore::class, static fn (): AppCatalogStore => new AppCatalogStore(
+            self::appCatalogCache()['repository'],
+            self::configString('cbox-id-client.issuer'),
+            self::configString('cbox-id-client.client_id'),
+            self::configInt('session.lifetime', 120) * 60,
+        ));
+
+        $this->app->bind(CatalogGrantExchange::class, static fn (Container $app): CatalogGrantExchange => new CatalogGrantExchange(
+            $app->make(Factory::class),
+            new Discovery(self::configString('cbox-id-client.issuer'), self::configInt('cbox-id-client.cache_ttl', 3600), self::configInt('cbox-id-client.http_timeout', 10)),
+            self::configString('cbox-id-client.issuer'),
+            self::configString('cbox-id-client.client_id'),
+            self::configString('cbox-id-client.client_secret'),
+        ));
+
+        $this->app->bind(AppCatalog::class, static fn (Container $app): AppCatalog => new AppCatalog(
+            $app->make(AppCatalogStore::class),
+            $app->make(CatalogGrantExchange::class),
+            $app->make(PersonalAppCatalog::class),
+            $app->make(IdentityClient::class),
+            self::appCatalogCache()['locks'],
+            max(0, self::configInt('cbox-id-client.app_catalog.renew_before', 300)),
+        ));
+    }
+
+    /**
+     * The cache the catalog keeps its newest tokens and its renewal lock in.
+     *
+     * @return array{repository: Repository, locks: LockProvider}
+     */
+    private static function appCatalogCache(): array
+    {
+        $name = self::configString('cbox-id-client.app_catalog.cache_store');
+        $repository = Cache::store($name !== '' ? $name : null);
+        $store = $repository->getStore();
+
+        if (! $store instanceof LockProvider) {
+            throw ClientConfigurationException::because(
+                'The app catalog needs a cache store with locks (redis, database, memcached, file or array). '.
+                'Set CBOX_APP_CATALOG_CACHE_STORE to one.',
+            );
+        }
+
+        return ['repository' => $repository, 'locks' => $store];
+    }
+
+    /**
      * `CBOX_INTERNAL_ROUTES`: HTTPS calls to the listed public hosts go to their
      * in-cluster address instead. Registered on the application's HTTP client factory,
      * so it covers this package's calls and the application's own `Http::` calls, and
@@ -473,6 +536,18 @@ class ClientServiceProvider extends ServiceProvider
 
         Event::listen(Logout::class, function (): void {
             $this->app->make(SessionIdentityStore::class)->forget();
+
+            // The catalog's grant and the person's refresh token leave with them.
+            $session = $this->app->bound('session.store') ? $this->app->make('session.store') : null;
+
+            if ($session instanceof Session && $session->has(AppCatalogStore::SESSION_KEY)) {
+                try {
+                    $this->app->make(AppCatalog::class)->forget($session);
+                } catch (Throwable $e) {
+                    $session->forget(AppCatalogStore::SESSION_KEY);
+                    report($e);
+                }
+            }
         });
     }
 

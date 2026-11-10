@@ -174,6 +174,21 @@ no nonce, replay). Sessions are deleted at once on the database and redis driver
 on the next request on the cookie driver. See
 [Back-channel logout](docs/cookbook/back-channel-logout.md).
 
+## App catalog (Switch app)
+
+Set `CBOX_APP_CATALOG_ENABLED=true` and add one line to `routes/web.php`:
+
+```php
+CboxId::appCatalogRoutes();
+```
+
+`GET /apps/catalog` serves the person's apps as JSON. The sign-in callback only seals the
+login token (no extra call); the first read exchanges it for the grant, and the route
+renews it on the server with the person's refresh token
+(add `offline_access` to `CBOX_ID_SCOPES`). When only a new sign-in can help it answers
+`401 {signin_url}`, and the page goes there by itself. See
+[App catalog](docs/cookbook/app-catalog.md).
+
 ## Refresh tokens
 
 Ask for `offline_access` (in `CBOX_ID_SCOPES`), then:

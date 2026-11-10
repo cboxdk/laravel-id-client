@@ -107,6 +107,49 @@ return [
 
     /*
     |---------------------------------------------------------------------------
+    | App catalog (Switch app)
+    |---------------------------------------------------------------------------
+    |
+    | The person's apps, read from Cbox ID under their own grant and served by
+    | `CboxId::appCatalogRoutes()` as same-origin JSON for the app switcher.
+    |
+    | `enabled` — sign-in asks for `account:apps:read` too, and the callback
+    | (`authenticate()`) seals the login token into the session, with no extra
+    | call. The first catalog read exchanges it for a catalog grant. Needs a
+    | server-side session driver.
+    |
+    | The grant is renewed on the server, never with a click: with the person's
+    | refresh token when the login asked for `offline_access` (add it to
+    | CBOX_ID_SCOPES — it is not added for you), else by sending the page to
+    | the sign-in route, which is a round trip the person does not see while
+    | their Cbox ID session lives.
+    |
+    | `signin_route` — a route name of your own sign-in launch to use instead
+    | of the SDK's `cbox-id.apps.signin`. It is given `return_to` and
+    | `organization` query parameters.
+    |
+    */
+
+    'app_catalog' => [
+        'enabled' => (bool) env('CBOX_APP_CATALOG_ENABLED', false),
+        'path' => env('CBOX_APP_CATALOG_PATH', '/apps/catalog'),
+        'authorize_path' => '/apps/authorize',
+        'callback_path' => '/apps/callback',
+        'signin_path' => '/apps/signin',
+        'signin_route' => env('CBOX_APP_CATALOG_SIGNIN_ROUTE'),
+        // The catalog, authorize and callback routes need a signed-in person; the
+        // sign-in route must not, because it is how a person signs in again.
+        'middleware' => ['web', 'auth'],
+        'signin_middleware' => ['web'],
+        // Renew this many seconds before the grant expires.
+        'renew_before' => 300,
+        // The cache that holds the renewal lock and the newest rotated tokens. It
+        // must support locks and be shared by every web server.
+        'cache_store' => env('CBOX_APP_CATALOG_CACHE_STORE'),
+    ],
+
+    /*
+    |---------------------------------------------------------------------------
     | Authorization
     |---------------------------------------------------------------------------
     |
