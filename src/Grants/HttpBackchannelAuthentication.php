@@ -13,7 +13,7 @@ use Cbox\Id\Client\ValueObjects\TokenResult;
 use Illuminate\Http\Client\Factory;
 
 /**
- * OpenID CIBA Core 1.0, poll mode, against a Cbox ID issuer.
+ * OpenID CIBA Core 1.0, poll or ping mode, against a Cbox ID issuer.
  *
  * Outside a Laravel application (a CLI, a worker):
  *
@@ -26,6 +26,9 @@ class HttpBackchannelAuthentication extends PollingGrant implements BackchannelA
 
     /** The longest binding message Cbox ID shows. */
     public const int BINDING_MESSAGE_MAX = 255;
+
+    /** CIBA Core §7.1: a client_notification_token is at most 1024 characters. */
+    public const int CLIENT_NOTIFICATION_TOKEN_MAX = 1024;
 
     public static function make(string $issuer, ClientAuthentication $client, ?Timer $timer = null, int $timeout = 10): self
     {
@@ -41,6 +44,7 @@ class HttpBackchannelAuthentication extends PollingGrant implements BackchannelA
         ?string $resource = null,
         ?int $requestedExpiry = null,
         ?string $nonce = null,
+        ?string $clientNotificationToken = null,
     ): PendingBackchannelAuthentication {
         $loginHint = trim($loginHint);
 
@@ -55,6 +59,10 @@ class HttpBackchannelAuthentication extends PollingGrant implements BackchannelA
             );
         }
 
+        if ($clientNotificationToken !== null && mb_strlen($clientNotificationToken) > self::CLIENT_NOTIFICATION_TOKEN_MAX) {
+            throw new GrantFailed('The client_notification_token is longer than '.self::CLIENT_NOTIFICATION_TOKEN_MAX.' characters.', 'invalid_request');
+        }
+
         if ($requestedExpiry !== null && $requestedExpiry < 1) {
             throw new GrantFailed('requested_expiry must be a positive number of seconds.', 'invalid_request');
         }
@@ -66,6 +74,7 @@ class HttpBackchannelAuthentication extends PollingGrant implements BackchannelA
             'resource' => $resource ?? '',
             'requested_expiry' => $requestedExpiry !== null ? (string) $requestedExpiry : '',
             'nonce' => $nonce ?? '',
+            'client_notification_token' => $clientNotificationToken ?? '',
         ], static fn (string $value): bool => $value !== '');
 
         $response = $this->send($this->metadata->backchannelAuthenticationEndpoint(), $params);

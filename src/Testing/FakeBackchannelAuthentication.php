@@ -24,7 +24,7 @@ class FakeBackchannelAuthentication implements BackchannelAuthentication
 {
     use ScriptsGrantOutcomes;
 
-    /** @var list<array{login_hint: string, scope: string, binding_message: string, resource: ?string, requested_expiry: ?int, nonce: ?string}> */
+    /** @var list<array{login_hint: string, scope: string, binding_message: string, resource: ?string, requested_expiry: ?int, nonce: ?string, client_notification_token: ?string}> */
     public array $started = [];
 
     public function __construct(private readonly int $now = 1_700_000_000) {}
@@ -36,6 +36,7 @@ class FakeBackchannelAuthentication implements BackchannelAuthentication
         ?string $resource = null,
         ?int $requestedExpiry = null,
         ?string $nonce = null,
+        ?string $clientNotificationToken = null,
     ): PendingBackchannelAuthentication {
         $this->started[] = [
             'login_hint' => $loginHint,
@@ -44,6 +45,7 @@ class FakeBackchannelAuthentication implements BackchannelAuthentication
             'resource' => $resource,
             'requested_expiry' => $requestedExpiry,
             'nonce' => $nonce,
+            'client_notification_token' => $clientNotificationToken,
         ];
         $this->throwIfStartFails();
 

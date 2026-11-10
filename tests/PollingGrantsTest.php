@@ -118,6 +118,33 @@ it('starts a backchannel request at the discovered endpoint with Basic client au
     });
 });
 
+it('sends a client_notification_token for a ping-mode client, and none otherwise', function (): void {
+    Http::fake([
+        'id.test/.well-known/oauth-authorization-server' => Http::response(grantMetadata()),
+        'id.test/oauth/backchannel_authentication' => Http::response(cibaStarted()),
+    ]);
+
+    cibaGrant()->start('usr_1', 'openid', 'plan 3f9a2c41d0b7', clientNotificationToken: 'ping-bearer');
+    cibaGrant()->start('usr_1', 'openid', 'plan 3f9a2c41d0b7');
+
+    $sent = Http::recorded()
+        ->filter(fn (array $pair): bool => str_ends_with($pair[0]->url(), '/oauth/backchannel_authentication'))
+        ->map(fn (array $pair): array => grantForm($pair[0]))
+        ->values();
+
+    expect($sent[0]['client_notification_token'] ?? null)->toBe('ping-bearer')
+        ->and($sent[1])->not->toHaveKey('client_notification_token');
+});
+
+it('refuses a client_notification_token over 1024 characters before calling Cbox ID', function (): void {
+    Http::fake();
+
+    expect(fn () => cibaGrant()->start('usr_1', 'openid', 'x', clientNotificationToken: str_repeat('a', 1025)))
+        ->toThrow(GrantFailed::class);
+
+    Http::assertNothingSent();
+});
+
 it('falls back to the default paths when the issuer publishes no metadata', function (): void {
     Http::fake([
         'id.test/.well-known/oauth-authorization-server' => Http::response('', 404),

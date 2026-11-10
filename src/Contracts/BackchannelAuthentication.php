@@ -10,8 +10,9 @@ use Cbox\Id\Client\ValueObjects\PollResult;
 use Cbox\Id\Client\ValueObjects\TokenResult;
 
 /**
- * OpenID CIBA in poll mode: ask a known person to approve a request on their own
- * device, then collect the tokens.
+ * OpenID CIBA: ask a known person to approve a request on their own device, then collect
+ * the tokens — by polling, or once Cbox ID pings the client's notification endpoint
+ * (ping mode, registered on the client by an operator).
  *
  * Every failure is a {@see GrantFailed}; see the docs for which subclass maps to which
  * OAuth error.
@@ -25,6 +26,9 @@ interface BackchannelAuthentication
      * @param  string  $bindingMessage  shown to the person beside Approve (at most 255 characters)
      * @param  string|null  $resource  the API the token is for (RFC 8707); required for self-registered clients
      * @param  int|null  $requestedExpiry  seconds the request may stay open
+     * @param  string|null  $clientNotificationToken  ping mode: the bearer token Cbox ID sends to your
+     *                                                notification endpoint (required when the client is
+     *                                                registered for ping, at most 1024 characters)
      */
     public function start(
         string $loginHint,
@@ -33,6 +37,7 @@ interface BackchannelAuthentication
         ?string $resource = null,
         ?int $requestedExpiry = null,
         ?string $nonce = null,
+        ?string $clientNotificationToken = null,
     ): PendingBackchannelAuthentication;
 
     /**

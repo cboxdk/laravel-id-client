@@ -5,6 +5,12 @@ their GitHub release pages.
 
 ## [Unreleased]
 
+## [0.19.1] - 2026-11-10
+
+### Added
+
+- CIBA ping mode: `BackchannelAuthentication::start()` takes an optional `clientNotificationToken`, sent as `client_notification_token` (at most 1024 characters, refused locally beyond that). Cbox ID requires it from a client an operator registered for ping (laravel-id 2.3), and sends it as `Authorization: Bearer …` with `{"auth_req_id": "…"}` to the client's notification endpoint when the person answers. Poll-mode callers are unchanged. `FakeBackchannelAuthentication` records it.
+
 ## [0.19.0] - 2026-11-10
 
 ### Added

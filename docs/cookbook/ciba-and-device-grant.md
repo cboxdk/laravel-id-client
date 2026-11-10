@@ -1,7 +1,7 @@
 ---
 title: CIBA and the device grant
 weight: 11
-description: Ask a person to approve on their phone (OpenID CIBA, poll mode), or sign a CLI in with a code (RFC 8628) — typed, tested, no hand-rolled polling.
+description: Ask a person to approve on their phone (OpenID CIBA, poll or ping mode), or sign a CLI in with a code (RFC 8628) — typed, tested, no hand-rolled polling.
 ---
 
 # CIBA and the device grant
@@ -9,7 +9,7 @@ description: Ask a person to approve on their phone (OpenID CIBA, poll mode), or
 Two flows get a person's token without a browser redirect in your app. Don't write
 the polling loop yourself. Use the SDK's helpers:
 
-- `Contracts\BackchannelAuthentication` for OpenID CIBA Core 1.0 in poll mode.
+- `Contracts\BackchannelAuthentication` for OpenID CIBA Core 1.0, poll or ping mode.
 - `Contracts\DeviceAuthorization` for the RFC 8628 device authorization grant.
 
 Both find their endpoints in the issuer's RFC 8414 metadata
@@ -53,8 +53,16 @@ A self-registered client registers either `private_key_jwt` with an inline `jwks
 request and on every token poll, and for CIBA a `binding_message`. Pass `resource`
 to `start()`; the helper sends the same value on every poll.
 
-Cbox ID supports CIBA in poll mode only, and doesn't support
-`backchannel_user_code_parameter`. The helper never sends a `user_code`.
+Cbox ID supports CIBA in poll mode and, from laravel-id 2.3, ping mode. Poll is the
+default. For ping, an operator registers your client with an https notification
+endpoint; pass a fresh random `clientNotificationToken` to `start()` and keep it with the
+`auth_req_id`. When the person answers, Cbox ID POSTs `{"auth_req_id": "…"}` to your
+endpoint with `Authorization: Bearer <that token>`; check both, then call `poll()` once.
+Cbox ID doesn't support `backchannel_user_code_parameter`, and the helper never sends a
+`user_code`.
+
+Tokens from Cbox ID 2.3 carry `auth_req_id` and `binding_message` claims, so an API can
+check a token is the approval it asked for.
 
 ## Laravel: approve an action with CIBA
 
