@@ -5,6 +5,8 @@ their GitHub release pages.
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-11-10
+
 ### Added
 
 - App catalog module (`Cbox\Id\Client\AppCatalog`), replacing the copy every Cbox app kept in `app/Chrome`. `CboxId::appCatalogRoutes()` registers `GET /apps/catalog` (JSON `{apps, revision, refresh_after}` in Cbox ID's order), `/apps/authorize`, `/apps/callback` and `/apps/signin`.
