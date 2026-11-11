@@ -17,6 +17,7 @@ use Cbox\Id\Client\Exceptions\AuthenticationFailed;
 use Cbox\Id\Client\Exceptions\InvalidState;
 use Cbox\Id\Client\Exceptions\NotConfigured;
 use Cbox\Id\Client\Exceptions\PipeLeaseFailed;
+use Cbox\Id\Client\Support\ApiUrl;
 use Cbox\Id\Client\Support\Discovery;
 use Cbox\Id\Client\Support\HttpTimeouts;
 use Cbox\Id\Client\Support\IssuedMachineToken;
@@ -594,10 +595,17 @@ class IdentityClient
             $body['user_id'] = $userId;
         }
 
+        // On the /v1 API a lease is a resource of its own, with the provider in the body.
+        $api = ApiUrl::for($this->issuer(), $this->apiUrl());
+
+        if ($api->v1) {
+            $body = ['provider' => $provider, ...$body];
+        }
+
         $response = Http::withToken($token)
             ->acceptJson()
             ->timeout($this->timeout())->connectTimeout(HttpTimeouts::connect())
-            ->post(rtrim($this->issuer(), '/').'/api/v1/vault/pipes/'.rawurlencode($provider).'/token', $body);
+            ->post($api->to('/pipe-leases', '/vault/pipes/'.rawurlencode($provider).'/token'), $body);
 
         if (! $response->successful()) {
             if ($accessToken === null && $response->status() === 401) {
@@ -1045,6 +1053,14 @@ class IdentityClient
     private function issuer(): string
     {
         return $this->requiredString('issuer');
+    }
+
+    /** `cbox-id-client.api_url`: the /v1 API's origin, or the empty string for `{issuer}/api/v1`. */
+    private function apiUrl(): string
+    {
+        $url = $this->config['api_url'] ?? null;
+
+        return is_string($url) ? $url : '';
     }
 
     private function clientId(): string

@@ -30,7 +30,7 @@ final readonly class UserPropertiesUpdated
 
     public static function supports(string $type): bool
     {
-        return in_array($type, [EventType::UserPreferencesUpdated->value, EventType::UserMetadataUpdated->value], true);
+        return in_array(EventType::fromName($type), [EventType::UserPreferencesUpdated, EventType::UserMetadataUpdated], true);
     }
 
     /** @throws InvalidArgumentException when the signed event violates the contract. */

@@ -6,6 +6,7 @@ namespace Cbox\Id\Client\AppCatalog;
 
 use Cbox\Id\Client\Exceptions\AuthenticationFailed;
 use Cbox\Id\Client\IdentityClient;
+use Cbox\Id\Client\Support\ApiUrl;
 use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\Response;
@@ -15,7 +16,8 @@ use Throwable;
 
 /**
  * The person's catalog, read by the APP with its own machine token
- * (`app_catalog:resolve`, client credentials): `GET {issuer}/api/v1/app-catalog/for-user`.
+ * (`app_catalog:resolve`, client credentials): `GET {issuer}/api/v1/app-catalog/for-user`, or
+ * `{api_url}/v1/app-catalog/for-user` with `CBOX_ID_API_URL` set ({@see ApiUrl}).
  * Nothing per person is kept in the session, so there is no grant to lose, renew or
  * reconnect.
  *
@@ -171,7 +173,7 @@ final readonly class MachineAppCatalog
 
     private function request(AppCatalogContext $context, #[\SensitiveParameter] string $token): Response
     {
-        $url = rtrim($this->issuer, '/').'/api/v1/app-catalog/for-user';
+        $url = ApiUrl::for($this->issuer)->to('/app-catalog/for-user');
 
         try {
             return $this->http->acceptJson()->withToken($token)->withoutRedirecting()->connectTimeout(1)->timeout(2)

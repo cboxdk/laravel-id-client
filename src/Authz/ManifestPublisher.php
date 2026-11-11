@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cbox\Id\Client\Authz;
 
 use Cbox\Id\Client\Exceptions\ClientConfigurationException;
+use Cbox\Id\Client\Support\ApiUrl;
 use Cbox\Id\Client\Support\Claims;
 use Cbox\Id\Client\Support\Discovery;
 use Cbox\Id\Client\Support\HttpTimeouts;
@@ -14,7 +15,8 @@ use Throwable;
 /**
  * Publishes this app's authorization manifest (its declared roles + permissions) to
  * Cbox ID over the PUSH transport. It mints a client-credentials token with the
- * `apps.manifest` scope, then POSTs the manifest to `{issuer}/api/v1/apps/manifest`.
+ * `apps.manifest` scope, then POSTs the manifest to `{issuer}/api/v1/apps/manifest` (or `{api_url}/v1/apps/manifest`
+ * with `CBOX_ID_API_URL` set).
  * The app owns what roles mean; Cbox ID owns who holds them.
  */
 class ManifestPublisher
@@ -143,7 +145,7 @@ class ManifestPublisher
                 ->withoutRedirecting()
                 ->timeout($this->timeout)->connectTimeout(HttpTimeouts::connect())
                 ->acceptJson()
-                ->post(rtrim($this->issuer, '/').'/api/v1/apps/manifest', $manifest);
+                ->post(ApiUrl::for($this->issuer)->to('/apps/manifest'), $manifest);
         } catch (ClientConfigurationException $exception) {
             throw $exception;
         } catch (Throwable) {

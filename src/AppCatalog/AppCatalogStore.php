@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Cbox\Id\Client\AppCatalog;
 
+use Cbox\Id\Client\Support\PublicId;
+use Cbox\Id\Client\Support\Scopes;
 use Cbox\Id\Client\ValueObjects\ResourceAuthorizationResult;
 use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Contracts\Encryption\DecryptException;
@@ -199,9 +201,9 @@ final readonly class AppCatalogStore
     {
         $grant = is_string($stored) ? ResourceAuthorizationResult::open($stored) : null;
 
-        if (! $grant instanceof ResourceAuthorizationResult || $grant->subject !== $context->subject
-            || $grant->organizationId !== $context->organizationId || $grant->resource !== $this->resource()
-            || $grant->scopes !== [self::SCOPE]) {
+        if (! $grant instanceof ResourceAuthorizationResult || ! PublicId::same($grant->subject, $context->subject)
+            || ! PublicId::same($grant->organizationId, $context->organizationId) || $grant->resource !== $this->resource()
+            || count($grant->scopes) !== 1 || ! Scopes::holds($grant->scopes, self::SCOPE)) {
             return null;
         }
 

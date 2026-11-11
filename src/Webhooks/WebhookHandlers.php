@@ -16,6 +16,10 @@ namespace Cbox\Id\Client\Webhooks;
  * event's type, plus any wildcard handlers. Cbox ID owns identity + assignment;
  * these hooks are how your app reacts out-of-band (seat allocation, deprovisioning,
  * pre-provisioning) without a token round-trip.
+ *
+ * An event's old name and its `id.*` name are one event ({@see EventNames}): a handler
+ * registered for `organization.member_added` also runs for `id.organization.member_added`,
+ * and the other way round.
  */
 class WebhookHandlers
 {
@@ -36,7 +40,7 @@ class WebhookHandlers
      */
     public function hasHandlerFor(string $eventType): bool
     {
-        return isset($this->handlers[$eventType]) || isset($this->handlers['*']);
+        return $this->handlersFor($eventType) !== [];
     }
 
     /**
@@ -45,13 +49,38 @@ class WebhookHandlers
      */
     public function dispatch(WebhookEvent $event): int
     {
-        $handlers = [...($this->handlers[$event->type] ?? []), ...($this->handlers['*'] ?? [])];
+        $handlers = $this->handlersFor($event->type);
 
         foreach ($handlers as $handler) {
             $handler($event);
         }
 
         return count($handlers);
+    }
+
+    /**
+     * Every handler for an event type, under either of its names, then the wildcard ones.
+     *
+     * @return list<callable(WebhookEvent): void>
+     */
+    private function handlersFor(string $eventType): array
+    {
+        $handlers = [];
+
+        foreach (EventNames::aliases($eventType) as $name) {
+            if ($name === EventType::WILDCARD) {
+                continue;
+            }
+
+            foreach ($this->handlers[$name] ?? [] as $handler) {
+                // One handler registered under both names runs once.
+                if (! in_array($handler, $handlers, true)) {
+                    $handlers[] = $handler;
+                }
+            }
+        }
+
+        return [...$handlers, ...($this->handlers[EventType::WILDCARD] ?? [])];
     }
 
     /**

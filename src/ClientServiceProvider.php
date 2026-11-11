@@ -51,6 +51,7 @@ use Cbox\Id\Client\Management\AuditLogs\AuditLogger;
 use Cbox\Id\Client\Management\EnvironmentClient;
 use Cbox\Id\Client\Management\HttpManagementClient;
 use Cbox\Id\Client\Management\ManagementClients;
+use Cbox\Id\Client\Management\OrganizationClient;
 use Cbox\Id\Client\Management\WorkspaceClient;
 use Cbox\Id\Client\ServiceConnections\HttpServiceConnections;
 use Cbox\Id\Client\Shell\OrganizationLevel;
@@ -89,6 +90,12 @@ use Throwable;
 
 class ClientServiceProvider extends ServiceProvider
 {
+    /** The webhook receiver's path under the URL standard. */
+    public const string WEBHOOK_PATH = '/webhooks/cbox-id';
+
+    /** The webhook receiver's path before it, still the configured default. */
+    public const string LEGACY_WEBHOOK_PATH = '/cbox-id/webhooks';
+
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/cbox-id-client.php', 'cbox-id-client');
@@ -251,7 +258,9 @@ class ClientServiceProvider extends ServiceProvider
             return new ManagementClients($management, self::configString('cbox-id-client.issuer'), $app->make(Dispatcher::class));
         });
         $this->app->bind(EnvironmentClient::class, static fn (Container $app): EnvironmentClient => $app->make(ManagementClients::class)->environment());
-        $this->app->bind(WorkspaceClient::class, static fn (Container $app): WorkspaceClient => $app->make(ManagementClients::class)->workspace());
+        $this->app->bind(OrganizationClient::class, static fn (Container $app): OrganizationClient => $app->make(ManagementClients::class)->organization());
+        // Deprecated name, same client.
+        $this->app->bind(WorkspaceClient::class, static fn (Container $app): WorkspaceClient => $app->make(ManagementClients::class)->organization());
         $this->app->bind(AuditLogger::class, static fn (Container $app): AuditLogger => $app->make(ManagementClients::class)->auditLogger());
 
         // Back-channel logout. The cache must be one every web server shares: it holds the
@@ -596,6 +605,10 @@ class ClientServiceProvider extends ServiceProvider
      * Mount the webhook receiver at the configured path (default `/cbox-id/webhooks`),
      * unless disabled. A bare POST route — deliberately outside the `web` group, so it
      * carries no session/CSRF; the HMAC signature is its authentication.
+     *
+     * The URL standard's path, `/webhooks/cbox-id`, is mounted next to the old default (and
+     * the old default next to it), so an endpoint registered in Cbox ID under either keeps
+     * receiving while it is moved. A custom path is mounted alone.
      */
     private function registerWebhookRoute(): void
     {
@@ -610,6 +623,14 @@ class ClientServiceProvider extends ServiceProvider
         }
 
         Route::post($path, WebhookController::class)->name('cbox-id.webhooks');
+
+        $paths = [self::LEGACY_WEBHOOK_PATH, self::WEBHOOK_PATH];
+        $normalized = '/'.trim($path, '/');
+
+        if (in_array($normalized, $paths, true)) {
+            $other = $normalized === self::WEBHOOK_PATH ? self::LEGACY_WEBHOOK_PATH : self::WEBHOOK_PATH;
+            Route::post($other, WebhookController::class)->name('cbox-id.webhooks.alias');
+        }
     }
 
     /**

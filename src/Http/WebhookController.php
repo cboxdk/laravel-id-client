@@ -6,6 +6,7 @@ namespace Cbox\Id\Client\Http;
 
 use Cbox\Id\Client\Events\UserPropertiesUpdated;
 use Cbox\Id\Client\IdentityClient;
+use Cbox\Id\Client\Support\PublicId;
 use Cbox\Id\Client\Webhooks\ProcessCboxIdWebhook;
 use Cbox\Id\Client\Webhooks\StandardWebhookSignature;
 use Cbox\Id\Client\Webhooks\WebhookEvent;
@@ -70,7 +71,7 @@ class WebhookController
         $event = new WebhookEvent(
             type: $data['type'],
             payload: $payload,
-            organizationId: is_string($payload['organization_id'] ?? null) ? $payload['organization_id'] : null,
+            organizationId: is_string($payload['organization_id'] ?? null) ? PublicId::raw($payload['organization_id']) : null,
             deliveryId: is_string($data['delivery_id'] ?? null) ? $data['delivery_id'] : null,
             deliveredAt: is_numeric($ts = $request->header($standard ? StandardWebhookSignature::TIMESTAMP_HEADER : 'X-Cbox-Timestamp')) ? (int) $ts : time(),
             sequence: is_int($data['sequence'] ?? null) ? $data['sequence'] : null,

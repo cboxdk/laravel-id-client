@@ -7,20 +7,27 @@ namespace Cbox\Id\Client\ServiceConnections;
 use Cbox\Id\Client\Contracts\ServiceConnections;
 use Cbox\Id\Client\Exceptions\ServiceConnectionFailed;
 use Cbox\Id\Client\IdentityClient;
+use Cbox\Id\Client\Support\ApiUrl;
 use Cbox\Id\Client\Support\HttpTimeouts;
+use Cbox\Id\Client\Support\PublicId;
 use Cbox\Id\Client\ValueObjects\ServiceConnection;
 use Cbox\Id\Client\ValueObjects\ServiceConnectionLease;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Factory;
 
+/**
+ * Service connections over HTTP: `{issuer}/api/v1/service-connections/…`, or with
+ * `CBOX_ID_API_URL` set `{api_url}/v1/service-connections/…`, where a connection is created
+ * with `PUT`, checked with `/inspect` and leased with `/lease` ({@see ApiUrl}).
+ */
 class HttpServiceConnections implements ServiceConnections
 {
     public function __construct(private readonly Factory $http, private readonly IdentityClient $identity, private readonly string $issuer, private readonly string $clientId) {}
 
     public function connect(#[\SensitiveParameter] string $accessToken, string $organization, string $service, string $audience): ServiceConnection
     {
-        $body = $this->request($accessToken, 'POST', $service);
-        if (($body['organization_id'] ?? null) !== $organization || ($body['service'] ?? null) !== $service
+        $body = $this->request($accessToken, $this->api()->v1 ? 'PUT' : 'POST', $service);
+        if (! PublicId::same(self::stringOrNull($body['organization_id'] ?? null), $organization) || ($body['service'] ?? null) !== $service
             || ($body['audience'] ?? null) !== $audience || ($body['consumer_client_id'] ?? null) !== $this->clientId
             || ! array_key_exists('revoked_at', $body) || $body['revoked_at'] !== null
             || ! is_string($body['id'] ?? null) || $body['id'] === '') {
@@ -34,12 +41,13 @@ class HttpServiceConnections implements ServiceConnections
     public function status(ServiceConnection $connection): bool
     {
         $this->owned($connection);
-        $body = $this->request($this->identity->machineToken(['service_connections.lease']), 'POST', $connection->id, 'status', machine: true);
+        // `/status` became `/inspect` on the /v1 API, which takes the same lease scope.
+        $body = $this->request($this->identity->machineToken(['service_connections.lease']), 'POST', $connection->id, $this->api()->v1 ? 'inspect' : 'status', machine: true);
         if (($body['active'] ?? null) === false) {
             return false;
         }
-        if (($body['active'] ?? null) !== true || ($body['id'] ?? null) !== $connection->id
-            || ($body['organization_id'] ?? null) !== $connection->organizationId || ($body['service'] ?? null) !== $connection->service
+        if (($body['active'] ?? null) !== true || ! PublicId::same(self::stringOrNull($body['id'] ?? null), $connection->id)
+            || ! PublicId::same(self::stringOrNull($body['organization_id'] ?? null), $connection->organizationId) || ($body['service'] ?? null) !== $connection->service
             || ($body['consumer_client_id'] ?? null) !== $connection->consumerClientId || ($body['audience'] ?? null) !== $connection->audience
             || ! array_key_exists('revoked_at', $body) || $body['revoked_at'] !== null
             || $this->scopes($body['scopes'] ?? null) !== $connection->scopes) {
@@ -52,7 +60,7 @@ class HttpServiceConnections implements ServiceConnections
     public function lease(ServiceConnection $connection): ServiceConnectionLease
     {
         $this->owned($connection);
-        $body = $this->request($this->identity->machineToken(['service_connections.lease']), 'POST', $connection->id, 'token', machine: true);
+        $body = $this->request($this->identity->machineToken(['service_connections.lease']), 'POST', $connection->id, $this->api()->v1 ? 'lease' : 'token', machine: true);
         if (! is_string($body['access_token'] ?? null) || $body['access_token'] === ''
             || ($body['token_type'] ?? null) !== 'Bearer' || ($body['audience'] ?? null) !== $connection->audience
             || ! is_int($body['expires_in'] ?? null) || $body['expires_in'] < 1
@@ -70,6 +78,16 @@ class HttpServiceConnections implements ServiceConnections
         if (($body['revoked'] ?? null) !== true) {
             throw new ServiceConnectionFailed('ID did not confirm connection revocation.');
         }
+    }
+
+    private function api(): ApiUrl
+    {
+        return ApiUrl::for($this->issuer);
+    }
+
+    private static function stringOrNull(mixed $value): ?string
+    {
+        return is_string($value) ? $value : null;
     }
 
     private function owned(ServiceConnection $connection): void
@@ -101,16 +119,19 @@ class HttpServiceConnections implements ServiceConnections
     private function request(#[\SensitiveParameter] string $token, string $method, string $path, string $suffix = '', bool $machine = false): array
     {
         $issuer = rtrim($this->issuer, '/');
-        if ($token === '' || $this->clientId === '' || filter_var($issuer, FILTER_VALIDATE_URL) === false
-            || parse_url($issuer, PHP_URL_SCHEME) !== 'https' || parse_url($issuer, PHP_URL_USER) !== null
-            || parse_url($issuer, PHP_URL_QUERY) !== null || parse_url($issuer, PHP_URL_FRAGMENT) !== null || str_contains($issuer, '\\')) {
-            throw new ServiceConnectionFailed('Service connections require a configured HTTPS issuer and client.');
+        $base = $this->api()->base;
+        foreach ([$issuer, $base] as $url) {
+            if ($token === '' || $this->clientId === '' || filter_var($url, FILTER_VALIDATE_URL) === false
+                || parse_url($url, PHP_URL_SCHEME) !== 'https' || parse_url($url, PHP_URL_USER) !== null
+                || parse_url($url, PHP_URL_QUERY) !== null || parse_url($url, PHP_URL_FRAGMENT) !== null || str_contains($url, '\\')) {
+                throw new ServiceConnectionFailed('Service connections require a configured HTTPS issuer and client.');
+            }
         }
         // Only the fixed protocol suffix may introduce a path separator.
         $path = rawurlencode($path).($suffix === '' ? '' : '/'.$suffix);
         try {
             $response = $this->http->acceptJson()->withToken($token)->withoutRedirecting()->connectTimeout(HttpTimeouts::connect())->timeout(20)
-                ->send($method, $issuer.'/api/v1/service-connections/'.$path);
+                ->send($method, $base.'/service-connections/'.$path);
         } catch (ConnectionException) {
             throw new ServiceConnectionFailed('ID service connections are unavailable.');
         }

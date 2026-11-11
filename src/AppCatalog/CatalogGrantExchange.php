@@ -7,6 +7,8 @@ namespace Cbox\Id\Client\AppCatalog;
 use Cbox\Id\Client\AccessTokenVerifier;
 use Cbox\Id\Client\Support\Discovery;
 use Cbox\Id\Client\Support\HttpTimeouts;
+use Cbox\Id\Client\Support\PublicId;
+use Cbox\Id\Client\Support\Scopes;
 use Cbox\Id\Client\ValueObjects\DpopKey;
 use Cbox\Id\Client\ValueObjects\ResourceAuthorizationResult;
 use Illuminate\Http\Client\ConnectionException;
@@ -87,10 +89,10 @@ final readonly class CatalogGrantExchange
             throw SignInRequired::because('The catalog grant did not verify.');
         }
 
-        if ($verified->subject !== $context->subject || $verified->organizationId !== $context->organizationId
+        if (! PublicId::same($verified->subject, $context->subject) || ! PublicId::same($verified->organizationId, $context->organizationId)
             || $verified->clientId !== $this->clientId || $verified->subject === $this->clientId
             || array_key_exists('act', $verified->claims) || ($verified->claims['aud'] ?? null) !== $resource
-            || $verified->scopes !== [AppCatalogStore::SCOPE] || $verified->expiresAt <= time()) {
+            || count($verified->scopes) !== 1 || ! Scopes::holds($verified->scopes, AppCatalogStore::SCOPE) || $verified->expiresAt <= time()) {
             throw SignInRequired::because('The catalog grant is not bound to this person and organization.');
         }
 

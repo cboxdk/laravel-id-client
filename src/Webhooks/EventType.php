@@ -12,6 +12,10 @@ namespace Cbox\Id\Client\Webhooks;
  *
  * Mirrors the server's catalogue. It is a convenience, not an allow-list: Cbox ID emits
  * more than this (plugins add their own), and `on()` still takes any string.
+ *
+ * The values are the names Cbox ID has always sent. Its new `id.*` names
+ * ({@see self::idName()}) are the same events: a handler registered with either runs for
+ * both ({@see EventNames}).
  */
 enum EventType: string
 {
@@ -79,4 +83,16 @@ enum EventType: string
 
     /** Every event, present and future — for `on()`, not a real event name. */
     public const WILDCARD = '*';
+
+    /** The catalogued event for a type in either spelling (`user.login` or `id.user.signed_in`). */
+    public static function fromName(string $type): ?self
+    {
+        return self::tryFrom(EventNames::legacy($type));
+    }
+
+    /** This event's `id.*` name: `id.organization.member_added`, `id.user.signed_in`. */
+    public function idName(): string
+    {
+        return EventNames::current($this->value);
+    }
 }
