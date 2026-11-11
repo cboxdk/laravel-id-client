@@ -53,6 +53,9 @@ class ManagementTransport
 
     private readonly string $origin;
 
+    /** With `CBOX_ID_API_URL` set: where the operations `/v1` serves go instead. */
+    private readonly ?V1Router $v1;
+
     public function __construct(
         public readonly Plane $plane,
         private readonly ClientOptions $options,
@@ -67,6 +70,7 @@ class ManagementTransport
         $this->assertCredentials($plane, $options);
 
         [$this->origin, $this->baseUrl] = self::normalizeBaseUrl($baseUrl);
+        $this->v1 = V1Router::configured();
     }
 
     /**
@@ -85,10 +89,10 @@ class ManagementTransport
         $finish = fn (Response $response, ?string $key): ApiResponse => $this->result($response, $key, $op->name(), $decode);
 
         if ($options instanceof ReturnPendingApproval) {
-            return $this->deferring($op, $this->url($op, $pathArgs, $op->body ? [] : $input), $op->body ? $input : null, $options, $finish);
+            return $this->deferring($op, $this->endpoint($op, $pathArgs, $op->body ? [] : $input), $op->body ? $input : null, $options, $finish);
         }
 
-        return $this->waiting($op, $this->url($op, $pathArgs, $op->body ? [] : $input), $op->body ? $input : null, $options, $finish);
+        return $this->waiting($op, $this->endpoint($op, $pathArgs, $op->body ? [] : $input), $op->body ? $input : null, $options, $finish);
     }
 
     /**
@@ -106,7 +110,7 @@ class ManagementTransport
     {
         return $this->waiting(
             $op,
-            $this->url($op, $pathArgs, $op->body ? [] : $input),
+            $this->endpoint($op, $pathArgs, $op->body ? [] : $input),
             $op->body ? $input : null,
             $options,
             fn (Response $response, ?string $key): ApiResponse => $this->result($response, $key, $op->name(), $decode),
@@ -128,10 +132,10 @@ class ManagementTransport
         $finish = fn (Response $response, ?string $key): Page => $this->toPage($this->result($response, $key, $op->name(), Value::list($item)));
 
         if ($options instanceof ReturnPendingApproval) {
-            return $this->deferring($op, $this->url($op, $pathArgs, $query), null, $options, $finish);
+            return $this->deferring($op, $this->endpoint($op, $pathArgs, $query), null, $options, $finish);
         }
 
-        return $this->waiting($op, $this->url($op, $pathArgs, $query), null, $options, $finish);
+        return $this->waiting($op, $this->endpoint($op, $pathArgs, $query), null, $options, $finish);
     }
 
     /**
@@ -148,7 +152,7 @@ class ManagementTransport
     {
         return $this->waiting(
             $op,
-            $this->url($op, $pathArgs, $query),
+            $this->endpoint($op, $pathArgs, $query),
             null,
             $options,
             fn (Response $response, ?string $key): Page => $this->toPage($this->result($response, $key, $op->name(), Value::list($item))),
@@ -197,7 +201,9 @@ class ManagementTransport
 
     /**
      * Call a route the generated surface does not cover. `$path` is relative to `/api/v1`.
-     * A write gets an `Idempotency-Key` and the approval loop like any operation.
+     * A write gets an `Idempotency-Key` and the approval loop like any operation. With
+     * `CBOX_ID_API_URL` set, a path `/v1` serves goes to its `/v1` route, and the answer is
+     * read back into the `/api/v1` shape.
      *
      * @param  'GET'|'POST'|'PUT'|'PATCH'|'DELETE'  $method
      * @param  array<string, mixed>  $query
@@ -207,7 +213,10 @@ class ManagementTransport
     public function request(string $method, string $path, array $query = [], ?array $body = null, ?CallOptions $options = null): ApiResponse|PendingApprovalResult
     {
         $op = new OperationSpec(null, null, $method, '/'.ltrim($path, '/'), approval: true, body: $body !== null);
-        $url = $this->baseUrl.$op->path.self::query($query);
+        $moved = $this->v1?->path($this->plane, $method, $op->path);
+        $url = $moved !== null
+            ? $moved->withQuery(self::query([...$moved->query, ...$query]))
+            : new Endpoint($method, $this->baseUrl.$op->path.self::query($query));
         $finish = fn (Response $response, ?string $key): ApiResponse => $this->result($response, $key, $op->name(), Value::mixed(...));
 
         if ($options instanceof ReturnPendingApproval) {
@@ -247,12 +256,12 @@ class ManagementTransport
      * @param  Closure(Response, ?string): TResult  $finish
      * @return TResult
      */
-    private function waiting(OperationSpec $op, string $url, ?array $payload, ?CallOptions $options, Closure $finish): mixed
+    private function waiting(OperationSpec $op, Endpoint $url, ?array $payload, ?CallOptions $options, Closure $finish): mixed
     {
         $key = $op->isWrite() ? ($options->idempotencyKey ?? self::uuid()) : null;
         $headers = $options === null ? [] : $options->headers;
-        $response = $this->send($op->method, $url, $payload, $key, $options?->approvalId, $headers);
-        $held = $this->heldApproval($response);
+        $response = $this->send($url, $payload, $key, $options?->approvalId, $headers);
+        $held = $this->heldApproval($response, $url);
 
         if ($held !== null) {
             $response = $this->approveAndRepeat($op, $url, $payload, $key, $headers, $held, true);
@@ -268,11 +277,11 @@ class ManagementTransport
      * @param  Closure(Response, ?string): TResult  $finish
      * @return TResult|PendingApprovalResult<TResult>
      */
-    private function deferring(OperationSpec $op, string $url, ?array $payload, CallOptions $options, Closure $finish): mixed
+    private function deferring(OperationSpec $op, Endpoint $url, ?array $payload, CallOptions $options, Closure $finish): mixed
     {
         $key = $op->isWrite() ? ($options->idempotencyKey ?? self::uuid()) : null;
-        $response = $this->send($op->method, $url, $payload, $key, $options->approvalId, $options->headers);
-        $held = $this->heldApproval($response);
+        $response = $this->send($url, $payload, $key, $options->approvalId, $options->headers);
+        $held = $this->heldApproval($response, $url);
 
         if ($held === null) {
             return $finish($response, $key);
@@ -292,14 +301,17 @@ class ManagementTransport
      * @param  array<string, mixed>|null  $payload
      * @param  array<string, string>  $headers
      */
-    private function send(string $method, string $url, ?array $payload, ?string $key, ?string $approvalId, array $headers): Response
+    private function send(Endpoint $to, ?array $payload, ?string $key, ?string $approvalId, array $headers): Response
     {
+        $method = $to->method;
+        $url = $to->url;
+
         $maxRetries = max(0, $this->options->maxRetries);
         $maxDelay = max(0, $this->options->maxDelayMs);
 
         for ($attempt = 0; ; $attempt++) {
             try {
-                $response = $this->exchange($method, $url, $payload, $key, $approvalId, $headers);
+                $response = $this->exchange($to, $payload, $key, $approvalId, $headers);
             } catch (ConnectionException|TransferException $e) {
                 if ($attempt >= $maxRetries) {
                     $path = parse_url($url, PHP_URL_PATH);
@@ -336,7 +348,7 @@ class ManagementTransport
      * @param  array<string, mixed>|null  $payload
      * @param  array<string, string>  $headers
      */
-    private function exchange(string $method, string $url, ?array $payload, ?string $key, ?string $approvalId, array $headers): Response
+    private function exchange(Endpoint $to, ?array $payload, ?string $key, ?string $approvalId, array $headers): Response
     {
         $request = $this->http()
             ->withHeaders($this->headers($payload !== null, $key, $approvalId, $headers))
@@ -347,7 +359,10 @@ class ManagementTransport
             $request = $request->withBody(self::encode($payload), 'application/json');
         }
 
-        return $request->send($method, $url);
+        $response = $request->send($to->method, $to->url);
+
+        // A `/v1` answer, read back into the `/api/v1` shape: the app sees what it always saw.
+        return $to->v1 ? V1Shape::toLegacy($response, $to->shape) : $response;
     }
 
     /**
@@ -457,7 +472,7 @@ class ManagementTransport
      *
      * @return array{0: PendingApproval, 1: int|null}|null
      */
-    private function heldApproval(Response $response): ?array
+    private function heldApproval(Response $response, Endpoint $from): ?array
     {
         if ($response->status() !== 202) {
             return null;
@@ -484,7 +499,7 @@ class ManagementTransport
                 $string('status', 'pending'),
                 $string('binding_code', ''),
                 $string('expires_at', ''),
-                $string('poll_url', $this->baseUrl.$this->plane->approvalMount().'/action-approvals/'.rawurlencode($id)),
+                $string('poll_url', $this->approvalUrl($id, $from)),
             ),
             self::retryAfterMs($response),
         ];
@@ -498,7 +513,7 @@ class ManagementTransport
      * @param  array<string, string>  $headers
      * @param  array{0: PendingApproval, 1: int|null}  $held
      */
-    private function approveAndRepeat(OperationSpec $op, string $url, ?array $payload, ?string $key, array $headers, array $held, bool $notify): Response
+    private function approveAndRepeat(OperationSpec $op, Endpoint $url, ?array $payload, ?string $key, array $headers, array $held, bool $notify): Response
     {
         $context = new ApprovalContext($op->action, $op->danger, $op->method, $op->path);
 
@@ -507,10 +522,10 @@ class ManagementTransport
                 ($this->options->onApprovalRequired)($held[0], $context);
             }
 
-            $this->awaitApproval($held[0], $held[1]);
+            $this->awaitApproval($held[0], $held[1], $url);
 
-            $response = $this->send($op->method, $url, $payload, $key, $held[0]->id, $headers);
-            $again = $this->heldApproval($response);
+            $response = $this->send($url, $payload, $key, $held[0]->id, $headers);
+            $again = $this->heldApproval($response, $url);
 
             if ($again === null) {
                 return $response;
@@ -525,11 +540,11 @@ class ManagementTransport
     }
 
     /** Poll an approval until the person decides. Returns on `approved`; throws otherwise. */
-    private function awaitApproval(PendingApproval $approval, ?int $initialDelay): void
+    private function awaitApproval(PendingApproval $approval, ?int $initialDelay, Endpoint $from): void
     {
-        $pollUrl = $this->resolve($approval->pollUrl);
+        $pollUrl = $this->resolve($approval->pollUrl, $from);
 
-        if (self::originOf($pollUrl) !== $this->origin) {
+        if (self::originOf($pollUrl) !== ($from->v1 ? $from->origin() : $this->origin)) {
             // The poll carries the same credential as the request. Never hand it to another host.
             throw new UnexpectedResponse("Refusing to poll approval {$approval->id} at another origin (".self::originOf($pollUrl).').');
         }
@@ -541,7 +556,7 @@ class ManagementTransport
         for (; ;) {
             $this->sleep(min($delay, 60_000));
 
-            $response = $this->send('GET', $pollUrl, null, null, null, []);
+            $response = $this->send(new Endpoint('GET', $pollUrl, $from->v1), null, null, null, []);
 
             if (! $response->successful()) {
                 throw $this->error($response);
@@ -675,6 +690,30 @@ class ManagementTransport
     // ── URLs, encoding, configuration ────────────────────────────────────────────────
 
     /**
+     * Where an operation goes: its `/v1` route when `CBOX_ID_API_URL` is set and `/v1`
+     * serves it, else `{baseUrl}/api/v1` exactly as before.
+     *
+     * @param  list<string>  $pathArgs
+     * @param  array<string, mixed>  $query
+     */
+    private function endpoint(OperationSpec $op, array $pathArgs, array $query): Endpoint
+    {
+        $moved = $this->v1?->operation($this->plane, $op->method, $op->path, $op->pathParams, $pathArgs);
+
+        if ($moved !== null) {
+            foreach ($op->pathParams as $index => $name) {
+                if (($pathArgs[$index] ?? '') === '') {
+                    throw new InvalidArgumentException("{$op->name()}: missing path parameter `{$name}`.");
+                }
+            }
+
+            return $moved->withQuery(self::query([...$moved->query, ...$query]));
+        }
+
+        return new Endpoint($op->method, $this->url($op, $pathArgs, $query));
+    }
+
+    /**
      * @param  list<string>  $pathArgs
      * @param  array<string, mixed>  $query
      */
@@ -735,14 +774,27 @@ class ManagementTransport
         return $pairs === [] ? '' : '?'.implode('&', $pairs);
     }
 
-    /** A poll URL, which the server may give relative to the host. */
-    private function resolve(string $url): string
+    /** A poll URL, which the server may give relative to the host of the request it held. */
+    private function resolve(string $url, Endpoint $from): string
     {
         if (preg_match('#^[a-z][a-z0-9+.-]*://#i', $url) === 1) {
             return $url;
         }
 
+        if ($from->v1 && $this->v1 !== null) {
+            return str_starts_with($url, '/') ? $from->origin().$url : $this->v1->base.'/'.$url;
+        }
+
         return str_starts_with($url, '/') ? $this->origin.$url : $this->baseUrl.'/'.$url;
+    }
+
+    /** Where to poll an approval the answer gave no `poll_url` for. */
+    private function approvalUrl(string $id, Endpoint $from): string
+    {
+        $legacy = $this->plane->approvalMount().'/action-approvals/{id}';
+        $moved = $from->v1 ? $this->v1?->operation($this->plane, 'GET', $legacy, ['id'], [$id]) : null;
+
+        return $moved !== null ? $moved->url : $this->baseUrl.$this->plane->approvalMount().'/action-approvals/'.rawurlencode($id);
     }
 
     private static function originOf(string $url): string

@@ -5,6 +5,10 @@ their GitHub release pages.
 
 ## Unreleased
 
+### Changed
+
+- With `CBOX_ID_API_URL` set, the management clients move to `{api_url}/v1` too: `CboxIdApi` (the generated environment, organization, account and platform clients, `request()` included) and `CboxIdManagement`. Each call goes to its `/v1` route (children addressed directly, `/organizations/{o}/members/{u}` as `/organization-memberships/{u}?organization_id={o}`), and the answer is read back into the `/api/v1` shape: list envelope, RFC 9457 problems and held approvals as before, and every `id`, `*_id` and `*_ids` as the bare ULID, so ids still match token claims and stored ids. Ids are accepted prefixed or bare. Calls whose `/v1` answer drops something stay on `/api/v1`; `Management\Transport\V1RouteTable::STAYS` names them. Without `CBOX_ID_API_URL`, nothing changes.
+
 ### Fixed
 
 - With `CBOX_ID_API_URL` set, the ids the SDK hands to app code are the raw ones, as on `{issuer}/api/v1` and in tokens: `PipeToken::$userId` (the `/v1` API answers `usr_01J…`; it is the person's `sub`) and `$connectionId`, and the `ServiceConnection::$id` that `connect()` returns. An app that compares or stores them sees the same value whichever API answered.

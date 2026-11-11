@@ -52,6 +52,7 @@ use Cbox\Id\Client\Management\EnvironmentClient;
 use Cbox\Id\Client\Management\HttpManagementClient;
 use Cbox\Id\Client\Management\ManagementClients;
 use Cbox\Id\Client\Management\OrganizationClient;
+use Cbox\Id\Client\Management\Transport\V1Router;
 use Cbox\Id\Client\Management\WorkspaceClient;
 use Cbox\Id\Client\ServiceConnections\HttpServiceConnections;
 use Cbox\Id\Client\Shell\OrganizationLevel;
@@ -241,6 +242,7 @@ class ClientServiceProvider extends ServiceProvider
                 rtrim($url !== '' ? $url : ($issuer !== '' ? rtrim($issuer, '/').'/api/v1' : ''), '/'),
                 self::configString('cbox-id-client.management.key'),
                 self::configInt('cbox-id-client.http_timeout', 10),
+                V1Router::configured(),
             );
         });
 
