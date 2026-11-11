@@ -12,6 +12,8 @@ container if you prefer constructor injection.
 
 - **[Log in users](log-in-users.md)** — the redirect/callback pair, the `CboxUser`
   object, scopes, and error handling.
+- **[Sign in by redirect](sign-in-by-redirect.md)** — an app with no sign-in page:
+  `/login`, `/signup`, launch and invitation links redirect to Cbox ID and come back.
 - **[Hosted profile management](hosted-profile-management.md)** — send users to the
   instance's account page and back.
 - **[Call Cbox ID APIs](call-cbox-id-apis.md)** — machine tokens, UserInfo, and RFC

@@ -6,15 +6,20 @@ namespace Cbox\Id\Client\Facades;
 
 use Cbox\Id\Client\AppCatalog\AppCatalogRoutes;
 use Cbox\Id\Client\IdentityClient;
+use Cbox\Id\Client\SignIn\SignInRoutes;
 use Cbox\Id\Client\Testing\CboxIdFake;
 use Illuminate\Support\Facades\Facade;
 
 /**
- * @method static \Illuminate\Http\RedirectResponse redirect(list<string>|null $scopes = null, ?string $state = null, string|\Cbox\Id\Client\Enums\Prompt|null $prompt = null, ?int $maxAge = null, ?string $loginHint = null, ?string $organization = null, ?string $organizationHint = null)
+ * @method static \Illuminate\Http\RedirectResponse redirect(list<string>|null $scopes = null, ?string $state = null, string|\Cbox\Id\Client\Enums\Prompt|null $prompt = null, ?int $maxAge = null, ?string $loginHint = null, ?string $organization = null, ?string $organizationHint = null, ?string $idpHint = null)
  * @method static \Illuminate\Http\RedirectResponse switchOrganization(string $organizationId, list<string>|null $scopes = null, string|\Cbox\Id\Client\Enums\Prompt|null $prompt = null)
  * @method static \Illuminate\Http\RedirectResponse selectOrganization(list<string>|null $scopes = null, ?string $organizationHint = null)
  * @method static \Illuminate\Http\RedirectResponse createOrganization(list<string>|null $scopes = null)
  * @method static \Illuminate\Http\RedirectResponse addAccount(list<string>|null $scopes = null, ?string $state = null)
+ * @method static \Illuminate\Http\RedirectResponse signUp(?string $loginHint = null, list<string>|null $scopes = null)
+ * @method static bool offersSignUp()
+ * @method static \Cbox\Id\Client\SignIn\SignInMode signInMode()
+ * @method static \Illuminate\Http\RedirectResponse signInFailed(?\Throwable $reason = null)
  * @method static \Cbox\Id\Client\ValueObjects\CboxUser authenticate(\Illuminate\Http\Request $request)
  * @method static bool rememberAppCatalogSignIn(\Cbox\Id\Client\ValueObjects\CboxUser $user)
  * @method static \Cbox\Id\Client\ValueObjects\RefreshedTokens refresh(string $refreshToken, bool $remember = false)
@@ -61,6 +66,18 @@ class CboxId extends Facade
     public static function appCatalogRoutes(): void
     {
         AppCatalogRoutes::register();
+    }
+
+    /**
+     * Register redirect mode's sign-in entry points (`/login`, `/signup`, the launch, the
+     * invitation entry and the two notice pages). Nothing is registered while
+     * `cbox-id-client.sign_in.mode` is `embedded`. See {@see SignInRoutes}.
+     *
+     * Defined here for the same reason as {@see AppCatalogRoutes()}.
+     */
+    public static function signInRoutes(): void
+    {
+        SignInRoutes::register();
     }
 
     protected static function getFacadeAccessor(): string

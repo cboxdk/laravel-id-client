@@ -14,9 +14,13 @@ use Cbox\Id\Client\Enums\Prompt;
 use Cbox\Id\Client\Exceptions\ApiKeyRejected;
 use Cbox\Id\Client\Exceptions\ApiKeyVerificationUnavailable;
 use Cbox\Id\Client\Exceptions\AuthenticationFailed;
+use Cbox\Id\Client\Exceptions\ClientConfigurationException;
 use Cbox\Id\Client\Exceptions\InvalidState;
 use Cbox\Id\Client\Exceptions\NotConfigured;
 use Cbox\Id\Client\Exceptions\PipeLeaseFailed;
+use Cbox\Id\Client\SignIn\SignInMode;
+use Cbox\Id\Client\SignIn\SignInRoundTrips;
+use Cbox\Id\Client\SignIn\SignInRoutes;
 use Cbox\Id\Client\Support\ApiUrl;
 use Cbox\Id\Client\Support\Discovery;
 use Cbox\Id\Client\Support\HttpTimeouts;
@@ -219,6 +223,77 @@ class IdentityClient
     }
 
     /**
+     * Send the person to Cbox ID's hosted "create an account" page, and back through the
+     * same callback as a sign-in. Sugar over `redirect(prompt: Prompt::Create)`.
+     *
+     * When the instance says sign-up is not open (its discovery document lists the
+     * prompts it supports and `create` is not one of them), this is an ordinary sign-in:
+     * asking for `create` there is refused with `invalid_request`, and the hosted sign-in
+     * page is where the person reads that an invitation is needed.
+     *
+     * Never bound to an organization: Cbox ID refuses `prompt=create` with `organization`.
+     *
+     * @param  list<string>|null  $scopes
+     */
+    public function signUp(?string $loginHint = null, ?array $scopes = null): RedirectResponse
+    {
+        return $this->redirect($scopes, prompt: $this->offersSignUp() ? Prompt::Create : null, loginHint: $loginHint);
+    }
+
+    /**
+     * Whether the instance offers self-service sign-up, from `prompt_values_supported` in
+     * its discovery document. An instance that does not publish the list is taken to.
+     */
+    public function offersSignUp(): bool
+    {
+        $supported = $this->discovery->document()['prompt_values_supported'] ?? null;
+
+        return ! is_array($supported) || in_array(Prompt::Create->value, $supported, true);
+    }
+
+    /** Whether this app sends people to Cbox ID to sign in, or draws its own sign-in page. */
+    public function signInMode(): SignInMode
+    {
+        return SignInMode::configured();
+    }
+
+    /**
+     * Where to send the browser when your callback could not finish a sign-in.
+     *
+     * In redirect mode there is no sign-in page to show an error on, and returning to
+     * `/login` would start the same sign-in again: with a live Cbox ID session that is a
+     * loop the person never sees. This answers with the error page instead
+     * (`cbox-id-client.sign_in.error_path`), carrying only an error code.
+     *
+     * A state that did not match is a stale or repeated callback, not a refusal: that one
+     * starts over at `/login`, which stops by itself after too many round trips.
+     *
+     *     try {
+     *         $identity = CboxId::authenticate($request);
+     *     } catch (CboxIdException $e) {
+     *         return CboxId::signInFailed($e);
+     *     }
+     */
+    public function signInFailed(?Throwable $reason = null): RedirectResponse
+    {
+        $login = SignInRoutes::path('login_path') ?? '/login';
+
+        if ($reason instanceof InvalidState) {
+            return new RedirectResponse(url($login));
+        }
+
+        $code = match (true) {
+            $reason instanceof AuthenticationFailed => $reason->error,
+            $reason instanceof NotConfigured, $reason instanceof ClientConfigurationException => 'sign_in_unavailable',
+            default => null,
+        };
+
+        session()->flash(SignInRoutes::ERROR_KEY, is_string($code) && preg_match('/\A[a-z_]{1,64}\z/', $code) === 1 ? $code : 'sign_in_failed');
+
+        return new RedirectResponse(url(SignInRoutes::path('error_path') ?? $login));
+    }
+
+    /**
      * Complete login on your callback route: verify state, exchange the code (with
      * the PKCE verifier), verify the id_token, and return the authenticated user.
      *
@@ -227,6 +302,10 @@ class IdentityClient
      */
     public function authenticate(Request $request): CboxUser
     {
+        // Counted whatever the outcome: `/login` in redirect mode stops starting sign-ins
+        // that keep coming back here (SignIn\SignInRoundTrips).
+        SignInRoundTrips::note(app(Session::class));
+
         $state = $request->query('state');
         $expected = session()->pull(self::STATE_KEY);
         $verifier = session()->pull(self::VERIFIER_KEY);
