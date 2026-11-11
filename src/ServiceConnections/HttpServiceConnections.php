@@ -35,7 +35,8 @@ class HttpServiceConnections implements ServiceConnections
         }
         $scopes = $this->scopes($body['scopes'] ?? null);
 
-        return new ServiceConnection($body['id'], $organization, $service, $this->clientId, $audience, $scopes);
+        // The raw id, whichever API answered: what the app stores does not change with CBOX_ID_API_URL.
+        return new ServiceConnection(PublicId::raw($body['id']), $organization, $service, $this->clientId, $audience, $scopes);
     }
 
     public function status(ServiceConnection $connection): bool

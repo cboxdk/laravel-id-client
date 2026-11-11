@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cbox\Id\Client\ValueObjects;
 
 use Cbox\Id\Client\Support\Claims;
+use Cbox\Id\Client\Support\PublicId;
 use DateTimeImmutable;
 
 /**
@@ -34,6 +35,9 @@ readonly class PipeToken
     ) {}
 
     /**
+     * The ids are the raw ones a token carries (`userId` is the person's `sub`), on either
+     * API: the `/v1` API answers `usr_01J…`, `{issuer}/api/v1` the bare ULID.
+     *
      * @param  array<array-key, mixed>  $data
      */
     public static function fromArray(array $data): self
@@ -49,8 +53,8 @@ readonly class PipeToken
         return new self(
             accessToken: Claims::requiredString($data, 'access_token'),
             provider: Claims::string($data, 'provider') ?? '',
-            userId: Claims::string($data, 'user_id') ?? '',
-            connectionId: Claims::string($data, 'connection_id') ?? '',
+            userId: PublicId::raw(Claims::string($data, 'user_id') ?? ''),
+            connectionId: PublicId::raw(Claims::string($data, 'connection_id') ?? ''),
             scopes: is_array($data['scopes'] ?? null) ? Claims::strings($data, 'scopes') : [],
             expiresAt: Claims::time($data, 'expires_at'),
             leaseExpiresAt: Claims::time($data, 'lease_expires_at'),
