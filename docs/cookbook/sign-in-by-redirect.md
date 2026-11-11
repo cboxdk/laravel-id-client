@@ -88,7 +88,7 @@ Route::get('/login/callback', function (Request $request) {
 `signInFailed()` redirects to `/login/error` carrying only the error code (`access_denied`,
 `invalid_scope`, …), never Cbox ID's description of how your deployment is registered. A
 state that did not match is a stale or repeated callback, not a refusal: that one goes back
-to `/login` to start over.
+to `/login` to start over. (In embedded mode `signInFailed()` goes to your own `/login` page.)
 
 When **your own** rules refuse somebody after a successful sign-in (not admitted, no
 access to this app), answer with your own page or a `403`. Do not send them to `/login`.

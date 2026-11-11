@@ -269,6 +269,12 @@ it('shows only an error code, never what Cbox ID said about the deployment', fun
     $this->get('https://app.test/login/error')->assertOk()->assertSee('invalid_scope')->assertDontSee('not registered');
 });
 
+it('sends a failure back to the app\'s own sign-in page in embedded mode', function (): void {
+    CboxId::fake();
+
+    expect(parse_url(CboxId::signInFailed(AuthenticationFailed::fromCallback('access_denied'))->getTargetUrl(), PHP_URL_PATH))->toBe('/login');
+});
+
 it('replaces an error code that is not one', function (): void {
     useRedirectMode();
 

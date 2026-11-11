@@ -290,7 +290,10 @@ class IdentityClient
 
         session()->flash(SignInRoutes::ERROR_KEY, is_string($code) && preg_match('/\A[a-z_]{1,64}\z/', $code) === 1 ? $code : 'sign_in_failed');
 
-        return new RedirectResponse(url(SignInRoutes::path('error_path') ?? $login));
+        // An app that draws its own sign-in page has no error page of ours: back to its page.
+        $error = SignInMode::configured() === SignInMode::Redirect ? SignInRoutes::path('error_path') : null;
+
+        return new RedirectResponse(url($error ?? $login));
     }
 
     /**
