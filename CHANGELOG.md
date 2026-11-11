@@ -3,7 +3,7 @@
 All notable changes to `cboxdk/laravel-id-client`. Earlier releases are described on
 their GitHub release pages.
 
-## Unreleased
+## 0.19.5 — 2026-11-11
 
 ### Changed
 
