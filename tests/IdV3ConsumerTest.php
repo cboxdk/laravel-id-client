@@ -274,6 +274,19 @@ describe('webhook event names', function (): void {
         expect($runs)->toBe(1);
     });
 
+    it('dispatches an old name to its handlers exactly as 0.19.3 did', function (): void {
+        $runs = 0;
+        $handler = function () use (&$runs): void {
+            $runs++;
+        };
+        CboxIdWebhooks::on('role.assigned', $handler);
+        CboxIdWebhooks::on('role.assigned', $handler);
+
+        v3Deliver(['type' => 'role.assigned', 'data' => []])->assertOk();
+
+        expect($runs)->toBe(2);
+    });
+
     it('gives the raw organization id when the payload carries a prefixed one', function (): void {
         $received = null;
         CboxIdWebhooks::on('*', function (WebhookEvent $event) use (&$received): void {

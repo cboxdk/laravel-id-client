@@ -65,10 +65,12 @@ class WebhookHandlers
      */
     private function handlersFor(string $eventType): array
     {
-        $handlers = [];
+        // The handlers for the name as delivered, exactly as before the `id.*` names
+        // (a handler registered twice under one name still runs twice).
+        $handlers = $this->handlers[$eventType] ?? [];
 
         foreach (EventNames::aliases($eventType) as $name) {
-            if ($name === EventType::WILDCARD) {
+            if ($name === EventType::WILDCARD || $name === $eventType) {
                 continue;
             }
 

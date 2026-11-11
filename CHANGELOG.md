@@ -3,7 +3,7 @@
 All notable changes to `cboxdk/laravel-id-client`. Earlier releases are described on
 their GitHub release pages.
 
-## Unreleased
+## 0.19.4 — 2026-11-11
 
 Cbox ID v3, additive: an app bumps without changing anything, and keeps working while
 Cbox ID moves to `api.cboxid.com/v1`, `id.*` event names, prefixed ids and the new scope

@@ -1,7 +1,7 @@
 {
     "bomFormat": "CycloneDX",
     "specVersion": "1.5",
-    "serialNumber": "urn:uuid:ea1a119a-fa05-486d-b012-80a1d2dd4a52",
+    "serialNumber": "urn:uuid:7740523c-8d4a-4acb-b094-be9ed71f6692",
     "version": 1,
     "metadata": {
         "tools": [
@@ -245,11 +245,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/laravel/framework@v13.40.0",
+            "bom-ref": "pkg:composer/laravel/framework@v13.42.0",
             "group": "laravel",
             "name": "framework",
-            "version": "v13.40.0",
-            "purl": "pkg:composer/laravel/framework@v13.40.0",
+            "version": "v13.42.0",
+            "purl": "pkg:composer/laravel/framework@v13.42.0",
             "description": "The Laravel Framework.",
             "licenses": [
                 {
@@ -277,11 +277,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/laravel/serializable-closure@v2.1.0",
+            "bom-ref": "pkg:composer/laravel/serializable-closure@v2.2.0",
             "group": "laravel",
             "name": "serializable-closure",
-            "version": "v2.1.0",
-            "purl": "pkg:composer/laravel/serializable-closure@v2.1.0",
+            "version": "v2.2.0",
+            "purl": "pkg:composer/laravel/serializable-closure@v2.2.0",
             "description": "Laravel Serializable Closure provides an easy and secure way to serialize closures in PHP.",
             "licenses": [
                 {
