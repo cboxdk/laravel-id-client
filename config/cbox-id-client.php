@@ -97,6 +97,45 @@ return [
 
     /*
     |---------------------------------------------------------------------------
+    | Where people sign in
+    |---------------------------------------------------------------------------
+    |
+    | `mode` — `embedded` (default): your app has its own sign-in page and the SDK
+    | registers nothing. `redirect`: your app has no sign-in page. With
+    | `CboxId::signInRoutes()` in `routes/web.php`, `/login`, `/signup`, the launch
+    | and the invitation entry answer with a redirect to Cbox ID's hosted sign-in
+    | (authorization code + PKCE) and the person comes back to your callback.
+    | Passwords and passkeys never reach your origin, and with a live Cbox ID
+    | session the round trip shows nothing.
+    |
+    | A `*_path` set to null is not registered: keep your own route there. `home`
+    | is where a person who is already signed in lands when they open `/login`,
+    | and where a sign-in with no intended URL ends. `guard` is the auth guard
+    | that says whether somebody is signed in (null: the default guard).
+    |
+    | `view` draws the two pages that remain: a failed sign-in and "you are signed
+    | out". `max_round_trips` is how many sign-ins may come back within a minute
+    | before `/login` shows the error page instead of starting another.
+    |
+    */
+
+    'sign_in' => [
+        'mode' => env('CBOX_ID_SIGN_IN_MODE', 'embedded'),
+        'login_path' => '/login',
+        'signup_path' => '/signup',
+        'launch_path' => '/login/launch',
+        'invitation_path' => '/login/invitation',
+        'error_path' => '/login/error',
+        'signed_out_path' => '/login/signed-out',
+        'middleware' => ['web'],
+        'guard' => null,
+        'home' => '/',
+        'view' => 'cbox-id-client::sign-in.notice',
+        'max_round_trips' => 3,
+    ],
+
+    /*
+    |---------------------------------------------------------------------------
     | Remembering who signed in
     |---------------------------------------------------------------------------
     |

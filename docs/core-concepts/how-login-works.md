@@ -49,13 +49,14 @@ on the sign-in page, never back at the provider.
 ## What's stored in the session
 
 `redirect()` puts three short-lived values in the session, all consumed (pulled)
-once by `authenticate()`:
+once by `authenticate()`, which also notes that a sign-in came back:
 
 | Session key | Purpose |
 |---|---|
 | `cbox-id-client.state` | CSRF — ties the callback to the browser that started the flow. |
 | `cbox-id-client.verifier` | The PKCE verifier — proves the same client that started the flow is redeeming the code. |
 | `cbox-id-client.nonce` | Binds the `id_token` to this login, defeating token replay. |
+| `cbox-id-client.sign-in.returns` | When recent sign-ins came back to the callback, so `/login` in [redirect mode](../cookbook/sign-in-by-redirect.md) can stop a loop. Not consumed; entries age out after a minute. |
 
 Because they live in the session, a login must finish in the same browser session it
 began in.

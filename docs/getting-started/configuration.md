@@ -32,6 +32,7 @@ CBOX_ID_REDIRECT=https://app.acme.com/auth/callback
 | Key | Default | What it does |
 |---|---|---|
 | `scopes` | `openid profile email` (`CBOX_ID_SCOPES`) | Scopes requested at login, space- or comma-separated. `openid` is required for an `id_token`. Add `organizations` for a team switcher, `offline_access` for a refresh token, `groups` for roles on the id_token — each must be allowed on your app. |
+| `sign_in.mode` | `embedded` (`CBOX_ID_SIGN_IN_MODE`) | `redirect`: the app has no sign-in page, and `CboxId::signInRoutes()` serves `/login`, `/signup` and the launch and invitation entries as redirects to Cbox ID. See [Sign in by redirect](../cookbook/sign-in-by-redirect.md). |
 | `session.remember` | `true` (`CBOX_ID_REMEMBER_IDENTITY`) | Remember who signed in (subject, organization, tier, roles, permissions — never tokens) in the session, bound to the local user you log in. |
 | `authorization.gate` | `false` (`CBOX_ID_GATE`) | Answer `feature:action` abilities (`@can`, `can()`, `authorize()`) from Cbox ID permissions. Only ever grants. |
 | `organizations.picker` | `true` (`CBOX_ID_ORGANIZATION_PICKER`) | Send a browser without an organization to the hosted picker from `cbox-id.org`, instead of a 403. |

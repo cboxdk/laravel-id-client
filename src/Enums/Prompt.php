@@ -7,9 +7,11 @@ namespace Cbox\Id\Client\Enums;
 /**
  * The `prompt` values Cbox ID understands on its authorize endpoint.
  *
- * The first four are OpenID Connect Core §3.1.2.1. The last two are Cbox ID's own and
- * drive its hosted organization step: the picker, and "create a team" (the person
- * becomes its Owner and the authorization continues bound to the new organization).
+ * The first four are OpenID Connect Core §3.1.2.1. `create` is "Initiating User
+ * Registration via OpenID Connect 1.0": the hosted page opens on sign-up. The last two
+ * are Cbox ID's own and drive its hosted organization step: the picker, and "create a
+ * team" (the person becomes its Owner and the authorization continues bound to the new
+ * organization).
  */
 enum Prompt: string
 {
@@ -22,6 +24,9 @@ enum Prompt: string
     case Consent = 'consent';
 
     case SelectAccount = 'select_account';
+
+    /** Open the hosted page on "create an account" instead of sign-in. */
+    case Create = 'create';
 
     /** Always show the hosted organization picker. */
     case SelectOrganization = 'select_organization';

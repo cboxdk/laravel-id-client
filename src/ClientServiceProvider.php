@@ -352,12 +352,19 @@ class ClientServiceProvider extends ServiceProvider
     {
         $this->registerInternalRoutes();
 
+        // The failed sign-in and signed-out pages of redirect mode (SignIn\SignInRoutes).
+        $this->loadViewsFrom(__DIR__.'/../resources/views', 'cbox-id-client');
+
         if ($this->app->runningInConsole()) {
             $this->commands([PublishManifestCommand::class]);
 
             $this->publishes([
                 __DIR__.'/../config/cbox-id-client.php' => config_path('cbox-id-client.php'),
             ], 'cbox-id-client-config');
+
+            $this->publishes([
+                __DIR__.'/../resources/views' => resource_path('views/vendor/cbox-id-client'),
+            ], 'cbox-id-client-views');
         }
 
         // Register through the existing queue path; applications need only a Laravel listener.

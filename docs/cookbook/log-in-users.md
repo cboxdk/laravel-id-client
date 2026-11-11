@@ -32,6 +32,10 @@ Route::get('/auth/callback', function (Request $request) {
 })->name('auth.callback');
 ```
 
+These two routes are all an app needs when it starts sign-in from its own button. An app
+with no sign-in page at all, where `/login` itself redirects, gets its entry points from
+the SDK: see [Sign in by redirect](sign-in-by-redirect.md).
+
 ## The `CboxUser` you get back
 
 `authenticate()` returns a `Cbox\Id\Client\ValueObjects\CboxUser`:

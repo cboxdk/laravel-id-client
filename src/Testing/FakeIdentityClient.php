@@ -6,9 +6,11 @@ namespace Cbox\Id\Client\Testing;
 
 use Cbox\Id\Client\Exceptions\AuthenticationFailed;
 use Cbox\Id\Client\IdentityClient;
+use Cbox\Id\Client\SignIn\SignInRoundTrips;
 use Cbox\Id\Client\Tenancy\SessionIdentityStore;
 use Cbox\Id\Client\ValueObjects\CboxUser;
 use Cbox\Id\Client\ValueObjects\RefreshedTokens;
+use Illuminate\Contracts\Session\Session;
 use Illuminate\Http\Request;
 use PHPUnit\Framework\Assert;
 
@@ -54,6 +56,8 @@ class FakeIdentityClient extends IdentityClient
 
     public function authenticate(Request $request): CboxUser
     {
+        SignInRoundTrips::note(app(Session::class));
+
         $outcome = array_shift($this->signIns)
             ?? throw AuthenticationFailed::because('CboxId::fake(): no sign-in is queued. Call CboxId::fake()->signIn(…) first.');
 

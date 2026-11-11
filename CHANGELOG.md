@@ -3,6 +3,16 @@
 All notable changes to `cboxdk/laravel-id-client`. Earlier releases are described on
 their GitHub release pages.
 
+## [Unreleased]
+
+### Added
+
+- Redirect mode for sign-in: `cbox-id-client.sign_in.mode` (`CBOX_ID_SIGN_IN_MODE`), `embedded` (the default, nothing changes) or `redirect`. In redirect mode `CboxId::signInRoutes()` registers the entry points of an app with no sign-in page: `/login` (named `login`), `/signup`, `/login/launch` and `/login/invitation` answer with a redirect to Cbox ID (authorization code + PKCE, `state`, `nonce`), and `/login/error` and `/login/signed-out` are the only pages. A link may carry `return_to` (a path in the app, kept as the intended URL), `organization`, `login_hint`/`email`, and on `/login` `prompt` and `idp_hint`. An Inertia visit gets `409` with `X-Inertia-Location`. A path set to `null` leaves that route to the app. `SignIn\SignInRoutes`, `SignIn\SignInMode`. Cookbook: "Sign in by redirect".
+- `CboxId::signInFailed($e)` for the callback: redirects to the error page with only the error code, so a failed sign-in is never sent back to `/login`. A state mismatch starts over at `/login`.
+- `/login` in redirect mode stops after three sign-ins came back to the callback within a minute (`sign_in.max_round_trips`) and shows the error page, so no callback can loop against a live Cbox ID session.
+- `CboxId::signUp()` (`prompt=create`, never with an organization) and `CboxId::offersSignUp()` (from `prompt_values_supported`); `signUp()` is an ordinary sign-in when the instance does not offer sign-up. `Prompt::Create`.
+- The notice view `cbox-id-client::sign-in.notice` (publish with the tag `cbox-id-client-views`, or set `sign_in.view`).
+
 ## 0.19.5 — 2026-11-11
 
 ### Changed
