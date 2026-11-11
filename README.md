@@ -310,7 +310,9 @@ CboxIdWebhooks::on('*', fn ($e) => Log::info('cbox event', ['type' => $e->type])
 (`CboxIdWebhooks::on(EventType::MembershipCreated, …)`), and `$event->sequence` goes up by
 one per delivery to your endpoint, so a gap is visible.
 
-The SDK mounts a signed receiver at `POST /cbox-id/webhooks` (configurable). Register
+The SDK mounts a signed receiver at `POST /cbox-id/webhooks` (configurable), and at
+`POST /webhooks/cbox-id` next to it. Event names arrive as `organization.member_added` or
+`id.organization.member_added`; a handler registered for either runs for both. Register
 that URL as a webhook endpoint on your Cbox ID instance (Developers → Webhooks),
 subscribe it to the event types you handle, and copy its signing secret into
 `CBOX_ID_WEBHOOK_SECRET`. Signature verification (HMAC-SHA256, replay-bounded) and JSON
@@ -342,7 +344,7 @@ then `CallOptions`. Results are readonly schema objects inside an `ApiResponse` 
 shape PHPStan checks.
 
 ```php
-use Cbox\Id\Client\Facades\CboxIdApi;          // config: CBOX_ID_MANAGEMENT_KEY, CBOX_ID_WORKSPACE_KEY
+use Cbox\Id\Client\Facades\CboxIdApi;          // config: CBOX_ID_MANAGEMENT_KEY, CBOX_ID_ORGANIZATION_KEY
 use Cbox\Id\Client\Management\EnvironmentClient;
 
 $env = CboxIdApi::environment();                // or: new EnvironmentClient(baseUrl: 'https://acme.cboxid.com', apiKey: $key)
@@ -356,7 +358,7 @@ foreach ($env->organizations->listAll(['status' => 'active']) as $organization) 
     // every page, fetched lazily
 }
 
-$created = CboxIdApi::workspace()->environments->create(['name' => 'Staging', 'type' => 'sandbox'])->data;
+$created = CboxIdApi::organization()->environments->create(['name' => 'Staging', 'type' => 'sandbox'])->data;
 ```
 
 - **Idempotent writes.** Every POST/PUT/PATCH/DELETE carries an `Idempotency-Key` (a UUID, or

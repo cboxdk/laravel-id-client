@@ -78,8 +78,18 @@ primitives — `verify()`, `sign()` for testing your receiver, and `secretFor()`
 hex Cbox secret into the `whsec_` form Cbox ID signs with after the endpoint changes scheme
 without a new secret. It is tested against the specification's published vector.
 
-The built-in receiver (`/cbox-id/webhooks`) accepts either scheme with the one
-`CBOX_ID_WEBHOOK_SECRET`: it reads the scheme off the headers.
+The built-in receiver (`/cbox-id/webhooks`, and `/webhooks/cbox-id` next to it) accepts
+either scheme with the one `CBOX_ID_WEBHOOK_SECRET`: it reads the scheme off the headers.
+
+## Event names
+
+Cbox ID is adding its product key to its event types: `organization.member_added` becomes
+`id.organization.member_added`, and `user.login` becomes `id.user.signed_in`. The SDK
+treats both names as one event, so nothing changes in your app: a handler registered for
+either name runs for both, `$event->is(...)` and `$event->eventType()` answer the same, and
+`EventType::X->idName()` gives the new name. `$event->organizationId` is always the raw id
+the token's `org_id` carries, also when the payload sends a prefixed `org_…`; read other
+ids the same way with `$event->id('user_id')`.
 
 ## The secret
 

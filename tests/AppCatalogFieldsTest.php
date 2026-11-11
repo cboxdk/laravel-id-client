@@ -60,7 +60,8 @@ it('drops a hue it cannot prove safe instead of passing it to a page', function 
     expect($catalog['apps'][0]['hue'])->toBeNull();
 })->with([
     'css injection' => ['red;background:url(x)'],
-    'named colour' => ['indigo'],
+    'css function' => ['rgb(1,2,3)'],
+    'uppercase name' => ['Indigo'],
     'too long hex' => ['#123456789'],
     'array' => [['h' => 1]],
 ]);

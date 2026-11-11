@@ -7,14 +7,22 @@ namespace Cbox\Id\Client\AppCatalog;
 use Illuminate\Http\Client\Response;
 
 /**
- * Cbox ID's catalog envelope, checked: `data` a list of apps, `meta.revision` and
- * `meta.refresh_after`. The person's own read (`/api/v1/me/apps`) and the app's machine
- * read (`/api/v1/app-catalog/for-user`) answer the same shape.
+ * Cbox ID's catalog envelope, checked. Two shapes are read, for one release:
+ *
+ *  - today's, on `{issuer}/api/v1`: `data` a list of apps, `meta.revision` and
+ *    `meta.refresh_after`;
+ *  - the list envelope of the `/v1` API: `object: "list"`, `data`, and `revision` and
+ *    `refresh_after` at the top level.
+ *
+ * The person's own read (`/me/apps`) and the app's machine read (`/app-catalog/for-user`)
+ * answer the same shape.
  *
  * Each app may also carry `purpose` (one line: "Identity and sign-in"), `hue` (the app's
- * fixed colour) and, for an app the organization does not have yet, `enabled: false`
- * with an `admission_url` (its signup page) instead of a `launch_url`. All four are
- * optional: an older Cbox ID that sends none of them answers enabled apps only.
+ * fixed colour: a cbox-ui hue token such as `violet`, a hex colour or an OKLCH hue angle)
+ * and, for an app the organization does not have yet, `enabled: false` (or `available:
+ * false`) with an `admission_url` (its signup page) instead of a `launch_url`. Such apps
+ * may also come in a separate `unavailable` list. All of it is optional: an older Cbox ID
+ * that sends none of them answers enabled apps only.
  *
  * @internal
  */
@@ -29,23 +37,28 @@ final class CatalogPayload
     {
         $issuer = rtrim($issuer, '/');
         $rows = $response->json('data');
-        $revision = $response->json('meta.revision');
-        $refresh = $response->json('meta.refresh_after');
+        $unavailable = $response->json('unavailable') ?? [];
+        // The list envelope carries these at the top level; today's under `meta`.
+        $list = $response->json('object') === 'list';
+        $revision = $response->json($list ? 'revision' : 'meta.revision') ?? $response->json('meta.revision');
+        $refresh = $response->json($list ? 'refresh_after' : 'meta.refresh_after') ?? $response->json('meta.refresh_after');
 
-        if (! $response->successful() || ! is_array($rows) || ! array_is_list($rows) || ! is_string($revision)
-            || ! preg_match('/^[a-f0-9]{64}$/D', $revision) || ! is_int($refresh) || $refresh < 1) {
+        if (! $response->successful() || ! is_array($rows) || ! array_is_list($rows) || ! is_array($unavailable) || ! array_is_list($unavailable)
+            || ! is_string($revision) || ! preg_match('/^[a-f0-9]{64}$/D', $revision) || ! is_int($refresh) || $refresh < 1) {
             throw new \RuntimeException('ID app catalog response is unavailable or malformed.');
         }
 
         $apps = [];
 
-        foreach ($rows as $row) {
+        foreach ([...$rows, ...array_map(static fn (mixed $row): mixed => is_array($row) ? ['enabled' => false, ...$row] : $row, $unavailable)] as $row) {
             if (! is_array($row) || ! is_string($row['key'] ?? null) || ! preg_match('/^[a-z][a-z0-9_-]{0,63}$/D', $row['key'])
                 || ! is_string($row['name'] ?? null) || $row['name'] === '' || isset($apps[$row['key']])) {
                 throw new \RuntimeException('ID returned an invalid app catalog entry.');
             }
 
-            $enabled = $row['enabled'] ?? true;
+            // `available` is the /v1 name of `enabled`; an entry of the `unavailable` list
+            // is not enabled even when it says neither.
+            $enabled = $row['available'] ?? $row['enabled'] ?? true;
 
             if (! is_bool($enabled)) {
                 throw new \RuntimeException('ID returned an invalid app catalog entry.');
@@ -98,8 +111,8 @@ final class CatalogPayload
     }
 
     /**
-     * The app's fixed hue: a hex colour (`#4f46e5`) or a bare OKLCH hue angle (`258`).
-     * Anything else is dropped, never passed to a page's styles.
+     * The app's fixed hue: a cbox-ui hue token (`violet`), a hex colour (`#4f46e5`) or a
+     * bare OKLCH hue angle (`258`). Anything else is dropped, never passed to a page's styles.
      */
     private static function hue(mixed $hue): ?string
     {
@@ -107,7 +120,7 @@ final class CatalogPayload
             $hue = (string) $hue;
         }
 
-        return is_string($hue) && preg_match('/\A(#[0-9a-fA-F]{3,8}|\d{1,3}(\.\d{1,3})?)\z/', $hue) === 1 ? $hue : null;
+        return is_string($hue) && preg_match('/\A(#[0-9a-fA-F]{3,8}|\d{1,3}(\.\d{1,3})?|[a-z][a-z0-9-]{0,31})\z/', $hue) === 1 ? $hue : null;
     }
 
     /** An icon is served by ID itself: null, or an HTTPS URL on the issuer. */

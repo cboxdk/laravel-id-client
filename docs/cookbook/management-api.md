@@ -30,7 +30,8 @@ account plane) is refused when the client is built, not answered with a 401 on e
 ```dotenv
 CBOX_ID_ISSUER=https://acme.cboxid.com
 CBOX_ID_MANAGEMENT_KEY=cbid_env_...     # environment plane, on the issuer's host
-CBOX_ID_WORKSPACE_KEY=cbid_ws_...       # workspace plane, on CBOX_ID_ROOT_URL
+CBOX_ID_ORGANIZATION_KEY=cbid_org_...   # organization plane, on CBOX_ID_ROOT_URL
+                                        # (CBOX_ID_WORKSPACE_KEY is still read when this is empty)
 CBOX_ID_ROOT_URL=https://api.cboxid.com # the platform root (self-hosted: your root host)
 ```
 
@@ -38,7 +39,8 @@ CBOX_ID_ROOT_URL=https://api.cboxid.com # the platform root (self-hosted: your r
 use Cbox\Id\Client\Facades\CboxIdApi;
 
 CboxIdApi::environment();                       // EnvironmentClient, key from config
-CboxIdApi::workspace();                         // WorkspaceClient, key from config
+CboxIdApi::organization();                      // OrganizationClient, key from config
+                                                // (workspace() / WorkspaceClient: deprecated, the same client)
 CboxIdApi::environmentAs($token, 'acme-staging'); // as a person, from the root host
 CboxIdApi::platform($operatorToken);
 CboxIdApi::account($personToken);

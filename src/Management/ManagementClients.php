@@ -15,7 +15,7 @@ use Illuminate\Contracts\Events\Dispatcher;
 
 /**
  * The typed management clients, configured from `cbox-id-client.management` — what the
- * `CboxIdApi` facade and the container's `EnvironmentClient` / `WorkspaceClient` bindings
+ * `CboxIdApi` facade and the container's `EnvironmentClient` / `OrganizationClient` bindings
  * hand out.
  *
  * The key-authenticated clients are built once and shared; the token-authenticated ones
@@ -26,7 +26,7 @@ class ManagementClients
 {
     private ?EnvironmentClient $environment = null;
 
-    private ?WorkspaceClient $workspace = null;
+    private ?OrganizationClient $organization = null;
 
     private ?AuditLogger $auditLogger = null;
 
@@ -59,16 +59,20 @@ class ManagementClients
         );
     }
 
-    /** The workspace plane, with `CBOX_ID_WORKSPACE_KEY` (a `cbid_ws_…` key) on the platform root. */
-    public function workspace(): WorkspaceClient
+    /**
+     * The organization plane, with `CBOX_ID_ORGANIZATION_KEY` (a `cbid_org_…` key, or a
+     * `cbid_ws_…` one from `CBOX_ID_WORKSPACE_KEY`) on the platform root.
+     */
+    public function organization(): OrganizationClient
     {
-        $key = $this->string('workspace_key');
+        $key = $this->string('organization_key');
+        $key = $key !== '' ? $key : $this->string('workspace_key');
 
         if ($key === '') {
-            throw NotConfigured::key('management.workspace_key', 'call the workspace management API');
+            throw NotConfigured::key('management.organization_key', 'call the organization management API');
         }
 
-        return $this->workspace ??= new WorkspaceClient(
+        return $this->organization ??= new OrganizationClient(
             baseUrl: $this->rootUrl(),
             apiKey: $key,
             onApprovalRequired: $this->approvalListener(),
@@ -99,13 +103,23 @@ class ManagementClients
     }
 
     /**
-     * The workspace plane as a person, with their root access token.
+     * The workspace plane.
+     *
+     * @deprecated use {@see self::organization()}; this is the same client.
+     */
+    public function workspace(): WorkspaceClient
+    {
+        return $this->organization();
+    }
+
+    /**
+     * The organization plane as a person, with their root access token.
      *
      * @param  string|(Closure(): string)  $accessToken
      */
-    public function workspaceAs(string|Closure $accessToken, ?string $baseUrl = null): WorkspaceClient
+    public function organizationAs(string|Closure $accessToken, ?string $baseUrl = null): OrganizationClient
     {
-        return new WorkspaceClient(
+        return new OrganizationClient(
             baseUrl: $baseUrl ?? $this->rootUrl(),
             accessToken: $accessToken,
             onApprovalRequired: $this->approvalListener(),
@@ -113,6 +127,18 @@ class ManagementClients
             maxRetries: $this->int('retries', 3),
             timeout: $this->int('timeout', 30),
         );
+    }
+
+    /**
+     * The workspace plane as a person.
+     *
+     * @deprecated use {@see self::organizationAs()}; this is the same client.
+     *
+     * @param  string|(Closure(): string)  $accessToken
+     */
+    public function workspaceAs(string|Closure $accessToken, ?string $baseUrl = null): WorkspaceClient
+    {
+        return $this->organizationAs($accessToken, $baseUrl);
     }
 
     /**

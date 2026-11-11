@@ -6,6 +6,7 @@ namespace Cbox\Id\Client;
 
 use Cbox\Id\Client\Exceptions\TokenRejected;
 use Cbox\Id\Client\Support\Discovery;
+use Cbox\Id\Client\Support\Scopes;
 use Cbox\Id\Client\ValueObjects\DpopKey;
 use Cbox\Id\Client\ValueObjects\VerifiedToken;
 use Firebase\JWT\JWK;
@@ -113,7 +114,9 @@ readonly class AccessTokenVerifier
         }
 
         $scopes = $this->scopesOf($claims);
-        $missing = array_values(array_diff($requiredScopes, $scopes));
+        // Either spelling of a Cbox ID scope satisfies the other (`account:apps:read` and
+        // `id:my-apps:read`) while Cbox ID renames them.
+        $missing = array_values(array_filter($requiredScopes, static fn (string $scope): bool => ! Scopes::holds($scopes, $scope)));
 
         if ($missing !== []) {
             throw TokenRejected::missingScopes($missing);

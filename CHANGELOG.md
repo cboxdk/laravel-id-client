@@ -3,6 +3,26 @@
 All notable changes to `cboxdk/laravel-id-client`. Earlier releases are described on
 their GitHub release pages.
 
+## 0.19.4 — 2026-11-11
+
+Cbox ID v3, additive: an app bumps without changing anything, and keeps working while
+Cbox ID moves to `api.cboxid.com/v1`, `id.*` event names, prefixed ids and the new scope
+names.
+
+### Added
+
+- `CBOX_ID_API_URL` (`cbox-id-client.api_url`). Empty (the default), nothing changes. Set (`https://api.cboxid.com`), the app catalog, manifest push, service connections and pipe leases go to `{api_url}/v1` with the `/v1` paths: `/v1/pipe-leases` (provider in the body), service connections created with `PUT`, checked with `/inspect` instead of `/status` and leased from `/lease`. A person's catalog grant is still only sent to the origin it was issued for. Sign-in and every `/oauth` endpoint stay on the issuer. `Support\ApiUrl`.
+- `CBOX_ID_ORGANIZATION_KEY` (`management.organization_key`), read before `CBOX_ID_WORKSPACE_KEY`. `CboxIdApi::organization()` / `organizationAs()` and `Management\OrganizationClient` (a `WorkspaceClient`, bound in the container).
+- Webhooks: the old event names and the `id.*` names (`id.organization.member_added`; `user.login` is `id.user.signed_in`) are one event. A handler registered for either runs for both, once. `WebhookEvent::is()`, `eventType()` and the user-properties events read both. `Webhooks\EventNames`, `EventType::idName()`, `EventType::fromName()`.
+- The receiver is also mounted at `/webhooks/cbox-id` next to `/cbox-id/webhooks` (named `cbox-id.webhooks.alias`), when the configured path is either of them.
+- The catalog reads the `/v1` list envelope (`object: "list"`, top-level `revision` and `refresh_after`) and today's (`meta.*`), an `unavailable` list in either, and `available` as the name of `enabled`. `hue` may be a cbox-ui hue token (`violet`).
+- Prefixed ids (`org_01J…`) are read wherever the SDK compares ids: service connections, the catalog grant. `WebhookEvent::$organizationId` is always the raw id (the token's `org_id`); `WebhookEvent::id($key)` reads any id that way. `Support\PublicId`.
+- Scopes in either spelling (`account:apps:read` or `id:my-apps:read`) satisfy each other where the SDK checks them, including `VerifiedToken::hasScope()` and required scopes in `AccessTokenVerifier`. The SDK still requests the old names. `Support\Scopes`.
+
+### Deprecated
+
+- `CboxIdApi::workspace()`, `workspaceAs()`, `WorkspaceClient` and `CBOX_ID_WORKSPACE_KEY`: use the organization names. They return the same client.
+
 ## v0.19.3 — 2026-11-10
 
 ### Added

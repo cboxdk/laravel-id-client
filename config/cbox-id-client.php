@@ -13,6 +13,14 @@ return [
     'issuer' => env('CBOX_ID_ISSUER'),
 
     /*
+     * The origin of Cbox ID's `/v1` API, e.g. https://api.cboxid.com. Empty (the default),
+     * the SDK's own API calls — app catalog, manifest push, service connections, pipe
+     * leases — go to `{issuer}/api/v1` exactly as before. Set, they go to
+     * `{api_url}/v1/…`. Sign-in and the other protocol endpoints stay on the issuer.
+     */
+    'api_url' => env('CBOX_ID_API_URL'),
+
+    /*
     |---------------------------------------------------------------------------
     | Audience — this API's own resource identifier
     |---------------------------------------------------------------------------
@@ -235,11 +243,14 @@ return [
     | `url` defaults to `{issuer}/api/v1`; the key only works on the host of
     | the environment it was minted for.
     |
-    | The typed clients (`CboxIdApi::environment()`, `CboxIdApi::workspace()`,
-    | or `EnvironmentClient` / `WorkspaceClient` from the container) read the
-    | rest: `workspace_key` is a WORKSPACE key (`cbid_ws_…`) for the workspace
+    | The typed clients (`CboxIdApi::environment()`, `CboxIdApi::organization()`,
+    | or `EnvironmentClient` / `OrganizationClient` from the container) read the
+    | rest: `organization_key` is an ORGANIZATION key (`cbid_org_…`, or a
+    | `cbid_ws_…` workspace key from before the rename) for the organization
     | plane, served at `root_url` — the platform root, which also serves the
-    | platform plane. Writes are retried `retries` times with the same
+    | platform plane. `CBOX_ID_WORKSPACE_KEY` is still read when
+    | `CBOX_ID_ORGANIZATION_KEY` is not set; `workspace()` / `WorkspaceClient`
+    | still work and are deprecated. Writes are retried `retries` times with the same
     | Idempotency-Key; `timeout` is seconds per attempt; an approval is polled
     | every `approval_poll_interval` milliseconds unless the server says.
     |
@@ -248,6 +259,8 @@ return [
     'management' => [
         'key' => env('CBOX_ID_MANAGEMENT_KEY'),
         'url' => env('CBOX_ID_MANAGEMENT_URL'),
+        'organization_key' => env('CBOX_ID_ORGANIZATION_KEY', env('CBOX_ID_WORKSPACE_KEY')),
+        // Deprecated: read when `organization_key` is empty.
         'workspace_key' => env('CBOX_ID_WORKSPACE_KEY'),
         'root_url' => env('CBOX_ID_ROOT_URL', 'https://api.cboxid.com'),
         'retries' => (int) env('CBOX_ID_MANAGEMENT_RETRIES', 3),

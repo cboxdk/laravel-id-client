@@ -25,6 +25,7 @@ CBOX_ID_REDIRECT=https://app.acme.com/auth/callback
 | `client_id` | `CBOX_ID_CLIENT_ID` | Your registered OAuth client. |
 | `client_secret` | `CBOX_ID_CLIENT_SECRET` | Required for confidential (server-side) apps, machine tokens, and introspection. |
 | `redirect` | `CBOX_ID_REDIRECT` | Your callback URL — must exactly match one registered on the client. |
+| `api_url` | `CBOX_ID_API_URL` | Optional. The origin of Cbox ID's `/v1` API, e.g. `https://api.cboxid.com`. Empty (the default), the SDK's own API calls — app catalog, manifest push, service connections, pipe leases — go to `{issuer}/api/v1` as before; set, to `{api_url}/v1`. Sign-in stays on the issuer. |
 
 ## The rest (sensible defaults)
 

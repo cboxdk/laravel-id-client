@@ -8,6 +8,7 @@ use Cbox\Id\Client\Concerns\ReadsAuthorizationClaims;
 use Cbox\Id\Client\Contracts\HasFeatureFlags;
 use Cbox\Id\Client\Contracts\Principal;
 use Cbox\Id\Client\Exceptions\OrganizationRequired;
+use Cbox\Id\Client\Support\Scopes;
 
 /**
  * An access token whose signature, issuer and audience have been checked.
@@ -48,7 +49,7 @@ readonly class VerifiedToken implements HasFeatureFlags, Principal
 
     public function hasScope(string $scope): bool
     {
-        return in_array($scope, $this->scopes, true);
+        return Scopes::holds($this->scopes, $scope);
     }
 
     /**
