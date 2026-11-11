@@ -1,0 +1,63 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Generates src/Management/Transport/V1RouteTable.php: where each management operation
+ * lives on the /v1 API.
+ *
+ *   composer generate:v1                                    regenerate from openapi/v1.json
+ *   php bin/generate-v1-routes --check                      exit 1 when the table is stale
+ *   php bin/generate-v1-routes --fetch https://api.cboxid.com/openapi.json
+ *                                                           refresh openapi/v1.json (trimmed) first
+ */
+
+use Cbox\Id\Client\Generator\V1RoutesGenerator;
+
+$root = dirname(__DIR__);
+require $root.'/vendor/autoload.php';
+
+$args = array_slice($argv, 1);
+
+try {
+    $fetch = array_search('--fetch', $args, true);
+
+    if ($fetch !== false) {
+        $url = (string) ($args[$fetch + 1] ?? 'https://api.cboxid.com/openapi.json');
+        $text = @file_get_contents($url, false, stream_context_create(['http' => ['header' => "Accept: application/json\r\n"]]));
+
+        if ($text === false) {
+            throw new RuntimeException("GET {$url} failed");
+        }
+
+        file_put_contents(
+            $root.'/'.V1RoutesGenerator::SPEC,
+            json_encode(V1RoutesGenerator::trim($text), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)."\n",
+        );
+        fwrite(STDOUT, 'fetched '.V1RoutesGenerator::SPEC." <- {$url}\n");
+    }
+
+    $generator = new V1RoutesGenerator($root);
+
+    if (in_array('--check', $args, true)) {
+        if ($generator->stale()) {
+            fwrite(STDERR, 'stale: '.V1RoutesGenerator::TARGET."\nRun `composer generate:v1` and commit the result.\n");
+            exit(1);
+        }
+
+        fwrite(STDOUT, "The /v1 route table is up to date.\n");
+        exit(0);
+    }
+
+    $generator->write();
+
+    foreach ($generator->notes as $note) {
+        fwrite(STDOUT, "stays: {$note}\n");
+    }
+
+    fwrite(STDOUT, V1RoutesGenerator::TARGET." written.\n");
+} catch (Throwable $e) {
+    fwrite(STDERR, $e->getMessage()."\n");
+    exit(1);
+}

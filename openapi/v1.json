@@ -1,0 +1,5394 @@
+{
+    "info": {
+        "title": "Cbox ID API",
+        "version": "1.0.0"
+    },
+    "paths": {
+        "/v1/access-review-items/{id}/decide": {
+            "post": {
+                "operationId": "environment_access_reviews_items_decide",
+                "tags": [
+                    "Environment › Governance"
+                ],
+                "x-action": "access_reviews.items.decide",
+                "parameters": [
+                    {
+                        "name": "access_review_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/access-reviews": {
+            "get": {
+                "operationId": "environment_access_reviews_list",
+                "tags": [
+                    "Environment › Governance"
+                ],
+                "x-action": "access_reviews.list",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_access_reviews_create",
+                "tags": [
+                    "Environment › Governance"
+                ],
+                "x-action": "access_reviews.create"
+            }
+        },
+        "/v1/access-reviews/{id}": {
+            "get": {
+                "operationId": "environment_access_reviews_get",
+                "tags": [
+                    "Environment › Governance"
+                ],
+                "x-action": "access_reviews.get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            }
+        },
+        "/v1/access-reviews/{id}/close": {
+            "post": {
+                "operationId": "environment_access_reviews_close",
+                "tags": [
+                    "Environment › Governance"
+                ],
+                "x-action": "access_reviews.close",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/access-reviews/{id}/items": {
+            "get": {
+                "operationId": "environment_access_reviews_items_list",
+                "tags": [
+                    "Environment › Governance"
+                ],
+                "x-action": "access_reviews.items.list",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            }
+        },
+        "/v1/admin/approvals/{id}": {
+            "get": {
+                "tags": [
+                    "Admin › Approvals"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/admin/environments": {
+            "post": {
+                "operationId": "admin_admin_environments_create",
+                "tags": [
+                    "Admin › Environments"
+                ],
+                "x-action": "admin.environments.create",
+                "x-action-aliases": [
+                    "platform.environments.create"
+                ]
+            }
+        },
+        "/v1/admin/environments/{id}/provision": {
+            "post": {
+                "operationId": "admin_admin_environments_provision",
+                "tags": [
+                    "Admin › Environments"
+                ],
+                "x-action": "admin.environments.provision",
+                "x-action-aliases": [
+                    "platform.environments.provision"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/admin/operators": {
+            "post": {
+                "operationId": "admin_admin_operators_create",
+                "tags": [
+                    "Admin › Operators"
+                ],
+                "x-action": "admin.operators.create",
+                "x-action-aliases": [
+                    "platform.operators.create"
+                ]
+            }
+        },
+        "/v1/admin/operators/{id}": {
+            "patch": {
+                "operationId": "admin_admin_operators_set_status",
+                "tags": [
+                    "Admin › Operators"
+                ],
+                "x-action": "admin.operators.set_status",
+                "x-action-aliases": [
+                    "platform.operators.set_status"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/admin/organizations": {
+            "post": {
+                "operationId": "admin_admin_tenant_organizations_create",
+                "tags": [
+                    "Admin › Organizations"
+                ],
+                "x-action": "admin.tenant_organizations.create",
+                "x-action-aliases": [
+                    "platform.organizations.create"
+                ],
+                "parameters": [
+                    {
+                        "name": "environment_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/admin/organizations/{id}": {
+            "patch": {
+                "operationId": "admin_admin_tenant_organizations_move",
+                "tags": [
+                    "Admin › Organizations"
+                ],
+                "x-action": "admin.tenant_organizations.move",
+                "x-action-aliases": [
+                    "platform.organizations.move"
+                ],
+                "parameters": [
+                    {
+                        "name": "environment_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/api-keys": {
+            "get": {
+                "operationId": "environment_api_keys_list",
+                "tags": [
+                    "Environment › API keys"
+                ],
+                "x-action": "api_keys.list",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "client_id",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            }
+        },
+        "/v1/api-keys/{id}": {
+            "delete": {
+                "operationId": "environment_api_keys_revoke",
+                "tags": [
+                    "Environment › API keys"
+                ],
+                "x-action": "api_keys.revoke",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/api-scopes/{id}": {
+            "put": {
+                "operationId": "environment_apis_scopes_define",
+                "tags": [
+                    "Environment › APIs"
+                ],
+                "x-action": "apis.scopes.define",
+                "parameters": [
+                    {
+                        "name": "api_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "environment_apis_scopes_remove",
+                "tags": [
+                    "Environment › APIs"
+                ],
+                "x-action": "apis.scopes.remove",
+                "parameters": [
+                    {
+                        "name": "api_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/apis": {
+            "get": {
+                "tags": [
+                    "Environment › APIs"
+                ],
+                "x-action": "apis.list"
+            },
+            "post": {
+                "tags": [
+                    "Environment › APIs"
+                ],
+                "x-action": "apis.create"
+            }
+        },
+        "/v1/apis/{id}": {
+            "get": {
+                "tags": [
+                    "Environment › APIs"
+                ],
+                "x-action": "apis.get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "Environment › APIs"
+                ],
+                "x-action": "apis.update",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Environment › APIs"
+                ],
+                "x-action": "apis.delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/app-catalog": {
+            "get": {
+                "operationId": "environment_app_catalog_list",
+                "tags": [
+                    "Environment › App catalog"
+                ],
+                "x-action": "app_catalog.list"
+            }
+        },
+        "/v1/app-catalog/for-user": {
+            "get": {
+                "operationId": "environment_app_catalog_for_user",
+                "tags": [
+                    "Environment › App catalog"
+                ],
+                "x-action": "app_catalog.for_user",
+                "parameters": [
+                    {
+                        "name": "user_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/app-catalog/{id}": {
+            "get": {
+                "operationId": "environment_app_catalog_show",
+                "tags": [
+                    "Environment › App catalog"
+                ],
+                "x-action": "app_catalog.show",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "environment_app_catalog_save",
+                "tags": [
+                    "Environment › App catalog"
+                ],
+                "x-action": "app_catalog.save",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "environment_app_catalog_delete",
+                "tags": [
+                    "Environment › App catalog"
+                ],
+                "x-action": "app_catalog.delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/app-manifests": {
+            "post": {
+                "operationId": "apps_publishAppManifest",
+                "tags": [
+                    "Apps › General"
+                ]
+            }
+        },
+        "/v1/app-secrets/{id}": {
+            "delete": {
+                "operationId": "environment_apps_secrets_revoke",
+                "tags": [
+                    "Environment › Applications"
+                ],
+                "x-action": "apps.secrets.revoke",
+                "parameters": [
+                    {
+                        "name": "app_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/appearance": {
+            "get": {
+                "operationId": "environment_branding_appearance_get",
+                "tags": [
+                    "Environment › Branding"
+                ],
+                "x-action": "branding.appearance.get",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "environment_branding_appearance_set",
+                "tags": [
+                    "Environment › Branding"
+                ],
+                "x-action": "branding.appearance.set"
+            }
+        },
+        "/v1/approvals": {
+            "get": {
+                "operationId": "environment_approvals_list",
+                "tags": [
+                    "Environment › Approvals"
+                ],
+                "x-action": "approvals.list",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            }
+        },
+        "/v1/approvals/{id}": {
+            "get": {
+                "tags": [
+                    "Environment › Approvals",
+                    "Organization › Approvals"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/approvals/{id}/deny": {
+            "post": {
+                "operationId": "environment_approvals_deny",
+                "tags": [
+                    "Environment › Approvals"
+                ],
+                "x-action": "approvals.deny",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/apps": {
+            "get": {
+                "operationId": "environment_apps_list",
+                "tags": [
+                    "Environment › Applications"
+                ],
+                "x-action": "apps.list"
+            },
+            "post": {
+                "operationId": "environment_apps_create",
+                "tags": [
+                    "Environment › Applications"
+                ],
+                "x-action": "apps.create"
+            }
+        },
+        "/v1/apps/{id}": {
+            "get": {
+                "operationId": "environment_apps_get",
+                "tags": [
+                    "Environment › Applications"
+                ],
+                "x-action": "apps.get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "environment_apps_update",
+                "tags": [
+                    "Environment › Applications"
+                ],
+                "x-action": "apps.update",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "environment_apps_delete",
+                "tags": [
+                    "Environment › Applications"
+                ],
+                "x-action": "apps.delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/apps/{id}/api-key-prefix": {
+            "put": {
+                "operationId": "environment_apps_settings_api_key_prefix",
+                "tags": [
+                    "Environment › Applications"
+                ],
+                "x-action": "apps.settings.api_key_prefix",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/apps/{id}/backchannel-logout": {
+            "put": {
+                "operationId": "environment_apps_settings_backchannel_logout",
+                "tags": [
+                    "Environment › Applications"
+                ],
+                "x-action": "apps.settings.backchannel_logout",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/apps/{id}/blueprint": {
+            "get": {
+                "operationId": "environment_apps_blueprint",
+                "tags": [
+                    "Environment › Applications"
+                ],
+                "x-action": "apps.blueprint",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/apps/{id}/client-credentials": {
+            "put": {
+                "operationId": "environment_apps_settings_client_credentials",
+                "tags": [
+                    "Environment › Applications"
+                ],
+                "x-action": "apps.settings.client_credentials",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/apps/{id}/copy": {
+            "post": {
+                "operationId": "environment_apps_copy",
+                "tags": [
+                    "Environment › Applications"
+                ],
+                "x-action": "apps.copy",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/apps/{id}/manifest": {
+            "put": {
+                "operationId": "environment_apps_manifest_set",
+                "tags": [
+                    "Environment › Applications"
+                ],
+                "x-action": "apps.manifest.set",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/apps/{id}/scopes": {
+            "put": {
+                "operationId": "environment_apps_scopes_set",
+                "tags": [
+                    "Environment › Applications"
+                ],
+                "x-action": "apps.scopes.set",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/apps/{id}/secrets": {
+            "get": {
+                "operationId": "environment_apps_secrets_list",
+                "tags": [
+                    "Environment › Applications"
+                ],
+                "x-action": "apps.secrets.list",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_apps_secrets_rotate",
+                "tags": [
+                    "Environment › Applications"
+                ],
+                "x-action": "apps.secrets.rotate",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/apps/{id}/sync-manifest": {
+            "post": {
+                "operationId": "environment_apps_manifest_sync",
+                "tags": [
+                    "Environment › Applications"
+                ],
+                "x-action": "apps.manifest.sync",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/apps/{id}/token-exchange": {
+            "put": {
+                "operationId": "environment_apps_settings_token_exchange",
+                "tags": [
+                    "Environment › Applications"
+                ],
+                "x-action": "apps.settings.token_exchange",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/apps/{id}/token-lifetime": {
+            "put": {
+                "operationId": "environment_apps_settings_token_lifetime",
+                "tags": [
+                    "Environment › Applications"
+                ],
+                "x-action": "apps.settings.token_lifetime",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/audit-events": {
+            "get": {
+                "operationId": "environment_audit_list",
+                "tags": [
+                    "Environment › Audit log"
+                ],
+                "x-action": "audit.list",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "action",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "actor_type",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            }
+        },
+        "/v1/audit-log-events": {
+            "get": {
+                "operationId": "environment_audit_logs_events_list",
+                "tags": [
+                    "Environment › App audit logs"
+                ],
+                "x-action": "audit_logs.events.list",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "actions",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "actor_id",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "target_id",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "range_start",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "range_end",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "order",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_audit_logs_events_create",
+                "tags": [
+                    "Environment › App audit logs"
+                ],
+                "x-action": "audit_logs.events.create"
+            }
+        },
+        "/v1/audit-log-events/verify": {
+            "get": {
+                "operationId": "environment_audit_logs_verify",
+                "tags": [
+                    "Environment › App audit logs"
+                ],
+                "x-action": "audit_logs.verify",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "from_sequence",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            }
+        },
+        "/v1/audit-log-exports": {
+            "post": {
+                "operationId": "environment_audit_logs_exports_create",
+                "tags": [
+                    "Environment › App audit logs"
+                ],
+                "x-action": "audit_logs.exports.create"
+            }
+        },
+        "/v1/audit-log-exports/{id}": {
+            "get": {
+                "operationId": "environment_audit_logs_exports_get",
+                "tags": [
+                    "Environment › App audit logs"
+                ],
+                "x-action": "audit_logs.exports.get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/audit-log-schemas": {
+            "get": {
+                "operationId": "environment_audit_logs_schemas_list",
+                "tags": [
+                    "Environment › App audit logs"
+                ],
+                "x-action": "audit_logs.schemas.list",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_audit_logs_schemas_create",
+                "tags": [
+                    "Environment › App audit logs"
+                ],
+                "x-action": "audit_logs.schemas.create"
+            }
+        },
+        "/v1/audit-log-schemas/{id}": {
+            "get": {
+                "operationId": "environment_audit_logs_schemas_get",
+                "tags": [
+                    "Environment › App audit logs"
+                ],
+                "x-action": "audit_logs.schemas.get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "environment_audit_logs_schemas_update",
+                "tags": [
+                    "Environment › App audit logs"
+                ],
+                "x-action": "audit_logs.schemas.update",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "environment_audit_logs_schemas_delete",
+                "tags": [
+                    "Environment › App audit logs"
+                ],
+                "x-action": "audit_logs.schemas.delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/audit-log-settings": {
+            "get": {
+                "operationId": "environment_audit_logs_settings_get",
+                "tags": [
+                    "Environment › App audit logs"
+                ],
+                "x-action": "audit_logs.settings.get"
+            },
+            "patch": {
+                "operationId": "environment_audit_logs_settings_update",
+                "tags": [
+                    "Environment › App audit logs"
+                ],
+                "x-action": "audit_logs.settings.update"
+            }
+        },
+        "/v1/billing-account": {
+            "patch": {
+                "operationId": "organization_billing_account_update",
+                "tags": [
+                    "Organization › Billing"
+                ],
+                "x-action": "billing.account.update"
+            }
+        },
+        "/v1/devices": {
+            "get": {
+                "tags": [
+                    "Environment › Devices"
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Environment › Devices"
+                ]
+            }
+        },
+        "/v1/devices/{id}": {
+            "delete": {
+                "tags": [
+                    "Environment › Devices"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/directories": {
+            "get": {
+                "operationId": "environment_directories_list",
+                "tags": [
+                    "Environment › Directory Sync"
+                ],
+                "x-action": "directories.list",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_directories_create",
+                "tags": [
+                    "Environment › Directory Sync"
+                ],
+                "x-action": "directories.create"
+            }
+        },
+        "/v1/directories/connect": {
+            "post": {
+                "operationId": "environment_directories_connect",
+                "tags": [
+                    "Environment › Directory Sync"
+                ],
+                "x-action": "directories.connect"
+            }
+        },
+        "/v1/directories/connect-hris": {
+            "post": {
+                "operationId": "environment_directories_hris_connect",
+                "tags": [
+                    "Environment › Directory Sync"
+                ],
+                "x-action": "directories.hris.connect"
+            }
+        },
+        "/v1/directories/{id}": {
+            "get": {
+                "operationId": "environment_directories_get",
+                "tags": [
+                    "Environment › Directory Sync"
+                ],
+                "x-action": "directories.get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "environment_directories_update",
+                "tags": [
+                    "Environment › Directory Sync"
+                ],
+                "x-action": "directories.update",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "environment_directories_delete",
+                "tags": [
+                    "Environment › Directory Sync"
+                ],
+                "x-action": "directories.delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/directories/{id}/credentials": {
+            "put": {
+                "operationId": "environment_directories_credentials_replace",
+                "tags": [
+                    "Environment › Directory Sync"
+                ],
+                "x-action": "directories.credentials.replace",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/directories/{id}/group-roles": {
+            "post": {
+                "operationId": "environment_directories_groups_map",
+                "tags": [
+                    "Environment › Directory Sync"
+                ],
+                "x-action": "directories.groups.map",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/directories/{id}/groups": {
+            "get": {
+                "operationId": "environment_directories_groups_list",
+                "tags": [
+                    "Environment › Directory Sync"
+                ],
+                "x-action": "directories.groups.list",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            }
+        },
+        "/v1/directories/{id}/rotate": {
+            "post": {
+                "operationId": "environment_directories_token_rotate",
+                "tags": [
+                    "Environment › Directory Sync"
+                ],
+                "x-action": "directories.token.rotate",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/directories/{id}/status": {
+            "post": {
+                "operationId": "environment_directories_status_set",
+                "tags": [
+                    "Environment › Directory Sync"
+                ],
+                "x-action": "directories.status.set",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/directories/{id}/sync": {
+            "post": {
+                "operationId": "environment_directories_sync",
+                "tags": [
+                    "Environment › Directory Sync"
+                ],
+                "x-action": "directories.sync",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/directories/{id}/sync-settings": {
+            "patch": {
+                "operationId": "environment_directories_sync_settings_update",
+                "tags": [
+                    "Environment › Directory Sync"
+                ],
+                "x-action": "directories.sync_settings.update",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/environment-domain": {
+            "get": {
+                "operationId": "environment_domains_get",
+                "tags": [
+                    "Environment › Domains"
+                ],
+                "x-action": "domains.get"
+            },
+            "post": {
+                "operationId": "environment_domains_add",
+                "tags": [
+                    "Environment › Domains"
+                ],
+                "x-action": "domains.add"
+            },
+            "delete": {
+                "operationId": "environment_domains_remove",
+                "tags": [
+                    "Environment › Domains"
+                ],
+                "x-action": "domains.remove"
+            }
+        },
+        "/v1/environment-domain/verify": {
+            "post": {
+                "operationId": "environment_domains_verify",
+                "tags": [
+                    "Environment › Domains"
+                ],
+                "x-action": "domains.verify"
+            }
+        },
+        "/v1/environment-keys": {
+            "get": {
+                "operationId": "environment_keys_list",
+                "tags": [
+                    "Environment › Secret keys"
+                ],
+                "x-action": "keys.list",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_keys_create",
+                "tags": [
+                    "Environment › Secret keys"
+                ],
+                "x-action": "keys.create"
+            }
+        },
+        "/v1/environment-keys/{id}": {
+            "delete": {
+                "operationId": "environment_keys_revoke",
+                "tags": [
+                    "Environment › Secret keys",
+                    "Organization › Keys"
+                ],
+                "x-action": "keys.revoke",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "name": "environment_id",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            }
+        },
+        "/v1/environment-keys/{id}/rotate": {
+            "post": {
+                "operationId": "environment_keys_rotate",
+                "tags": [
+                    "Environment › Secret keys"
+                ],
+                "x-action": "keys.rotate",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/environment-role-assignments/{id}": {
+            "get": {
+                "operationId": "environment_users_environment_roles_get",
+                "tags": [
+                    "Environment › Roles"
+                ],
+                "x-action": "users.environment_roles.get",
+                "parameters": [
+                    {
+                        "name": "user_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "environment_users_environment_roles_grant",
+                "tags": [
+                    "Environment › Roles"
+                ],
+                "x-action": "users.environment_roles.grant",
+                "parameters": [
+                    {
+                        "name": "user_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "environment_users_environment_roles_revoke",
+                "tags": [
+                    "Environment › Roles"
+                ],
+                "x-action": "users.environment_roles.revoke",
+                "parameters": [
+                    {
+                        "name": "user_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/environments": {
+            "get": {
+                "operationId": "organization_environments_list",
+                "tags": [
+                    "Organization › Environments"
+                ],
+                "x-action": "environments.list",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "organization_environments_create",
+                "tags": [
+                    "Organization › Environments"
+                ],
+                "x-action": "environments.create"
+            }
+        },
+        "/v1/environments/{id}/domain": {
+            "post": {
+                "operationId": "organization_environments_domain_request",
+                "tags": [
+                    "Organization › Environments"
+                ],
+                "x-action": "environments.domain.request",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "organization_environments_domain_remove",
+                "tags": [
+                    "Organization › Environments"
+                ],
+                "x-action": "environments.domain.remove",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/environments/{id}/keys": {
+            "post": {
+                "operationId": "organization_keys_environment_create",
+                "tags": [
+                    "Organization › Keys"
+                ],
+                "x-action": "keys.environment.create",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/environments/{id}/verify-domain": {
+            "post": {
+                "operationId": "organization_environments_domain_verify",
+                "tags": [
+                    "Organization › Environments"
+                ],
+                "x-action": "environments.domain.verify",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/events": {
+            "get": {
+                "operationId": "environment_events_list",
+                "tags": [
+                    "Environment › Events"
+                ],
+                "x-action": "events.list",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "types",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            }
+        },
+        "/v1/feature-flags": {
+            "get": {
+                "operationId": "environment_feature_flags_list",
+                "tags": [
+                    "Environment › Feature flags"
+                ],
+                "x-action": "feature_flags.list",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_feature_flags_create",
+                "tags": [
+                    "Environment › Feature flags"
+                ],
+                "x-action": "feature_flags.create"
+            }
+        },
+        "/v1/feature-flags/evaluate": {
+            "get": {
+                "operationId": "environment_feature_flags_evaluate",
+                "tags": [
+                    "Environment › Feature flags"
+                ],
+                "x-action": "feature_flags.evaluate",
+                "parameters": [
+                    {
+                        "name": "user_id",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            }
+        },
+        "/v1/feature-flags/{id}": {
+            "get": {
+                "operationId": "environment_feature_flags_get",
+                "tags": [
+                    "Environment › Feature flags"
+                ],
+                "x-action": "feature_flags.get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "environment_feature_flags_update",
+                "tags": [
+                    "Environment › Feature flags"
+                ],
+                "x-action": "feature_flags.update",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "environment_feature_flags_delete",
+                "tags": [
+                    "Environment › Feature flags"
+                ],
+                "x-action": "feature_flags.delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/fga/check": {
+            "get": {
+                "operationId": "environment_fga_check",
+                "tags": [
+                    "Environment › Fine-grained authorization"
+                ],
+                "x-action": "fga.check",
+                "parameters": [
+                    {
+                        "name": "resource_type",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "resource_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "relation",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "subject_type",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "subject_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "subject_relation",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "consistency_token",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            }
+        },
+        "/v1/fga/check-batch": {
+            "get": {
+                "operationId": "environment_fga_check_batch",
+                "tags": [
+                    "Environment › Fine-grained authorization"
+                ],
+                "x-action": "fga.check_batch",
+                "parameters": [
+                    {
+                        "name": "checks",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "consistency_token",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            }
+        },
+        "/v1/fga/delete-tuples": {
+            "post": {
+                "operationId": "environment_fga_tuples_delete",
+                "tags": [
+                    "Environment › Fine-grained authorization"
+                ],
+                "x-action": "fga.tuples.delete"
+            }
+        },
+        "/v1/fga/resources": {
+            "get": {
+                "operationId": "environment_fga_resources_list",
+                "tags": [
+                    "Environment › Fine-grained authorization"
+                ],
+                "x-action": "fga.resources.list",
+                "parameters": [
+                    {
+                        "name": "resource_type",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "relation",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "subject_type",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "subject_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "subject_relation",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "consistency_token",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            }
+        },
+        "/v1/fga/schema": {
+            "get": {
+                "operationId": "environment_fga_schema_get",
+                "tags": [
+                    "Environment › Fine-grained authorization"
+                ],
+                "x-action": "fga.schema.get"
+            },
+            "put": {
+                "operationId": "environment_fga_schema_update",
+                "tags": [
+                    "Environment › Fine-grained authorization"
+                ],
+                "x-action": "fga.schema.update"
+            }
+        },
+        "/v1/fga/subjects": {
+            "get": {
+                "operationId": "environment_fga_subjects_list",
+                "tags": [
+                    "Environment › Fine-grained authorization"
+                ],
+                "x-action": "fga.subjects.list",
+                "parameters": [
+                    {
+                        "name": "resource_type",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "resource_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "relation",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "subject_type",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "consistency_token",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            }
+        },
+        "/v1/fga/tuples": {
+            "get": {
+                "operationId": "environment_fga_tuples_list",
+                "tags": [
+                    "Environment › Fine-grained authorization"
+                ],
+                "x-action": "fga.tuples.list",
+                "parameters": [
+                    {
+                        "name": "resource_type",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "resource_id",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "relation",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "subject_type",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "subject_id",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "subject_relation",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_fga_tuples_write",
+                "tags": [
+                    "Environment › Fine-grained authorization"
+                ],
+                "x-action": "fga.tuples.write"
+            }
+        },
+        "/v1/fga/validate-schema": {
+            "get": {
+                "operationId": "environment_fga_schema_validate",
+                "tags": [
+                    "Environment › Fine-grained authorization"
+                ],
+                "x-action": "fga.schema.validate",
+                "parameters": [
+                    {
+                        "name": "schema",
+                        "in": "query",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/frontend-keys": {
+            "get": {
+                "operationId": "environment_frontend_keys_list",
+                "tags": [
+                    "Environment › Publishable keys"
+                ],
+                "x-action": "frontend_keys.list",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_frontend_keys_create",
+                "tags": [
+                    "Environment › Publishable keys"
+                ],
+                "x-action": "frontend_keys.create"
+            }
+        },
+        "/v1/frontend-keys/{id}": {
+            "delete": {
+                "operationId": "environment_frontend_keys_revoke",
+                "tags": [
+                    "Environment › Publishable keys"
+                ],
+                "x-action": "frontend_keys.revoke",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/frontend-keys/{id}/origins": {
+            "put": {
+                "operationId": "environment_frontend_keys_set_origins",
+                "tags": [
+                    "Environment › Publishable keys"
+                ],
+                "x-action": "frontend_keys.set_origins",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/hooks": {
+            "get": {
+                "operationId": "environment_hooks_list",
+                "tags": [
+                    "Environment › Hooks"
+                ],
+                "x-action": "hooks.list",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_hooks_create",
+                "tags": [
+                    "Environment › Hooks"
+                ],
+                "x-action": "hooks.create"
+            }
+        },
+        "/v1/hooks/{id}": {
+            "get": {
+                "operationId": "environment_hooks_get",
+                "tags": [
+                    "Environment › Hooks"
+                ],
+                "x-action": "hooks.get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "environment_hooks_update",
+                "tags": [
+                    "Environment › Hooks"
+                ],
+                "x-action": "hooks.update",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "environment_hooks_delete",
+                "tags": [
+                    "Environment › Hooks"
+                ],
+                "x-action": "hooks.delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/invitations": {
+            "get": {
+                "operationId": "organization_team_invitations_list",
+                "tags": [
+                    "Organization › Team"
+                ],
+                "x-action": "team.invitations.list"
+            }
+        },
+        "/v1/invitations/{id}": {
+            "delete": {
+                "operationId": "organization_team_invitations_revoke",
+                "tags": [
+                    "Organization › Team"
+                ],
+                "x-action": "team.invitations.revoke",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/invitations/{id}/resend": {
+            "post": {
+                "operationId": "organization_team_invitations_resend",
+                "tags": [
+                    "Organization › Team"
+                ],
+                "x-action": "team.invitations.resend",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/legacy-login": {
+            "get": {
+                "operationId": "environment_legacy_login_get",
+                "tags": [
+                    "Environment › Legacy login"
+                ],
+                "x-action": "legacy_login.get"
+            }
+        },
+        "/v1/legacy-login/approve": {
+            "post": {
+                "operationId": "environment_legacy_login_approve",
+                "tags": [
+                    "Environment › Legacy login"
+                ],
+                "x-action": "legacy_login.approve"
+            }
+        },
+        "/v1/legacy-login/probe": {
+            "post": {
+                "operationId": "environment_legacy_login_probe",
+                "tags": [
+                    "Environment › Legacy login"
+                ],
+                "x-action": "legacy_login.probe"
+            }
+        },
+        "/v1/legacy-login/revoke": {
+            "post": {
+                "operationId": "environment_legacy_login_revoke",
+                "tags": [
+                    "Environment › Legacy login"
+                ],
+                "x-action": "legacy_login.revoke"
+            }
+        },
+        "/v1/log-streams": {
+            "get": {
+                "operationId": "environment_log_streams_list",
+                "tags": [
+                    "Environment › Log streams"
+                ],
+                "x-action": "log_streams.list",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_log_streams_create",
+                "tags": [
+                    "Environment › Log streams"
+                ],
+                "x-action": "log_streams.create"
+            }
+        },
+        "/v1/log-streams/{id}": {
+            "get": {
+                "operationId": "environment_log_streams_get",
+                "tags": [
+                    "Environment › Log streams"
+                ],
+                "x-action": "log_streams.get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "environment_log_streams_update",
+                "tags": [
+                    "Environment › Log streams"
+                ],
+                "x-action": "log_streams.update",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "environment_log_streams_delete",
+                "tags": [
+                    "Environment › Log streams"
+                ],
+                "x-action": "log_streams.delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/log-streams/{id}/test": {
+            "post": {
+                "operationId": "environment_log_streams_test",
+                "tags": [
+                    "Environment › Log streams"
+                ],
+                "x-action": "log_streams.test",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/me/api-keys": {
+            "post": {
+                "operationId": "account_account_api_keys_create",
+                "tags": [
+                    "Account › API keys"
+                ],
+                "x-action": "account.api_keys.create",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/me/api-keys/{id}": {
+            "delete": {
+                "operationId": "account_account_api_keys_revoke",
+                "tags": [
+                    "Account › API keys"
+                ],
+                "x-action": "account.api_keys.revoke",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/me/applications/{id}": {
+            "delete": {
+                "operationId": "account_account_applications_revoke",
+                "tags": [
+                    "Account › Applications"
+                ],
+                "x-action": "account.applications.revoke",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/me/approvals": {
+            "get": {
+                "tags": [
+                    "Environment › Approvals"
+                ],
+                "parameters": [
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            }
+        },
+        "/v1/me/approvals/{id}": {
+            "get": {
+                "tags": [
+                    "Environment › Approvals",
+                    "Account › Approvals"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/me/approvals/{id}/approve": {
+            "post": {
+                "tags": [
+                    "Environment › Approvals"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/me/approvals/{id}/deny": {
+            "post": {
+                "tags": [
+                    "Environment › Approvals"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/me/apps": {
+            "get": {
+                "operationId": "account_account_apps_list",
+                "tags": [
+                    "Account › App catalog"
+                ],
+                "x-action": "account.apps.list",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            }
+        },
+        "/v1/me/authenticator": {
+            "get": {
+                "operationId": "environment_authenticatorIdentity",
+                "tags": [
+                    "Environment › Devices"
+                ]
+            }
+        },
+        "/v1/me/devices/{id}": {
+            "delete": {
+                "operationId": "account_account_devices_remove",
+                "tags": [
+                    "Account › Devices"
+                ],
+                "x-action": "account.devices.remove",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/me/email/confirmation": {
+            "post": {
+                "operationId": "account_account_email_confirmation_send",
+                "tags": [
+                    "Account › Profile"
+                ],
+                "x-action": "account.email.confirmation.send"
+            }
+        },
+        "/v1/me/mfa/sms": {
+            "delete": {
+                "operationId": "account_account_mfa_sms_remove",
+                "tags": [
+                    "Account › Sign-in methods"
+                ],
+                "x-action": "account.mfa.sms.remove"
+            }
+        },
+        "/v1/me/organizations/{id}/leave": {
+            "post": {
+                "operationId": "account_account_organizations_leave",
+                "tags": [
+                    "Account › Organizations"
+                ],
+                "x-action": "account.organizations.leave",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/me/passkeys/{id}": {
+            "patch": {
+                "operationId": "account_account_passkeys_rename",
+                "tags": [
+                    "Account › Sign-in methods"
+                ],
+                "x-action": "account.passkeys.rename",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "account_account_passkeys_remove",
+                "tags": [
+                    "Account › Sign-in methods"
+                ],
+                "x-action": "account.passkeys.remove",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/me/pipes/{id}": {
+            "delete": {
+                "operationId": "account_account_pipes_disconnect",
+                "tags": [
+                    "Account › Connected services"
+                ],
+                "x-action": "account.pipes.disconnect",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/me/profile": {
+            "patch": {
+                "operationId": "account_account_profile_update",
+                "tags": [
+                    "Account › Profile"
+                ],
+                "x-action": "account.profile.update"
+            }
+        },
+        "/v1/me/services/{id}/join-waitlist": {
+            "post": {
+                "operationId": "account_account_waitlists_join",
+                "tags": [
+                    "Account › Service waitlists"
+                ],
+                "x-action": "account.waitlists.join",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/me/services/{id}/leave-waitlist": {
+            "post": {
+                "operationId": "account_account_waitlists_leave",
+                "tags": [
+                    "Account › Service waitlists"
+                ],
+                "x-action": "account.waitlists.leave",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/me/sessions/revoke-others": {
+            "post": {
+                "operationId": "account_account_sessions_revoke_others",
+                "tags": [
+                    "Account › Sessions"
+                ],
+                "x-action": "account.sessions.revoke_others"
+            }
+        },
+        "/v1/me/sessions/{id}": {
+            "delete": {
+                "operationId": "account_account_sessions_revoke",
+                "tags": [
+                    "Account › Sessions"
+                ],
+                "x-action": "account.sessions.revoke",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/me/sign-in-methods/{id}": {
+            "delete": {
+                "operationId": "account_account_sign_in_methods_disconnect",
+                "tags": [
+                    "Account › Sign-in methods"
+                ],
+                "x-action": "account.sign_in_methods.disconnect",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/me/social/{id}": {
+            "delete": {
+                "operationId": "account_account_social_unlink",
+                "tags": [
+                    "Account › Sign-in methods"
+                ],
+                "x-action": "account.social.unlink",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/me/totp-factors/{id}": {
+            "patch": {
+                "operationId": "account_account_totp_rename",
+                "tags": [
+                    "Account › Sign-in methods"
+                ],
+                "x-action": "account.totp.rename",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "account_account_totp_remove",
+                "tags": [
+                    "Account › Sign-in methods"
+                ],
+                "x-action": "account.totp.remove",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/members": {
+            "get": {
+                "operationId": "organization_team_list",
+                "tags": [
+                    "Organization › Team"
+                ],
+                "x-action": "team.list",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "organization_team_invite",
+                "tags": [
+                    "Organization › Team"
+                ],
+                "x-action": "team.invite"
+            }
+        },
+        "/v1/members/{id}": {
+            "delete": {
+                "operationId": "organization_team_remove",
+                "tags": [
+                    "Organization › Team"
+                ],
+                "x-action": "team.remove",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "organization_team_environment_access",
+                "tags": [
+                    "Organization › Team"
+                ],
+                "x-action": "team.environment_access",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/members/{id}/transfer-ownership": {
+            "post": {
+                "operationId": "organization_team_transfer_ownership",
+                "tags": [
+                    "Organization › Team"
+                ],
+                "x-action": "team.transfer_ownership",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/onboarding": {
+            "get": {
+                "operationId": "environment_onboarding_get",
+                "tags": [
+                    "Environment › Onboarding"
+                ],
+                "x-action": "onboarding.get"
+            }
+        },
+        "/v1/organization": {
+            "get": {
+                "operationId": "organization_organization_get",
+                "tags": [
+                    "Organization › Organization"
+                ],
+                "x-action": "organization.get",
+                "x-action-aliases": [
+                    "workspace.get"
+                ]
+            },
+            "patch": {
+                "operationId": "organization_organization_settings_update",
+                "tags": [
+                    "Organization › Organization"
+                ],
+                "x-action": "organization.settings.update",
+                "x-action-aliases": [
+                    "workspace.settings.update"
+                ]
+            }
+        },
+        "/v1/organization-domains": {
+            "get": {
+                "operationId": "environment_sso_domains_list",
+                "tags": [
+                    "Environment › Enterprise SSO"
+                ],
+                "x-action": "sso.domains.list",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_sso_domains_create",
+                "tags": [
+                    "Environment › Enterprise SSO"
+                ],
+                "x-action": "sso.domains.create"
+            }
+        },
+        "/v1/organization-domains/{id}": {
+            "delete": {
+                "operationId": "environment_sso_domains_delete",
+                "tags": [
+                    "Environment › Enterprise SSO"
+                ],
+                "x-action": "sso.domains.delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "environment_sso_domains_capture",
+                "tags": [
+                    "Environment › Enterprise SSO"
+                ],
+                "x-action": "sso.domains.capture",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/organization-domains/{id}/verify": {
+            "post": {
+                "operationId": "environment_sso_domains_verify",
+                "tags": [
+                    "Environment › Enterprise SSO"
+                ],
+                "x-action": "sso.domains.verify",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/organization-invitations": {
+            "get": {
+                "operationId": "environment_invitations_list",
+                "tags": [
+                    "Environment › Invitations"
+                ],
+                "x-action": "invitations.list",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_invitations_send",
+                "tags": [
+                    "Environment › Invitations"
+                ],
+                "x-action": "invitations.send",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/organization-invitations/{id}": {
+            "get": {
+                "operationId": "environment_invitations_get",
+                "tags": [
+                    "Environment › Invitations"
+                ],
+                "x-action": "invitations.get",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "environment_invitations_revoke",
+                "tags": [
+                    "Environment › Invitations"
+                ],
+                "x-action": "invitations.revoke",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/organization-invitations/{id}/resend": {
+            "post": {
+                "operationId": "environment_invitations_resend",
+                "tags": [
+                    "Environment › Invitations"
+                ],
+                "x-action": "invitations.resend",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/organization-keys": {
+            "get": {
+                "operationId": "organization_keys_organization_list",
+                "tags": [
+                    "Organization › Keys"
+                ],
+                "x-action": "keys.organization.list",
+                "x-action-aliases": [
+                    "keys.workspace.list"
+                ],
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "organization_keys_organization_create",
+                "tags": [
+                    "Organization › Keys"
+                ],
+                "x-action": "keys.organization.create",
+                "x-action-aliases": [
+                    "keys.workspace.create"
+                ]
+            }
+        },
+        "/v1/organization-keys/{id}": {
+            "delete": {
+                "operationId": "organization_keys_organization_revoke",
+                "tags": [
+                    "Organization › Keys"
+                ],
+                "x-action": "keys.organization.revoke",
+                "x-action-aliases": [
+                    "keys.workspace.revoke"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/organization-memberships": {
+            "get": {
+                "operationId": "environment_members_list",
+                "tags": [
+                    "Environment › Members"
+                ],
+                "x-action": "members.list",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_members_add",
+                "tags": [
+                    "Environment › Members"
+                ],
+                "x-action": "members.add",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/organization-memberships/{id}": {
+            "patch": {
+                "operationId": "environment_members_update",
+                "tags": [
+                    "Environment › Members"
+                ],
+                "x-action": "members.update",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "environment_members_remove",
+                "tags": [
+                    "Environment › Members"
+                ],
+                "x-action": "members.remove",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/organization-memberships/{id}/app-roles": {
+            "put": {
+                "operationId": "environment_members_apps_roles_replace",
+                "tags": [
+                    "Environment › Roles"
+                ],
+                "x-action": "members.apps.roles.replace",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "name": "client_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/organization/resend-verification": {
+            "post": {
+                "operationId": "organization_projects_verification_resend",
+                "tags": [
+                    "Organization › Projects"
+                ],
+                "x-action": "projects.verification.resend"
+            }
+        },
+        "/v1/organizations": {
+            "get": {
+                "operationId": "environment_organizations_list",
+                "tags": [
+                    "Environment › Organizations"
+                ],
+                "x-action": "organizations.list",
+                "parameters": [
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_organizations_create",
+                "tags": [
+                    "Environment › Organizations"
+                ],
+                "x-action": "organizations.create"
+            }
+        },
+        "/v1/organizations/{id}": {
+            "get": {
+                "operationId": "environment_organizations_get",
+                "tags": [
+                    "Environment › Organizations"
+                ],
+                "x-action": "organizations.get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "environment_organizations_update",
+                "tags": [
+                    "Environment › Organizations"
+                ],
+                "x-action": "organizations.update",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "environment_organizations_delete",
+                "tags": [
+                    "Environment › Organizations"
+                ],
+                "x-action": "organizations.delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/organizations/{id}/inherit-sign-in-policy": {
+            "post": {
+                "operationId": "environment_signin_policy_inherit",
+                "tags": [
+                    "Environment › Sign-in"
+                ],
+                "x-action": "signin.policy.inherit",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/organizations/{id}/reactivate": {
+            "post": {
+                "operationId": "environment_organizations_reactivate",
+                "tags": [
+                    "Environment › Organizations"
+                ],
+                "x-action": "organizations.reactivate",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/organizations/{id}/suspend": {
+            "post": {
+                "operationId": "environment_organizations_suspend",
+                "tags": [
+                    "Environment › Organizations"
+                ],
+                "x-action": "organizations.suspend",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/organizations/{id}/transfer-ownership": {
+            "post": {
+                "operationId": "environment_organizations_transfer_ownership",
+                "tags": [
+                    "Environment › Organizations"
+                ],
+                "x-action": "organizations.transfer_ownership",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/payment-methods/{id}": {
+            "delete": {
+                "operationId": "organization_billing_payment_method_remove",
+                "tags": [
+                    "Organization › Billing"
+                ],
+                "x-action": "billing.payment_method.remove",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/payment-methods/{id}/make-default": {
+            "post": {
+                "operationId": "organization_billing_payment_method_default",
+                "tags": [
+                    "Organization › Billing"
+                ],
+                "x-action": "billing.payment_method.default",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/permissions": {
+            "get": {
+                "operationId": "environment_permissions_list",
+                "tags": [
+                    "Environment › Roles"
+                ],
+                "x-action": "permissions.list",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "client_id",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_permissions_create",
+                "tags": [
+                    "Environment › Roles"
+                ],
+                "x-action": "permissions.create"
+            }
+        },
+        "/v1/permissions/{id}": {
+            "patch": {
+                "operationId": "environment_permissions_update",
+                "tags": [
+                    "Environment › Roles"
+                ],
+                "x-action": "permissions.update",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "environment_permissions_delete",
+                "tags": [
+                    "Environment › Roles"
+                ],
+                "x-action": "permissions.delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/pipe-connections/{id}": {
+            "delete": {
+                "operationId": "environment_pipes_connections_delete",
+                "tags": [
+                    "Environment › Pipes"
+                ],
+                "x-action": "pipes.connections.delete",
+                "parameters": [
+                    {
+                        "name": "pipe_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/pipe-grants/{id}": {
+            "delete": {
+                "operationId": "environment_pipes_grants_delete",
+                "tags": [
+                    "Environment › Pipes"
+                ],
+                "x-action": "pipes.grants.delete",
+                "parameters": [
+                    {
+                        "name": "pipe_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/pipe-leases": {
+            "post": {
+                "tags": [
+                    "Environment › Token Vault"
+                ],
+                "parameters": [
+                    {
+                        "name": "provider",
+                        "in": "query",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/pipes": {
+            "get": {
+                "operationId": "environment_pipes_list",
+                "tags": [
+                    "Environment › Pipes"
+                ],
+                "x-action": "pipes.list",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_pipes_create",
+                "tags": [
+                    "Environment › Pipes"
+                ],
+                "x-action": "pipes.create"
+            }
+        },
+        "/v1/pipes/{id}": {
+            "get": {
+                "operationId": "environment_pipes_get",
+                "tags": [
+                    "Environment › Pipes"
+                ],
+                "x-action": "pipes.get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "environment_pipes_update",
+                "tags": [
+                    "Environment › Pipes"
+                ],
+                "x-action": "pipes.update",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "environment_pipes_delete",
+                "tags": [
+                    "Environment › Pipes"
+                ],
+                "x-action": "pipes.delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/pipes/{id}/connections": {
+            "get": {
+                "operationId": "environment_pipes_connections_list",
+                "tags": [
+                    "Environment › Pipes"
+                ],
+                "x-action": "pipes.connections.list",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "name": "user_id",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            }
+        },
+        "/v1/pipes/{id}/grants": {
+            "post": {
+                "operationId": "environment_pipes_grants_create",
+                "tags": [
+                    "Environment › Pipes"
+                ],
+                "x-action": "pipes.grants.create",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/portal-links": {
+            "get": {
+                "operationId": "environment_organizations_portal_links_list",
+                "tags": [
+                    "Environment › Admin Portal"
+                ],
+                "x-action": "organizations.portal_links.list",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_organizations_portal_links_create",
+                "tags": [
+                    "Environment › Admin Portal"
+                ],
+                "x-action": "organizations.portal_links.create",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/portal-links/{id}": {
+            "delete": {
+                "operationId": "environment_organizations_portal_links_revoke",
+                "tags": [
+                    "Environment › Admin Portal"
+                ],
+                "x-action": "organizations.portal_links.revoke",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/projects": {
+            "get": {
+                "operationId": "organization_projects_list",
+                "tags": [
+                    "Organization › Projects"
+                ],
+                "x-action": "projects.list"
+            },
+            "post": {
+                "operationId": "organization_projects_create",
+                "tags": [
+                    "Organization › Projects"
+                ],
+                "x-action": "projects.create"
+            }
+        },
+        "/v1/projects/{id}": {
+            "patch": {
+                "operationId": "organization_projects_rename",
+                "tags": [
+                    "Organization › Projects"
+                ],
+                "x-action": "projects.rename",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/projects/{id}/reactivate": {
+            "post": {
+                "operationId": "organization_projects_reactivate",
+                "tags": [
+                    "Organization › Projects"
+                ],
+                "x-action": "projects.reactivate",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/projects/{id}/suspend": {
+            "post": {
+                "operationId": "organization_projects_suspend",
+                "tags": [
+                    "Organization › Projects"
+                ],
+                "x-action": "projects.suspend",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/provisioning-targets": {
+            "get": {
+                "operationId": "environment_provisioning_targets_list",
+                "tags": [
+                    "Environment › Outbound provisioning"
+                ],
+                "x-action": "provisioning.targets.list",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_provisioning_targets_create",
+                "tags": [
+                    "Environment › Outbound provisioning"
+                ],
+                "x-action": "provisioning.targets.create"
+            }
+        },
+        "/v1/provisioning-targets/{id}": {
+            "get": {
+                "operationId": "environment_provisioning_targets_get",
+                "tags": [
+                    "Environment › Outbound provisioning"
+                ],
+                "x-action": "provisioning.targets.get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "environment_provisioning_targets_delete",
+                "tags": [
+                    "Environment › Outbound provisioning"
+                ],
+                "x-action": "provisioning.targets.delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/provisioning-targets/{id}/status": {
+            "post": {
+                "operationId": "environment_provisioning_targets_status_set",
+                "tags": [
+                    "Environment › Outbound provisioning"
+                ],
+                "x-action": "provisioning.targets.status.set",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/radar-decisions": {
+            "get": {
+                "operationId": "environment_radar_decisions_list",
+                "tags": [
+                    "Environment › Radar"
+                ],
+                "x-action": "radar.decisions.list",
+                "parameters": [
+                    {
+                        "name": "verdict",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "flow",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "rule",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "country",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "email",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "ip",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "device",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "enforced",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            }
+        },
+        "/v1/radar-decisions/{id}": {
+            "get": {
+                "operationId": "environment_radar_decisions_get",
+                "tags": [
+                    "Environment › Radar"
+                ],
+                "x-action": "radar.decisions.get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/radar-lists": {
+            "get": {
+                "operationId": "environment_radar_lists_list",
+                "tags": [
+                    "Environment › Radar"
+                ],
+                "x-action": "radar.lists.list",
+                "parameters": [
+                    {
+                        "name": "list",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "kind",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_radar_lists_add",
+                "tags": [
+                    "Environment › Radar"
+                ],
+                "x-action": "radar.lists.add"
+            }
+        },
+        "/v1/radar-lists/{id}": {
+            "delete": {
+                "operationId": "environment_radar_lists_remove",
+                "tags": [
+                    "Environment › Radar"
+                ],
+                "x-action": "radar.lists.remove",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/radar-rules": {
+            "get": {
+                "operationId": "environment_radar_rules_list",
+                "tags": [
+                    "Environment › Radar"
+                ],
+                "x-action": "radar.rules.list",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_radar_rules_create",
+                "tags": [
+                    "Environment › Radar"
+                ],
+                "x-action": "radar.rules.create"
+            }
+        },
+        "/v1/radar-rules/reorder": {
+            "post": {
+                "operationId": "environment_radar_rules_reorder",
+                "tags": [
+                    "Environment › Radar"
+                ],
+                "x-action": "radar.rules.reorder"
+            }
+        },
+        "/v1/radar-rules/{id}": {
+            "get": {
+                "operationId": "environment_radar_rules_get",
+                "tags": [
+                    "Environment › Radar"
+                ],
+                "x-action": "radar.rules.get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "environment_radar_rules_update",
+                "tags": [
+                    "Environment › Radar"
+                ],
+                "x-action": "radar.rules.update",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "environment_radar_rules_delete",
+                "tags": [
+                    "Environment › Radar"
+                ],
+                "x-action": "radar.rules.delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/radar-settings": {
+            "get": {
+                "operationId": "environment_radar_settings_get",
+                "tags": [
+                    "Environment › Radar"
+                ],
+                "x-action": "radar.settings.get"
+            },
+            "patch": {
+                "operationId": "environment_radar_settings_update",
+                "tags": [
+                    "Environment › Radar"
+                ],
+                "x-action": "radar.settings.update"
+            }
+        },
+        "/v1/radar-settings/set-mode": {
+            "post": {
+                "operationId": "environment_radar_mode_set",
+                "tags": [
+                    "Environment › Radar"
+                ],
+                "x-action": "radar.mode.set"
+            }
+        },
+        "/v1/role-assignments": {
+            "get": {
+                "operationId": "environment_members_roles_list",
+                "tags": [
+                    "Environment › Roles"
+                ],
+                "x-action": "members.roles.list",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "user_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/role-assignments/{id}": {
+            "put": {
+                "operationId": "environment_members_roles_grant",
+                "tags": [
+                    "Environment › Roles"
+                ],
+                "x-action": "members.roles.grant",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "user_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "environment_members_roles_revoke",
+                "tags": [
+                    "Environment › Roles"
+                ],
+                "x-action": "members.roles.revoke",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "user_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/role-permissions/{id}": {
+            "put": {
+                "operationId": "environment_roles_permissions_grant",
+                "tags": [
+                    "Environment › Roles"
+                ],
+                "x-action": "roles.permissions.grant",
+                "parameters": [
+                    {
+                        "name": "role_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "environment_roles_permissions_revoke",
+                "tags": [
+                    "Environment › Roles"
+                ],
+                "x-action": "roles.permissions.revoke",
+                "parameters": [
+                    {
+                        "name": "role_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/roles": {
+            "get": {
+                "operationId": "environment_roles_list",
+                "tags": [
+                    "Environment › Roles"
+                ],
+                "x-action": "roles.list",
+                "parameters": [
+                    {
+                        "name": "client_id",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_roles_create",
+                "tags": [
+                    "Environment › Roles"
+                ],
+                "x-action": "roles.create"
+            }
+        },
+        "/v1/roles/{id}": {
+            "get": {
+                "operationId": "environment_roles_get",
+                "tags": [
+                    "Environment › Roles"
+                ],
+                "x-action": "roles.get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "name": "client_id",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "environment_roles_update",
+                "tags": [
+                    "Environment › Roles"
+                ],
+                "x-action": "roles.update",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "environment_roles_delete",
+                "tags": [
+                    "Environment › Roles"
+                ],
+                "x-action": "roles.delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/roles/{id}/activate-definition": {
+            "post": {
+                "operationId": "environment_roles_definition_activate",
+                "tags": [
+                    "Environment › Roles"
+                ],
+                "x-action": "roles.definition.activate",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/saml-apps": {
+            "get": {
+                "operationId": "environment_saml_apps_list",
+                "tags": [
+                    "Environment › SAML apps"
+                ],
+                "x-action": "saml_apps.list",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_saml_apps_create",
+                "tags": [
+                    "Environment › SAML apps"
+                ],
+                "x-action": "saml_apps.create"
+            }
+        },
+        "/v1/saml-apps/{id}": {
+            "get": {
+                "operationId": "environment_saml_apps_get",
+                "tags": [
+                    "Environment › SAML apps"
+                ],
+                "x-action": "saml_apps.get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "environment_saml_apps_update",
+                "tags": [
+                    "Environment › SAML apps"
+                ],
+                "x-action": "saml_apps.update",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "environment_saml_apps_delete",
+                "tags": [
+                    "Environment › SAML apps"
+                ],
+                "x-action": "saml_apps.delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/saml-metadata-imports": {
+            "post": {
+                "operationId": "environment_sso_saml_metadata_import",
+                "tags": [
+                    "Environment › Enterprise SSO"
+                ],
+                "x-action": "sso.saml_metadata.import"
+            }
+        },
+        "/v1/service-connections": {
+            "get": {
+                "operationId": "environment_listOrganizationServiceConnections",
+                "tags": [
+                    "Environment › General",
+                    "Apps › General"
+                ]
+            }
+        },
+        "/v1/service-connections/{id}": {
+            "put": {
+                "operationId": "environment_connectOrganizationService",
+                "tags": [
+                    "Environment › General",
+                    "Apps › General"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "environment_revokeOrganizationService",
+                "tags": [
+                    "Environment › General",
+                    "Apps › General"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/service-connections/{id}/events": {
+            "get": {
+                "operationId": "environment_listServiceConnectionEvents",
+                "tags": [
+                    "Environment › General"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "types",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            }
+        },
+        "/v1/service-connections/{id}/inspect": {
+            "post": {
+                "operationId": "environment_inspectProviderConnection",
+                "tags": [
+                    "Environment › General",
+                    "Apps › General"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/service-connections/{id}/lease": {
+            "post": {
+                "operationId": "environment_leaseServiceConnectionToken",
+                "tags": [
+                    "Environment › General",
+                    "Apps › General"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/sign-in/policy": {
+            "get": {
+                "operationId": "environment_signin_policy_get",
+                "tags": [
+                    "Environment › Sign-in"
+                ],
+                "x-action": "signin.policy.get",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "environment_signin_policy_update",
+                "tags": [
+                    "Environment › Sign-in"
+                ],
+                "x-action": "signin.policy.update"
+            }
+        },
+        "/v1/sign-in/self-service-signup": {
+            "put": {
+                "operationId": "environment_signin_self_service_signup_set",
+                "tags": [
+                    "Environment › Sign-in"
+                ],
+                "x-action": "signin.self_service_signup.set"
+            }
+        },
+        "/v1/sign-in/sms": {
+            "get": {
+                "operationId": "environment_signin_sms_get",
+                "tags": [
+                    "Environment › Sign-in"
+                ],
+                "x-action": "signin.sms.get"
+            },
+            "patch": {
+                "operationId": "environment_signin_sms_update",
+                "tags": [
+                    "Environment › Sign-in"
+                ],
+                "x-action": "signin.sms.update"
+            }
+        },
+        "/v1/sign-in/through": {
+            "put": {
+                "operationId": "environment_signin_through_set",
+                "tags": [
+                    "Environment › Sign-in"
+                ],
+                "x-action": "signin.through.set"
+            }
+        },
+        "/v1/signals-source": {
+            "get": {
+                "operationId": "environment_signals_source_list",
+                "tags": [
+                    "Environment › General"
+                ],
+                "parameters": [
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            }
+        },
+        "/v1/signals-source/erasures": {
+            "get": {
+                "operationId": "environment_signals_source_erasures",
+                "tags": [
+                    "Environment › General"
+                ],
+                "parameters": [
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            }
+        },
+        "/v1/social-connections": {
+            "get": {
+                "operationId": "environment_signin_social_list",
+                "tags": [
+                    "Environment › Sign-in"
+                ],
+                "x-action": "signin.social.list",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "level",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_signin_social_set",
+                "tags": [
+                    "Environment › Sign-in"
+                ],
+                "x-action": "signin.social.set"
+            }
+        },
+        "/v1/social-connections/inherit": {
+            "post": {
+                "operationId": "environment_signin_social_inherit",
+                "tags": [
+                    "Environment › Sign-in"
+                ],
+                "x-action": "signin.social.inherit",
+                "parameters": [
+                    {
+                        "name": "provider",
+                        "in": "query",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/social-connections/offered": {
+            "get": {
+                "operationId": "environment_signin_social_offered",
+                "tags": [
+                    "Environment › Sign-in"
+                ],
+                "x-action": "signin.social.offered",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            }
+        },
+        "/v1/social-connections/{id}": {
+            "patch": {
+                "operationId": "environment_signin_social_update",
+                "tags": [
+                    "Environment › Sign-in"
+                ],
+                "x-action": "signin.social.update",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "environment_signin_social_delete",
+                "tags": [
+                    "Environment › Sign-in"
+                ],
+                "x-action": "signin.social.delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/social-connections/{id}/disable": {
+            "post": {
+                "operationId": "environment_signin_social_disable",
+                "tags": [
+                    "Environment › Sign-in"
+                ],
+                "x-action": "signin.social.disable",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/social-connections/{id}/enable": {
+            "post": {
+                "operationId": "environment_signin_social_enable",
+                "tags": [
+                    "Environment › Sign-in"
+                ],
+                "x-action": "signin.social.enable",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/sod-policies": {
+            "get": {
+                "operationId": "environment_sod_policies_list",
+                "tags": [
+                    "Environment › Governance"
+                ],
+                "x-action": "sod_policies.list",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_sod_policies_create",
+                "tags": [
+                    "Environment › Governance"
+                ],
+                "x-action": "sod_policies.create"
+            }
+        },
+        "/v1/sod-policies/{id}": {
+            "get": {
+                "operationId": "environment_sod_policies_get",
+                "tags": [
+                    "Environment › Governance"
+                ],
+                "x-action": "sod_policies.get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "environment_sod_policies_delete",
+                "tags": [
+                    "Environment › Governance"
+                ],
+                "x-action": "sod_policies.delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/sod-policies/{id}/status": {
+            "post": {
+                "operationId": "environment_sod_policies_status_set",
+                "tags": [
+                    "Environment › Governance"
+                ],
+                "x-action": "sod_policies.status.set",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/sso-connections": {
+            "get": {
+                "operationId": "environment_sso_connections_list",
+                "tags": [
+                    "Environment › Enterprise SSO"
+                ],
+                "x-action": "sso.connections.list",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_sso_connections_create",
+                "tags": [
+                    "Environment › Enterprise SSO"
+                ],
+                "x-action": "sso.connections.create"
+            }
+        },
+        "/v1/sso-connections/{id}": {
+            "get": {
+                "operationId": "environment_sso_connections_get",
+                "tags": [
+                    "Environment › Enterprise SSO"
+                ],
+                "x-action": "sso.connections.get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "environment_sso_connections_update",
+                "tags": [
+                    "Environment › Enterprise SSO"
+                ],
+                "x-action": "sso.connections.update",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "environment_sso_connections_delete",
+                "tags": [
+                    "Environment › Enterprise SSO"
+                ],
+                "x-action": "sso.connections.delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/sso-connections/{id}/activate": {
+            "post": {
+                "operationId": "environment_sso_connections_activate",
+                "tags": [
+                    "Environment › Enterprise SSO"
+                ],
+                "x-action": "sso.connections.activate",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/sso-connections/{id}/activate-certificate": {
+            "post": {
+                "operationId": "environment_sso_connections_certificates_activate",
+                "tags": [
+                    "Environment › Enterprise SSO"
+                ],
+                "x-action": "sso.connections.certificates.activate",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/sso-connections/{id}/certificates": {
+            "get": {
+                "operationId": "environment_sso_connections_certificates_list",
+                "tags": [
+                    "Environment › Enterprise SSO"
+                ],
+                "x-action": "sso.connections.certificates.list",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_sso_connections_certificates_stage",
+                "tags": [
+                    "Environment › Enterprise SSO"
+                ],
+                "x-action": "sso.connections.certificates.stage",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/sso-connections/{id}/disable": {
+            "post": {
+                "operationId": "environment_sso_connections_disable",
+                "tags": [
+                    "Environment › Enterprise SSO"
+                ],
+                "x-action": "sso.connections.disable",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/sso-connections/{id}/require-sso": {
+            "post": {
+                "operationId": "environment_sso_connections_require_sso",
+                "tags": [
+                    "Environment › Enterprise SSO"
+                ],
+                "x-action": "sso.connections.require_sso",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/support-sessions": {
+            "post": {
+                "operationId": "environment_support_sessions_start",
+                "tags": [
+                    "Environment › Support sessions"
+                ],
+                "x-action": "support_sessions.start"
+            }
+        },
+        "/v1/support-sessions/{id}": {
+            "delete": {
+                "operationId": "environment_support_sessions_end",
+                "tags": [
+                    "Environment › Support sessions"
+                ],
+                "x-action": "support_sessions.end",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/user-property-namespaces/{id}": {
+            "get": {
+                "operationId": "environment_user_property_namespaces_show",
+                "tags": [
+                    "Environment › User properties"
+                ],
+                "x-action": "user_property_namespaces.show",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "environment_user_property_namespaces_configure",
+                "tags": [
+                    "Environment › User properties"
+                ],
+                "x-action": "user_property_namespaces.configure",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/user-sessions/{id}": {
+            "delete": {
+                "operationId": "environment_users_sessions_revoke",
+                "tags": [
+                    "Environment › Users"
+                ],
+                "x-action": "users.sessions.revoke",
+                "parameters": [
+                    {
+                        "name": "user_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/users": {
+            "get": {
+                "operationId": "environment_users_list",
+                "tags": [
+                    "Environment › Users"
+                ],
+                "x-action": "users.list",
+                "parameters": [
+                    {
+                        "name": "email",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_users_create",
+                "tags": [
+                    "Environment › Users"
+                ],
+                "x-action": "users.create"
+            }
+        },
+        "/v1/users/{id}": {
+            "get": {
+                "operationId": "environment_users_get",
+                "tags": [
+                    "Environment › Users"
+                ],
+                "x-action": "users.get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "environment_users_update",
+                "tags": [
+                    "Environment › Users"
+                ],
+                "x-action": "users.update",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "environment_users_deactivate",
+                "tags": [
+                    "Environment › Users"
+                ],
+                "x-action": "users.deactivate",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/users/{id}/environment-roles": {
+            "get": {
+                "operationId": "environment_users_environment_roles_list",
+                "tags": [
+                    "Environment › Roles"
+                ],
+                "x-action": "users.environment_roles.list",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/users/{id}/erase": {
+            "post": {
+                "operationId": "environment_users_erase",
+                "tags": [
+                    "Environment › Users"
+                ],
+                "x-action": "users.erase",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/users/{id}/mfa": {
+            "delete": {
+                "operationId": "environment_users_mfa_reset",
+                "tags": [
+                    "Environment › Users"
+                ],
+                "x-action": "users.mfa.reset",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/users/{id}/password": {
+            "post": {
+                "operationId": "environment_users_password_set",
+                "tags": [
+                    "Environment › Users"
+                ],
+                "x-action": "users.password.set",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/users/{id}/password-reset": {
+            "post": {
+                "operationId": "environment_users_password_reset_send",
+                "tags": [
+                    "Environment › Users"
+                ],
+                "x-action": "users.password_reset.send",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/users/{id}/reactivate": {
+            "post": {
+                "operationId": "environment_users_reactivate",
+                "tags": [
+                    "Environment › Users"
+                ],
+                "x-action": "users.reactivate",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/users/{id}/sessions": {
+            "get": {
+                "operationId": "environment_users_sessions_list",
+                "tags": [
+                    "Environment › Users"
+                ],
+                "x-action": "users.sessions.list",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "environment_users_sessions_revoke_all",
+                "tags": [
+                    "Environment › Users"
+                ],
+                "x-action": "users.sessions.revoke_all",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/users/{id}/sms-factor": {
+            "delete": {
+                "operationId": "environment_users_mfa_sms_remove",
+                "tags": [
+                    "Environment › Users"
+                ],
+                "x-action": "users.mfa.sms.remove",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/users/{id}/verification": {
+            "post": {
+                "operationId": "environment_users_verification_send",
+                "tags": [
+                    "Environment › Users"
+                ],
+                "x-action": "users.verification.send",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/users/{id}/verify": {
+            "post": {
+                "operationId": "environment_users_verify",
+                "tags": [
+                    "Environment › Users"
+                ],
+                "x-action": "users.verify",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/vault-secret-grants/{id}": {
+            "delete": {
+                "operationId": "environment_token_vault_grants_delete",
+                "tags": [
+                    "Environment › Token vault"
+                ],
+                "x-action": "token_vault.grants.delete",
+                "parameters": [
+                    {
+                        "name": "secret_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/vault-secrets": {
+            "get": {
+                "operationId": "environment_token_vault_secrets_list",
+                "tags": [
+                    "Environment › Token vault"
+                ],
+                "x-action": "token_vault.secrets.list",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_token_vault_secrets_create",
+                "tags": [
+                    "Environment › Token vault"
+                ],
+                "x-action": "token_vault.secrets.create"
+            }
+        },
+        "/v1/vault-secrets/{id}": {
+            "get": {
+                "operationId": "environment_token_vault_secrets_get",
+                "tags": [
+                    "Environment › Token vault"
+                ],
+                "x-action": "token_vault.secrets.get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "environment_token_vault_secrets_revoke",
+                "tags": [
+                    "Environment › Token vault"
+                ],
+                "x-action": "token_vault.secrets.revoke",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/vault-secrets/{id}/grants": {
+            "post": {
+                "operationId": "environment_token_vault_grants_create",
+                "tags": [
+                    "Environment › Token vault"
+                ],
+                "x-action": "token_vault.grants.create",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/vault-secrets/{id}/lease": {
+            "post": {
+                "tags": [
+                    "Environment › Token Vault"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/vault-secrets/{id}/rotate": {
+            "post": {
+                "operationId": "environment_token_vault_secrets_rotate",
+                "tags": [
+                    "Environment › Token vault"
+                ],
+                "x-action": "token_vault.secrets.rotate",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/webhooks": {
+            "get": {
+                "operationId": "environment_webhooks_list",
+                "tags": [
+                    "Environment › Webhooks"
+                ],
+                "x-action": "webhooks.list",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "environment_webhooks_create",
+                "tags": [
+                    "Environment › Webhooks"
+                ],
+                "x-action": "webhooks.create"
+            }
+        },
+        "/v1/webhooks/{id}": {
+            "get": {
+                "operationId": "environment_webhooks_get",
+                "tags": [
+                    "Environment › Webhooks"
+                ],
+                "x-action": "webhooks.get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "environment_webhooks_update",
+                "tags": [
+                    "Environment › Webhooks"
+                ],
+                "x-action": "webhooks.update",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "environment_webhooks_delete",
+                "tags": [
+                    "Environment › Webhooks"
+                ],
+                "x-action": "webhooks.delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/webhooks/{id}/pause": {
+            "post": {
+                "operationId": "environment_webhooks_pause",
+                "tags": [
+                    "Environment › Webhooks"
+                ],
+                "x-action": "webhooks.pause",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/webhooks/{id}/resume": {
+            "post": {
+                "operationId": "environment_webhooks_resume",
+                "tags": [
+                    "Environment › Webhooks"
+                ],
+                "x-action": "webhooks.resume",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/webhooks/{id}/rotate": {
+            "post": {
+                "operationId": "environment_webhooks_secret_rotate",
+                "tags": [
+                    "Environment › Webhooks"
+                ],
+                "x-action": "webhooks.secret.rotate",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/webhooks/{id}/signature-scheme": {
+            "post": {
+                "operationId": "environment_webhooks_signature_scheme_change",
+                "tags": [
+                    "Environment › Webhooks"
+                ],
+                "x-action": "webhooks.signature_scheme.change",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        "/v1/whitelabel": {
+            "get": {
+                "operationId": "environment_branding_whitelabel_get",
+                "tags": [
+                    "Environment › Branding"
+                ],
+                "x-action": "branding.whitelabel.get",
+                "parameters": [
+                    {
+                        "name": "organization_id",
+                        "in": "query",
+                        "required": false
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "environment_branding_whitelabel_set",
+                "tags": [
+                    "Environment › Branding"
+                ],
+                "x-action": "branding.whitelabel.set"
+            }
+        }
+    }
+}

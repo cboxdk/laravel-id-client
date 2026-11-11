@@ -27,6 +27,9 @@ use Cbox\Id\Client\Management\Data\Page;
 use Cbox\Id\Client\Management\Data\Role;
 use Cbox\Id\Client\Management\Data\RoleAssignment;
 use Cbox\Id\Client\Management\Data\SupportSession;
+use Cbox\Id\Client\Management\Transport\Plane;
+use Cbox\Id\Client\Management\Transport\V1Router;
+use Cbox\Id\Client\Management\Transport\V1Shape;
 use Cbox\Id\Client\Support\Claims;
 use Cbox\Id\Client\Support\HttpTimeouts;
 use Illuminate\Http\Client\Response;
@@ -43,6 +46,10 @@ use Throwable;
  *
  * Every success is `{"data": …}`; every failure is `{"error", "message"}` and becomes a
  * {@see ManagementApiException} carrying both, so a caller branches on the code.
+ *
+ * With `CBOX_ID_API_URL` set, each call goes to its `/v1` route instead, and the answer is
+ * read back into that same shape — ids included: `usr_01j…` comes back as the bare ULID the
+ * app's tables and token claims hold. A call `/v1` does not serve stays on `/api/v1`.
  */
 class HttpManagementClient implements Management
 {
@@ -51,6 +58,7 @@ class HttpManagementClient implements Management
         #[\SensitiveParameter]
         private readonly string $key,
         private readonly int $timeout = 10,
+        private readonly ?V1Router $v1 = null,
     ) {}
 
     /** Whether it has a key and a URL, so a call can be made at all. Local; calls nothing. */
@@ -282,11 +290,27 @@ class HttpManagementClient implements Management
         }
 
         $request = Http::withToken($this->key)->acceptJson()->asJson()->timeout($this->timeout)->connectTimeout(HttpTimeouts::connect());
+        $moved = $this->v1?->path(Plane::Environment, $method, $path);
         $url = $this->baseUrl.$path.($query !== [] ? '?'.http_build_query($query) : '');
+        $verb = $method;
+
+        if ($moved !== null) {
+            $verb = strtolower($moved->method);
+
+            // A GET's payload is its query string, which replaces one in the URL: the
+            // parameters /v1 takes in the query go with it.
+            if ($verb === 'get') {
+                $payload = [...$moved->query, ...$payload];
+            } else {
+                $query = [...$moved->query, ...$query];
+            }
+
+            $url = $moved->url.($query !== [] ? '?'.http_build_query($query) : '');
+        }
 
         try {
             /** @var Response $response */
-            $response = match ($method) {
+            $response = match ($verb) {
                 'get' => $request->get($url, $payload),
                 'post' => $request->post($url, $payload),
                 'put' => $request->put($url, $payload),
@@ -294,7 +318,11 @@ class HttpManagementClient implements Management
                 default => $request->delete($url, $payload),
             };
         } catch (Throwable $e) {
-            throw ManagementApiException::unreachable($this->baseUrl, $e);
+            throw ManagementApiException::unreachable($moved !== null ? $moved->url : $this->baseUrl, $e);
+        }
+
+        if ($moved !== null) {
+            $response = V1Shape::toLegacy($response, $moved->shape);
         }
 
         if (! $response->successful()) {

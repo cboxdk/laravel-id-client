@@ -25,6 +25,25 @@ account plane) is refused when the client is built, not answered with a 401 on e
 > This is separate from the older `CboxIdManagement` facade (`Contracts\Management`), which
 > keeps working unchanged. The generated clients cover every operation of every plane.
 
+## On the `/v1` API
+
+With `CBOX_ID_API_URL` set (`https://api.cboxid.com`), both these clients and
+`CboxIdManagement` send each call to its route on `{api_url}/v1` instead of `/api/v1`, and read
+the answer back into the shape they always handed out: `{data, meta}`, `{error, message}`,
+`202 approval_required`. Ids come back bare: where `/v1` says `usr_01j…`, the app still gets
+the ULID its tables and token claims (`sub`, `org_id`) hold. A customer's own data
+(`metadata`, audit actors and targets) keeps whatever it was given. Ids may be passed in either
+form.
+
+A few calls stay on `/api/v1` because their `/v1` answer drops something an app reads: the
+organization member list (`meta.directory_revision`), the FGA lists
+(`meta.consistency_token`), the organization plane's page-numbered lists (`meta.total`),
+`account.apps.list` and the Signals source. `Management\Transport\V1RouteTable::STAYS` lists
+them, with the reason. The table is generated from the live document:
+`php bin/generate-v1-routes --fetch https://api.cboxid.com/openapi.json`.
+
+Without `CBOX_ID_API_URL` nothing changes.
+
 ## Configure it in Laravel
 
 ```dotenv
