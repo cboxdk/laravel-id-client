@@ -17,6 +17,7 @@ use Cbox\Id\Client\PersonalAppCatalog;
 use Cbox\Id\Client\Support\ApiUrl;
 use Cbox\Id\Client\Support\PublicId;
 use Cbox\Id\Client\Support\Scopes;
+use Cbox\Id\Client\ValueObjects\PipeToken;
 use Cbox\Id\Client\ValueObjects\ResourceAuthorizationResult;
 use Cbox\Id\Client\ValueObjects\ServiceConnection;
 use Cbox\Id\Client\ValueObjects\VerifiedToken;
@@ -125,6 +126,35 @@ it('leases a pipe token from /v1/pipe-leases, provider in the body', function ()
         && $r->data() === ['provider' => 'github', 'purpose' => 'sync']);
 });
 
+it('hands out the raw user id of a /v1 pipe lease, the one the token\'s sub carries', function (): void {
+    config([
+        'cbox-id-client.issuer' => 'https://id.test',
+        'cbox-id-client.api_url' => 'https://api.id.test',
+        'cbox-id-client.client_id' => 'client_1',
+        'cbox-id-client.client_secret' => 'secret_1',
+        'cbox-id-client.redirect' => 'https://app.test/callback',
+    ]);
+    app()->forgetInstance(IdentityClient::class);
+    Cache::flush();
+    Http::swap(new Factory);
+    Http::fake([
+        'https://api.id.test/v1/pipe-leases' => Http::response(['access_token' => 'gho_abc', 'token_type' => 'Bearer', 'provider' => 'github',
+            'user_id' => 'usr_'.strtoupper(V3_ULID), 'connection_id' => 'pipe_'.V3_ULID, 'scopes' => []]),
+    ]);
+
+    $token = app(IdentityClient::class)->leasePipeToken('github', 'sync', accessToken: 'person-token');
+
+    expect($token->userId)->toBe(V3_ULID)
+        ->and($token->connectionId)->toBe(V3_ULID);
+});
+
+it('keeps a bare pipe lease user id as it came', function (): void {
+    $token = PipeToken::fromArray(['access_token' => 'gho_abc', 'user_id' => V3_ULID, 'connection_id' => 'conn_1']);
+
+    expect($token->userId)->toBe(V3_ULID)
+        ->and($token->connectionId)->toBe('conn_1');
+});
+
 it('keeps a person\'s catalog grant on the origin it was issued for', function (): void {
     config(['cbox-id-client.api_url' => 'https://api.id.test']);
     Http::fake(['*' => Http::response(['data' => [], 'meta' => ['revision' => str_repeat('a', 64), 'refresh_after' => 60]])]);
@@ -172,7 +202,8 @@ describe('service connections', function (): void {
         $connection = app(ServiceConnections::class)->connect('human-token', V3_ULID, 'id_events', 'https://id.example.test/feed');
         expect(app(ServiceConnections::class)->lease($this->connection)->accessToken)->toBe('provider-token');
 
-        expect($connection->organizationId)->toBe(V3_ULID);
+        expect($connection->organizationId)->toBe(V3_ULID)
+            ->and($connection->id)->toBe(V3_ULID);
         Http::assertSent(fn (HttpRequest $r): bool => $r->method() === 'PUT' && str_ends_with($r->url(), '/v1/service-connections/id_events'));
     });
 });

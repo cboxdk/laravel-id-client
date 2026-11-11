@@ -3,6 +3,12 @@
 All notable changes to `cboxdk/laravel-id-client`. Earlier releases are described on
 their GitHub release pages.
 
+## Unreleased
+
+### Fixed
+
+- With `CBOX_ID_API_URL` set, the ids the SDK hands to app code are the raw ones, as on `{issuer}/api/v1` and in tokens: `PipeToken::$userId` (the `/v1` API answers `usr_01J…`; it is the person's `sub`) and `$connectionId`, and the `ServiceConnection::$id` that `connect()` returns. An app that compares or stores them sees the same value whichever API answered.
+
 ## 0.19.4 — 2026-11-11
 
 Cbox ID v3, additive: an app bumps without changing anything, and keeps working while
