@@ -5,6 +5,8 @@ their GitHub release pages.
 
 ## [Unreleased]
 
+## 0.19.6 — 2026-11-11
+
 ### Added
 
 - Redirect mode for sign-in: `cbox-id-client.sign_in.mode` (`CBOX_ID_SIGN_IN_MODE`), `embedded` (the default, nothing changes) or `redirect`. In redirect mode `CboxId::signInRoutes()` registers the entry points of an app with no sign-in page: `/login` (named `login`), `/signup`, `/login/launch` and `/login/invitation` answer with a redirect to Cbox ID (authorization code + PKCE, `state`, `nonce`), and `/login/error` and `/login/signed-out` are the only pages. A link may carry `return_to` (a path in the app, kept as the intended URL), `organization`, `login_hint`/`email`, and on `/login` `prompt` and `idp_hint`. An Inertia visit gets `409` with `X-Inertia-Location`. A path set to `null` leaves that route to the app. `SignIn\SignInRoutes`, `SignIn\SignInMode`. Cookbook: "Sign in by redirect".
