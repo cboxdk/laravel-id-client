@@ -7,6 +7,7 @@ use Cbox\Id\Client\Exceptions\ClientConfigurationException;
 use Cbox\Id\Client\Exceptions\InvalidState;
 use Cbox\Id\Client\IdentityClient;
 use Cbox\Id\Client\ValueObjects\CboxUser;
+use Cbox\Id\Client\ValueObjects\LogoutForm;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -117,15 +118,133 @@ it('always carries client_id on the RP-initiated logout URL', function (): void 
         ->and($bare)->not->toHaveKey('post_logout_redirect_uri');
 });
 
-it('passes an id_token_hint on the logout URL when one is supplied', function (): void {
+it('leaves a hint it cannot read out of the logout URL', function (): void {
     fakeCbox();
 
-    $url = app(IdentityClient::class)->logoutUrl('https://app.test/bye', 'header.payload.sig');
+    parse_str((string) parse_url((string) app(IdentityClient::class)->logoutUrl('https://app.test/bye', 'header.payload.sig'), PHP_URL_QUERY), $query);
+
+    expect($query)->not->toHaveKey('id_token_hint')
+        ->and($query['client_id'])->toBe('client_1');
+});
+
+/** An unsigned token with $claims as its payload: what is in it is all these tests read. */
+function logoutHint(array $claims): string
+{
+    $part = static fn (array $data): string => rtrim(strtr(base64_encode((string) json_encode($data)), '+/', '-_'), '=');
+
+    return $part(['alg' => 'RS256', 'typ' => 'JWT']).'.'.$part($claims).'.sig';
+}
+
+it('never puts an id_token that names the person in the logout URL', function (array $identity): void {
+    fakeCbox();
+
+    $url = app(IdentityClient::class)->logoutUrl('https://app.test/bye', logoutHint(['sub' => 'user_1', 'org' => 'org_1', ...$identity]));
 
     parse_str((string) parse_url((string) $url, PHP_URL_QUERY), $query);
 
-    expect($query['id_token_hint'])->toBe('header.payload.sig')
+    // A URL reaches access logs, browser history and Referer. The browser is still signed
+    // out, by client_id; the hint goes by POST (logoutForm()).
+    expect($query)->not->toHaveKey('id_token_hint')
+        ->and($query['client_id'])->toBe('client_1')
+        ->and($query['post_logout_redirect_uri'])->toBe('https://app.test/bye');
+})->with([
+    'email' => [['email' => 'ada@example.com']],
+    'name' => [['name' => 'Ada']],
+    'organizations' => [['organizations' => []]],
+    'roles' => [['roles' => ['admin']]],
+    'permissions' => [['permissions' => ['invoices:read']]],
+    'groups' => [['groups' => ['admin']]],
+    // Not minted by Cbox ID today. A token from any OpenID provider that carries one of
+    // the standard claims about a person (OIDC Core §5.1) is kept out of the URL too.
+    'email_verified' => [['email_verified' => true]],
+    'given_name' => [['given_name' => 'Ada']],
+    'family_name' => [['family_name' => 'Lovelace']],
+    'preferred_username' => [['preferred_username' => 'ada']],
+    'nickname' => [['nickname' => 'ada']],
+    'picture' => [['picture' => 'https://img.example/ada.png']],
+    'phone_number' => [['phone_number' => '+4512345678']],
+    'birthdate' => [['birthdate' => '1815-12-10']],
+    'address' => [['address' => ['country' => 'GB']]],
+]);
+
+it('leaves out a hint that carries a claim it does not know: the list is of what may travel, not of what may not', function (): void {
+    fakeCbox();
+    $hint = logoutHint(['sub' => 'user_1', 'org' => 'org_1', 'added_next_year' => 'anything']);
+
+    parse_str((string) parse_url((string) app(IdentityClient::class)->logoutUrl('https://app.test/bye', $hint), PHP_URL_QUERY), $query);
+
+    expect($query)->not->toHaveKey('id_token_hint')
         ->and($query['client_id'])->toBe('client_1');
+});
+
+it('passes the hint of an ordinary Cbox ID sign-in, with every claim such a token carries', function (): void {
+    fakeCbox();
+    // The claim names of an ID token minted without `identity_claims` (laravel-id 2.7),
+    // plus `nonce` and `feature_flags`.
+    $hint = logoutHint([
+        'iss' => 'https://id.test', 'sub' => 'user_1', 'aud' => 'client_1', 'exp' => 2, 'iat' => 1, 'jti' => 'j',
+        'auth_time' => 1, 'acr' => 'urn:cbox-id:aal1', 'amr' => ['pwd'], 'at_hash' => 'h', 'nonce' => 'n', 'sid' => 's1',
+        'org' => 'org_1', 'org_name' => 'Acme', 'org_role' => 'owner', 'feature_flags' => ['beta'],
+    ]);
+
+    parse_str((string) parse_url((string) app(IdentityClient::class)->logoutUrl('https://app.test/bye', $hint), PHP_URL_QUERY), $query);
+
+    expect($query['id_token_hint'])->toBe($hint);
+});
+
+it('still passes a hint that names nobody on the logout URL', function (): void {
+    fakeCbox();
+    $hint = logoutHint(['sub' => 'user_1', 'org' => 'org_1', 'org_name' => 'Acme', 'org_role' => 'owner', 'sid' => 's1']);
+
+    parse_str((string) parse_url((string) app(IdentityClient::class)->logoutUrl('https://app.test/bye', $hint), PHP_URL_QUERY), $query);
+
+    expect($query['id_token_hint'])->toBe($hint);
+});
+
+it('gives a logout form that carries the hint in the body, whatever the token says', function (): void {
+    fakeCbox();
+    $hint = logoutHint(['sub' => 'user_1', 'email' => 'ada@example.com', 'roles' => ['admin']]);
+
+    $form = app(IdentityClient::class)->logoutForm('https://app.test/bye', $hint);
+
+    expect($form)->not->toBeNull()
+        ->and($form->action)->toBe('https://id.test/oauth/logout')
+        ->and($form->action)->not->toContain('?')
+        ->and($form->fields)->toBe([
+            'client_id' => 'client_1',
+            'post_logout_redirect_uri' => 'https://app.test/bye',
+            'id_token_hint' => $hint,
+        ]);
+});
+
+it('escapes what it writes into the logout page', function (): void {
+    $form = new LogoutForm('https://id.test/oauth/logout?a=1&b="2"', [
+        'post_logout_redirect_uri' => 'https://app.test/bye?x="><script>alert(1)</script>',
+    ], 'n"once');
+
+    $html = (string) $form->toResponse(request())->getContent();
+
+    expect($html)->not->toContain('<script>alert(1)</script>')
+        ->and($html)->toContain('action="https://id.test/oauth/logout?a=1&amp;b=&quot;2&quot;"')
+        ->and($html)->toContain('value="https://app.test/bye?x=&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;"')
+        ->and($html)->toContain('nonce="n&quot;once"')
+        // The token must not leave the page any other way either.
+        ->and($form->toResponse(request())->headers->get('Referrer-Policy'))->toBe('no-referrer');
+});
+
+it('renders the logout form as a page that posts itself and shows a button without scripts', function (): void {
+    fakeCbox();
+    $hint = logoutHint(['sub' => 'user_1', 'email' => 'ada@example.com']);
+
+    $response = app(IdentityClient::class)->logoutForm('https://app.test/bye', $hint)?->toResponse(request());
+    $html = (string) $response?->getContent();
+
+    expect($response?->getStatusCode())->toBe(200)
+        ->and($response?->headers->get('Cache-Control'))->toContain('no-store')
+        ->and($html)->toContain('<form method="post" action="https://id.test/oauth/logout"')
+        ->and($html)->toContain('name="id_token_hint" value="'.$hint.'"')
+        ->and($html)->toContain('<button type="submit"')
+        ->and($html)->not->toContain('?id_token_hint');
 });
 
 it('mints a machine (client-credentials) token', function (): void {

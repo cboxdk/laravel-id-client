@@ -133,3 +133,42 @@ $url = CboxId::logoutUrl(
 Optional: an empty or missing hint is simply omitted. Storing the token costs session
 space (it is typically ~1 kB), so skip it unless you need it — a registered `returnTo`
 is enough for a normal single-account sign-out.
+
+### When the id_token names the person
+
+An app that asks for the `identity_claims` scope gets an id_token that carries the
+person's email, name, organizations and roles (that is what lets sign-in skip the UserInfo
+call). Such a token must not be put in a URL: a URL is written to access logs, kept in
+browser history and sent on as `Referer`.
+
+`logoutUrl()` takes care of it. It passes the hint only when every claim in the token is a
+protocol claim, the bound organization or `feature_flags`; any other claim, or a token it
+cannot read, leaves the hint out. The request then carries `client_id`, the browser arrives
+with its Cbox ID session cookie, and that browser is signed out. An app that calls
+`logoutUrl($returnTo, $idToken)` today needs no change.
+
+### Logout by POST
+
+`logoutForm()` sends the same request by POST, with the hint in the body (OIDC RP-Initiated
+Logout 1.0 §2). It returns the end-session endpoint and the fields, and renders as a page
+that posts itself:
+
+```php
+// at logout
+return CboxId::logoutForm(returnTo: url('/'), idTokenHint: session('cbox_id_token'))
+    ?->withNonce($cspNonce)          // only under a CSP that refuses inline scripts
+    ?? redirect('/');
+```
+
+Without scripts the page shows a "Sign out" button. Or read `->action` and `->fields`
+and put the form in a page of your own. Two things to know before you choose it:
+
+- **Your Content-Security-Policy** has to allow the issuer in `form-action`, and the inline
+  script needs the nonce (or the person presses the button).
+- **A POST from another site arrives without the provider's session cookie.** Browsers do
+  not send a `SameSite=Lax` cookie with a cross-site POST, and your app is on another site
+  than Cbox ID unless they share a registrable domain. The provider then knows who is
+  signing out only from the hint, so what ends is what it ends for a verified hint. With
+  `logoutUrl()` the browser itself arrives, cookie included. Use `logoutForm()` when your
+  app and the issuer are on the same site, or when the provider ends the session the hint
+  names (`sid`); otherwise `logoutUrl()` is the one that signs the browser out for certain.

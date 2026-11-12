@@ -36,6 +36,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static \Illuminate\Http\RedirectResponse redirectToPipeConnect(string $provider, ?string $returnTo = null)
  * @method static \Cbox\Id\Client\ValueObjects\PipeToken leasePipeToken(string $provider, string $purpose, ?string $userId = null, ?string $accessToken = null)
  * @method static string|null logoutUrl(?string $returnTo = null, ?string $idTokenHint = null)
+ * @method static \Cbox\Id\Client\ValueObjects\LogoutForm|null logoutForm(?string $returnTo = null, ?string $idTokenHint = null)
  * @method static string machineToken(list<string> $scopes = [], ?string $resource = null)
  * @method static void forgetMachineToken(list<string> $scopes = [], ?string $resource = null)
  * @method static array<string, mixed> userinfo(string $accessToken)

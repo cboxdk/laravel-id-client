@@ -34,6 +34,7 @@ use Cbox\Id\Client\Tenancy\CurrentPrincipal;
 use Cbox\Id\Client\Tenancy\SessionIdentityStore;
 use Cbox\Id\Client\ValueObjects\CboxUser;
 use Cbox\Id\Client\ValueObjects\Identity;
+use Cbox\Id\Client\ValueObjects\LogoutForm;
 use Cbox\Id\Client\ValueObjects\Organization;
 use Cbox\Id\Client\ValueObjects\PipeToken;
 use Cbox\Id\Client\ValueObjects\RefreshedTokens;
@@ -800,11 +801,88 @@ class IdentityClient
             $params['post_logout_redirect_uri'] = $returnTo;
         }
 
-        if ($idTokenHint !== null && $idTokenHint !== '') {
+        // NEVER A TOKEN THAT NAMES THE PERSON IN A URL. A URL is written to access logs,
+        // kept in browser history and sent on as Referer. An id_token minted under the
+        // `identity_claims` scope carries email, name, organizations and roles, so it is
+        // left out here: the browser arrives with its session cookie and is signed out, by
+        // `client_id`. The hint can travel in a request body instead: {@see logoutForm()}.
+        if ($idTokenHint !== null && $idTokenHint !== '' && ! $this->namesThePerson($idTokenHint)) {
             $params['id_token_hint'] = $idTokenHint;
         }
 
         return $endpoint.'?'.http_build_query($params);
+    }
+
+    /**
+     * RP-initiated logout by POST (OIDC RP-Initiated Logout 1.0 §2): the end-session
+     * endpoint and the fields to post to it, with `$idTokenHint` in the body. Return it
+     * from the logout route; it renders a page that posts itself. Null when discovery
+     * names no end-session endpoint, like {@see logoutUrl()}.
+     *
+     * This is the way to send the hint when the id_token carries identity claims (the
+     * `identity_claims` scope), and it is safe for any id_token.
+     */
+    public function logoutForm(?string $returnTo = null, ?string $idTokenHint = null): ?LogoutForm
+    {
+        try {
+            $endpoint = $this->discovery->endpoint('end_session_endpoint');
+        } catch (Throwable) {
+            return null;
+        }
+
+        $fields = ['client_id' => $this->clientId()];
+
+        if ($returnTo !== null) {
+            $fields['post_logout_redirect_uri'] = $returnTo;
+        }
+
+        if ($idTokenHint !== null && $idTokenHint !== '') {
+            $fields['id_token_hint'] = $idTokenHint;
+        }
+
+        return new LogoutForm($endpoint, $fields);
+    }
+
+    /**
+     * The id_token claims that may travel in a URL: the protocol's own (OIDC Core §2, RFC
+     * 7519 §4.1, Back-Channel Logout's `sid`), the organization the sign-in is bound to, and
+     * the keys of the feature flags that are on. None of them says who the person is beyond
+     * the opaque `sub`.
+     *
+     * @var list<string>
+     */
+    private const array HINT_CLAIMS_SAFE_IN_A_URL = [
+        'iss', 'sub', 'aud', 'azp', 'exp', 'iat', 'nbf', 'jti', 'auth_time', 'nonce', 'acr', 'amr',
+        'at_hash', 'c_hash', 's_hash', 'sid',
+        'org', 'org_name', 'org_role', 'feature_flags',
+    ];
+
+    /**
+     * Whether an id_token's payload says more about the person than {@see HINT_CLAIMS_SAFE_IN_A_URL}.
+     * Read without verifying: the question is what would be written into a URL, not whether
+     * to trust it.
+     *
+     * DENY BY DEFAULT. Any claim that is not on the list keeps the token out of the URL:
+     * `email`, `name`, `roles`, `permissions`, `organizations` and `groups` from Cbox ID, the
+     * standard profile claims of any other provider, and whatever is added to the ID token
+     * next. A token that cannot be read is treated the same way.
+     */
+    private function namesThePerson(string $idToken): bool
+    {
+        $segments = explode('.', $idToken);
+
+        if (count($segments) !== 3) {
+            return true;
+        }
+
+        $payload = base64_decode(strtr($segments[1], '-_', '+/'), true);
+        $claims = $payload === false ? null : json_decode($payload, true);
+
+        if (! is_array($claims) || $claims === [] || array_is_list($claims)) {
+            return true;
+        }
+
+        return array_diff(array_keys($claims), self::HINT_CLAIMS_SAFE_IN_A_URL) !== [];
     }
 
     /**
