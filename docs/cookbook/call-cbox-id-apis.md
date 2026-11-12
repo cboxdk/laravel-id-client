@@ -47,6 +47,14 @@ one tunnel or NAT) share that budget. Asking for a new token per request starves
   its token (up to five seconds).
 - An entry that cannot be decrypted is dropped and fetched again.
 
+- A token in use is renewed before it expires, so a request finds a valid one. The
+  scheduled `cbox-id:refresh` (the package registers it, every five minutes) renews
+  each token with less than ten minutes left (`CBOX_ID_TOKEN_REFRESH_AHEAD`). A request
+  that finds a token in its last two minutes returns it and renews it after the
+  response. A request asks Cbox ID itself only when there is no token at all. A token
+  nothing has asked for in seven days (`CBOX_ID_TOKEN_KEEP_WARM_FOR`) is no longer
+  renewed.
+
 Pick a store every worker shares with `CBOX_ID_TOKEN_CACHE_STORE`; it defaults to your
 default cache store. Turn the cache off with `CBOX_ID_TOKEN_CACHE=false`. It is also off
 when the app has no `APP_KEY`, and when you build `IdentityClient` yourself without
@@ -78,8 +86,8 @@ $claims = CboxId::userinfo($cbox->accessToken);
 // ['sub' => '...', 'email' => '...', 'name' => '...', ...]
 ```
 
-`authenticate()` already merges UserInfo into the returned `CboxUser`, so you rarely
-need this at login — reach for it later, when you have only a stored access token.
+`authenticate()` already returns those claims in the `CboxUser` (from the id_token, or
+from UserInfo when the id_token leaves them out), so you rarely need this at login — reach for it later, when you have only a stored access token.
 
 ## Introspection (RFC 7662)
 

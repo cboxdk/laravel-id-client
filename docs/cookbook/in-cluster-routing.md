@@ -39,6 +39,31 @@ It applies to every call made through Laravel's HTTP client (`Http::`), so this 
 own calls (discovery, JWKS, token, userinfo, permission decisions, the management API) and
 your application's own calls to the other hosts you list.
 
+## Keeping one request on the public path
+
+Some calls exist to test the public route: an uptime probe of a public URL, a check of
+the certificate or of what the CDN serves. Add `InternalRoutes::publicRoute()` to the
+headers of such a request:
+
+```php
+use Cbox\Id\Client\Support\InternalRoutes;
+use Illuminate\Support\Facades\Http;
+
+$response = Http::withHeaders(InternalRoutes::publicRoute())
+    ->timeout(10)
+    ->get('https://app.cboxbilling.com/up');
+```
+
+That request is sent as written, to the public host, with no `X-Forwarded-*` headers
+added. The marker header (`X-Cbox-Public-Route`) is removed before the request leaves, so
+the target never sees it. Every other request to the same host still goes inside.
+`publicRoute()` returns an empty array when no internal routes are configured, so the
+same code runs unchanged in an environment without them.
+
+An app that probes public URLs can therefore list its API hosts in
+`CBOX_INTERNAL_ROUTES` and mark only the probes. A host guard that inspects the URL of
+the request (an SSRF check) keeps seeing the public URL for a marked request.
+
 Only the transport changes. Your `CBOX_ID_ISSUER` stays the public URL, and the issuer
 check on discovery, the `iss` and `aud` checks on tokens, and the HTTPS checks all keep
 working against it, because the request is rewritten only when it is sent.

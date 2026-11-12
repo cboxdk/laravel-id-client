@@ -6,8 +6,10 @@ namespace Cbox\Id\Client;
 
 use Cbox\Id\Client\ApiKeys\ApiKeyVerifier;
 use Cbox\Id\Client\AppCatalog\AppCatalog;
+use Cbox\Id\Client\AppCatalog\AppCatalogContext;
 use Cbox\Id\Client\AppCatalog\AppCatalogRoutes;
 use Cbox\Id\Client\AppCatalog\AppCatalogStore;
+use Cbox\Id\Client\AppCatalog\MachineAppCatalog;
 use Cbox\Id\Client\Contracts\Principal;
 use Cbox\Id\Client\Contracts\VerifiesApiKeys;
 use Cbox\Id\Client\Enums\Prompt;
@@ -26,6 +28,7 @@ use Cbox\Id\Client\Support\Discovery;
 use Cbox\Id\Client\Support\HttpTimeouts;
 use Cbox\Id\Client\Support\IssuedMachineToken;
 use Cbox\Id\Client\Support\MachineTokenCache;
+use Cbox\Id\Client\Support\MachineTokenRequest;
 use Cbox\Id\Client\Support\Pkce;
 use Cbox\Id\Client\Tenancy\CurrentPrincipal;
 use Cbox\Id\Client\Tenancy\SessionIdentityStore;
@@ -383,7 +386,13 @@ class IdentityClient
         // ID Token's exactly, and on a mismatch the response "MUST NOT be used".
         $verifiedSub = $claims['sub'] ?? null;
 
-        $userinfo = $this->userinfo($accessToken);
+        // A CALLBACK IS THE CODE EXCHANGE AND NOTHING ELSE when the verified id_token
+        // already answers what the requested scopes promise ({@see idTokenAnswers()}).
+        // UserInfo is then one more round trip for claims this request already holds
+        // under a signature. It is still asked for an id_token that leaves any of them
+        // out (an older Cbox ID mints a minimal one), and everything below applies to
+        // its answer exactly as before.
+        $userinfo = $this->idTokenAnswers($claims, $requested) ? [] : $this->userinfo($accessToken);
         $userinfoSub = $userinfo['sub'] ?? null;
 
         if (is_string($verifiedSub) && is_string($userinfoSub) && ! hash_equals($verifiedSub, $userinfoSub)) {
@@ -425,6 +434,8 @@ class IdentityClient
             $this->rememberAppCatalogSignIn($user);
         }
 
+        $this->warmAppCatalog($user);
+
         return $user;
     }
 
@@ -461,6 +472,32 @@ class IdentityClient
             report($e);
 
             return false;
+        }
+    }
+
+    /**
+     * Queue the first read of this person's app catalog, so the switcher opens from a
+     * kept copy instead of waiting for Cbox ID ({@see MachineAppCatalog::warm()}). In
+     * machine mode only, for a sign-in bound to an organization, and never for a support
+     * session. No network call in this request. Off with `app_catalog.warm` false.
+     * Never throws: a sign-in does not fail over a catalog.
+     */
+    private function warmAppCatalog(CboxUser $user): void
+    {
+        try {
+            $catalog = $this->config['app_catalog'] ?? null;
+
+            if (! $this->appCatalogEnabled() || ! is_array($catalog)
+                || (is_string($catalog['mode'] ?? null) && strtolower($catalog['mode']) === 'grant')
+                || filter_var($catalog['warm'] ?? true, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === false
+                || $user->id === '' || $user->organizationId === null || $user->organizationId === ''
+                || array_key_exists('act', $user->claims)) {
+                return;
+            }
+
+            app(MachineAppCatalog::class)->warm(new AppCatalogContext($user->id, $user->organizationId));
+        } catch (Throwable $e) {
+            report($e);
         }
     }
 
@@ -787,10 +824,70 @@ class IdentityClient
             return $this->requestMachineToken($scopes, $resource)->token;
         }
 
-        return $this->machineTokens->remember(
-            $this->machineTokenKey($this->machineTokens, $scopes, $resource),
+        return $this->machineTokens->rememberFor(
+            $this->machineTokenRequest($scopes, $resource),
             fn (): IssuedMachineToken => $this->requestMachineToken($scopes, $resource),
         );
+    }
+
+    /**
+     * Renew the machine tokens this app uses that are about to expire, so the next
+     * request finds a valid one. `cbox-id:refresh` calls it on a schedule; see
+     * {@see MachineTokenCache}. Returns how many were renewed. A token that could not
+     * be renewed is reported and the others still are. Never throws.
+     */
+    public function refreshMachineTokens(): int
+    {
+        if ($this->machineTokens === null) {
+            return 0;
+        }
+
+        $renewed = 0;
+
+        try {
+            $issuer = $this->config['issuer'] ?? null;
+            $due = $this->machineTokens->due(is_string($issuer) ? $issuer : '', $this->clientId());
+        } catch (Throwable $error) {
+            report($error);
+
+            return 0;
+        }
+
+        foreach ($due as $request) {
+            try {
+                $renewed += (int) $this->machineTokens->renew(
+                    $request,
+                    fn (): IssuedMachineToken => $this->requestMachineToken($request->scopes, $request->resource),
+                );
+            } catch (Throwable $error) {
+                report($error);
+            }
+        }
+
+        return $renewed;
+    }
+
+    /**
+     * Bring what this client keeps of Cbox ID up to date outside a person's request: the
+     * discovery document and the JWKS when stale, and the machine tokens about to
+     * expire. For the scheduled `cbox-id:refresh`. Never throws: each failure is
+     * reported and counted.
+     *
+     * @return array{discovery: int, machine_tokens: int, failed: int}
+     */
+    public function refreshKept(): array
+    {
+        $discovery = 0;
+        $failed = 0;
+
+        try {
+            $discovery = $this->discovery->refreshStale();
+        } catch (Throwable $error) {
+            report($error);
+            $failed++;
+        }
+
+        return ['discovery' => $discovery, 'machine_tokens' => $this->refreshMachineTokens(), 'failed' => $failed];
     }
 
     /**
@@ -815,6 +912,16 @@ class IdentityClient
         $issuer = $this->config['issuer'] ?? null;
 
         return $cache->key(is_string($issuer) ? $issuer : '', $this->clientId(), $scopes, $resource);
+    }
+
+    /**
+     * @param  list<string>  $scopes
+     */
+    private function machineTokenRequest(array $scopes, ?string $resource): MachineTokenRequest
+    {
+        $issuer = $this->config['issuer'] ?? null;
+
+        return new MachineTokenRequest(is_string($issuer) ? $issuer : '', $this->clientId(), $scopes, $resource);
     }
 
     /**
@@ -1108,7 +1215,14 @@ class IdentityClient
     private function rememberRefreshed(RefreshedTokens $tokens): void
     {
         $current = $this->sessions->identity();
-        $claims = array_merge($this->userinfo($tokens->accessToken), $tokens->claims);
+        // The scopes the refreshed tokens were granted, else the configured ones.
+        $scopes = is_string($tokens->scope) && $tokens->scope !== ''
+            ? array_values(array_filter(explode(' ', $tokens->scope), static fn (string $scope): bool => $scope !== ''))
+            : $this->scopes();
+
+        $claims = $this->idTokenAnswers($tokens->claims, $scopes)
+            ? $tokens->claims
+            : array_merge($this->userinfo($tokens->accessToken), $tokens->claims);
         $subject = $claims['sub'] ?? null;
 
         // The same person or nobody. A refresh token that answers for someone else is
@@ -1123,6 +1237,55 @@ class IdentityClient
         if ($identity !== null) {
             $this->sessions->remember($identity);
         }
+    }
+
+    /**
+     * Whether a VERIFIED id_token already carries what UserInfo would add, so the round
+     * trip can be skipped (`cbox-id-client.userinfo`: `auto`, the default, or `always`).
+     *
+     * It does when it holds every claim the requested scopes promise:
+     *
+     *  - `email` scope: `email` (a non-empty string);
+     *  - `profile` scope: `name` (a non-empty string);
+     *  - `organizations` scope: `organizations` (a list, which may be empty);
+     *
+     * and at least one claim that only a UserInfo-equivalent id_token has: `email`,
+     * `name`, `organizations`, `roles` or `permissions`. That last rule is what tells such
+     * a token from the minimal one an older Cbox ID mints (`sub`, `org`, `org_name`,
+     * `org_role`), which never carries roles or permissions: for that one UserInfo is
+     * the only place they are.
+     *
+     * So a Cbox ID that puts `email` or `name` in the id_token must put the rest of
+     * UserInfo there too: `email_verified`, `org`, `org_name`, `org_role`, `roles` and
+     * `permissions` (when the person holds any), and `feature_flags`.
+     *
+     * A person with no name, or a claim of the wrong type, falls back to UserInfo. That
+     * costs a round trip and is never wrong.
+     *
+     * @param  array<string, mixed>  $claims  the verified id_token's claims
+     * @param  list<string>  $scopes  the scopes this authorization asked for
+     */
+    private function idTokenAnswers(array $claims, array $scopes): bool
+    {
+        $mode = $this->config['userinfo'] ?? 'auto';
+
+        if (is_string($mode) && strtolower($mode) === 'always') {
+            return false;
+        }
+
+        $email = is_string($claims['email'] ?? null) && $claims['email'] !== '';
+        $name = is_string($claims['name'] ?? null) && $claims['name'] !== '';
+        $organizations = is_array($claims['organizations'] ?? null);
+
+        if (! is_string($claims['sub'] ?? null) || $claims['sub'] === ''
+            || (in_array('email', $scopes, true) && ! $email)
+            || (in_array('profile', $scopes, true) && ! $name)
+            || (in_array('organizations', $scopes, true) && ! $organizations)) {
+            return false;
+        }
+
+        return $email || $name || $organizations
+            || is_array($claims['roles'] ?? null) || is_array($claims['permissions'] ?? null);
     }
 
     private function remembersIdentity(): bool

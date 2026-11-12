@@ -50,10 +50,11 @@ Every answer, yes and no, is kept with the time it was asked.
 |---|---|
 | No kept answer | Ask Cbox ID now and keep the answer. The first visit waits once. |
 | Kept answer is fresh (younger than `fresh_for`, 30 s) | Use it, for any request. |
-| Stale, and the request is a page view (GET, HEAD) | Use it at once, and queue `RefreshKeptDecision` to ask again. A changed role shows one page view later. |
+| Stale, and the request is a page view (GET, HEAD) | Use it at once, and queue `RefreshKeptDecision` to ask again. A changed role shows one page view later. Without a queue worker (the `sync` driver) the refresh runs after the response. |
 | Stale, and the request is a change (POST, PUT, PATCH, DELETE) | Ask Cbox ID now. |
 | Stale, and the caller passes `acting: true` | Ask Cbox ID now. |
-| Older than `max_age` (a day) | Ask Cbox ID now. |
+| Older than `max_age` (thirty days) | Ask Cbox ID now. |
+| Cbox ID said the person's access changed after the answer was kept | Ask Cbox ID now. |
 | Outside an HTTP request (queue job, console command) | Always ask Cbox ID now. |
 
 Pass `acting: true` when a GET does something on the answer, for example a download
@@ -80,8 +81,22 @@ so an unreachable Cbox ID fails fast.
 ## When access changes
 
 A kept answer can be up to `fresh_for` seconds behind Cbox ID on a page view, and
-the refresh is one view behind that. When you learn about a change sooner, for
-example from a role webhook, drop the kept answer so the next check asks:
+the refresh is one view behind that.
+
+The package ends kept answers itself when Cbox ID says access changed. The webhooks
+that take access away from a person or an organization, and a back-channel logout, mark
+them as changed; every answer kept before the mark is ignored and the next check asks.
+The events, what the receiver needs, and the longest a revoked person can keep access
+are in [What a request waits for](../core-concepts/local-first.md#when-access-is-taken-away).
+
+When your own code learns about a change, say so:
+
+```php
+app(\Cbox\Id\Client\Decisions\KeptDecisions::class)->revokeSubject($subject);
+app(\Cbox\Id\Client\Decisions\KeptDecisions::class)->revokeOrganization($organizationId);
+```
+
+Or drop one kept answer:
 
 ```php
 $this->decisions->forget($subject, $organizationId, ['invoices:approve']);
@@ -94,7 +109,7 @@ To ask now and keep the answer (what a first visit and the job do), call
 
 ```dotenv
 CBOX_ID_DECISIONS_FRESH_FOR=30        # seconds an answer is fresh
-CBOX_ID_DECISIONS_MAX_AGE=86400       # the oldest answer used at all
+CBOX_ID_DECISIONS_MAX_AGE=2592000     # the oldest answer used at all (thirty days)
 CBOX_ID_DECISIONS_STORE=redis         # a store every web server and worker shares
 CBOX_ID_DECISIONS_QUEUE_CONNECTION=   # where RefreshKeptDecision runs; empty = default
 CBOX_ID_DECISIONS_QUEUE=

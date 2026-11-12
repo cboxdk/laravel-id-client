@@ -212,13 +212,17 @@ it('serves the last good answer while Cbox ID errors or times out', function (st
         $this->id->catalogStatus = (int) $failure;
     }
 
+    // The stale answer at once; the read that fails happens after the response.
     $response = $this->getJson('https://app.test/apps/catalog')->assertOk();
     expect($response->json('apps.*.key'))->toBe(['work', 'billing'])
         ->and($response->json('refresh_after'))->toBe(30)
         ->and($this->id->catalogReads)->toBe(2);
 
-    // Kept for a day, then gone.
-    $this->travel(86400)->seconds();
+    $this->travel(31)->seconds();
+    $this->getJson('https://app.test/apps/catalog')->assertOk();
+
+    // Kept for thirty days, then gone.
+    $this->travel(30)->days();
     $this->getJson('https://app.test/apps/catalog')->assertStatus(503)->assertExactJson(['error' => 'catalog_unavailable']);
 })->with(['500', '502', '429', 'timeout']);
 
@@ -247,6 +251,10 @@ it('sends the person to sign in when they are no longer a member, and drops the 
     $this->getJson('https://app.test/apps/catalog')->assertOk();
     $this->travel(121)->seconds();
     $this->id->catalogStatus = 404;
+
+    // The stale read is answered from the kept copy; the read behind it finds they
+    // left and drops it, so the next one sends them to sign in.
+    $this->getJson('https://app.test/apps/catalog')->assertOk();
 
     $this->getJson('https://app.test/apps/catalog?return_to=/x')->assertUnauthorized()
         ->assertExactJson(['signin_url' => '/apps/signin?return_to=%2Fx&organization=org_1']);

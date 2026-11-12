@@ -2,8 +2,12 @@
 
 declare(strict_types=1);
 
+use Cbox\Id\Client\Support\MachineTokenCache;
 use Firebase\JWT\JWT;
+use Illuminate\Http\Client\Request as ClientRequest;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
 
 /*
@@ -130,4 +134,39 @@ function accessToken(array $overrides = []): string
         'iat' => time(),
         'exp' => time() + 300,
     ], $overrides));
+}
+
+/** Count the requests that reached the token endpoint. */
+function tokenRequests(): int
+{
+    return Http::recorded(static fn (ClientRequest $request): bool => str_ends_with($request->url(), '/oauth/token'))->count();
+}
+
+/** An unsigned JWT-shaped token; the cache only reads its `exp`. */
+function tokenExpiringIn(int $seconds, string $id = 'a'): string
+{
+    $b64 = static fn (string $part): string => rtrim(strtr(base64_encode($part), '+/', '-_'), '=');
+
+    return $b64('{"alg":"none"}').'.'.$b64((string) json_encode(['exp' => time() + $seconds, 'jti' => $id])).'.sig';
+}
+
+/**
+ * Serve a fresh token per request from the token endpoint, before the rest of the stub.
+ *
+ * @param  Closure(int): array<string, mixed>  $body
+ */
+function fakeTokenEndpoint(Closure $body): void
+{
+    $count = 0;
+    Http::fake(['*/oauth/token' => static function () use (&$count, $body) {
+        $count++;
+
+        return Http::response($body($count));
+    }]);
+    fakeCbox();
+}
+
+function machineTokenKey(array $scopes, ?string $resource = null): string
+{
+    return (new MachineTokenCache(Cache::store(), Crypt::getFacadeRoot()))->key('https://id.test', 'client_1', $scopes, $resource);
 }

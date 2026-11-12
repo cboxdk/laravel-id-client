@@ -7,7 +7,9 @@ namespace Cbox\Id\Client\AppCatalog;
 use Cbox\Id\Client\Exceptions\AuthenticationFailed;
 use Cbox\Id\Client\IdentityClient;
 use Cbox\Id\Client\Support\ApiUrl;
+use Cbox\Id\Client\Support\Background;
 use Illuminate\Contracts\Cache\Repository;
+use Illuminate\Foundation\Bus\PendingDispatch;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Date;
@@ -21,10 +23,13 @@ use Throwable;
  * Nothing per person is kept in the session, so there is no grant to lose, renew or
  * reconnect.
  *
- * Local first. Every answer is cached per (issuer, client, person, organization) in the
- * app's cache: fresh for `refresh_after` (at least a minute), and kept for a day as the
- * last good answer. When Cbox ID errors or is slow, that answer is served instead of an
- * error. Only a 404 (the person is no longer an active member) means a sign-in.
+ * Local first. Every answer is kept per (issuer, client, person, organization) in the
+ * app's cache: fresh for `refresh_after` (at least a minute), and kept for thirty days.
+ * A read answers from the kept copy. One that has gone stale is still the answer, and
+ * {@see WarmAppCatalog} reads it again in the background; a sign-in queues the same job,
+ * so the switcher of a person who just signed in opens from a kept copy too. Only a
+ * person nothing is kept for waits for Cbox ID. When Cbox ID errors or is slow the kept
+ * copy stays. Only a 404 (the person is no longer an active member) means a sign-in.
  *
  * @internal
  */
@@ -32,13 +37,13 @@ final readonly class MachineAppCatalog
 {
     public const SCOPE = 'app_catalog:resolve';
 
-    /** How long the last good answer is kept for when Cbox ID cannot answer. */
-    public const STALE_FOR = 86400;
+    /** How long an answer is kept for: thirty days. */
+    public const STALE_FOR = 2_592_000;
 
     /** The shortest time an answer is fresh for, whatever `refresh_after` says. */
     public const MIN_FRESH = 60;
 
-    /** `refresh_after` on a stale answer: ask again soon. */
+    /** `refresh_after` on a stale answer: ask again soon, when the background read is in. */
     public const STALE_REFRESH_AFTER = 30;
 
     /** After a refusal, the machine read is not tried again for this long. */
@@ -75,6 +80,30 @@ final readonly class MachineAppCatalog
             throw MachineCatalogRefused::because('Cbox ID refused this client app_catalog:resolve a moment ago.');
         }
 
+        if ($kept !== null) {
+            // Stale: still the answer. The new one is read outside this request.
+            $this->warm($context);
+
+            return [...$kept['payload'], 'refresh_after' => self::STALE_REFRESH_AFTER];
+        }
+
+        return $this->refresh($context);
+    }
+
+    /**
+     * Read the catalog from Cbox ID now and keep it. What a read with nothing kept does,
+     * and what {@see WarmAppCatalog} does in the background.
+     *
+     * @return array{apps:list<array{key:string,name:string,description:?string,launch_url:?string,icon_url:?string,icon_dark_url:?string,purpose:?string,hue:?string,admission_url:?string,enabled:bool}>,revision:string,refresh_after:int}
+     *
+     * @throws SignInRequired when the person is no longer an active member; the kept copy is dropped
+     * @throws CatalogUnavailable when Cbox ID cannot answer; the kept copy stays
+     * @throws MachineCatalogRefused when this client may not read catalogs with its own token
+     */
+    public function refresh(AppCatalogContext $context): array
+    {
+        $key = $this->key('catalog', [$context->subject, $context->organizationId]);
+
         try {
             $catalog = $this->fetch($context);
         } catch (SignInRequired $e) {
@@ -86,13 +115,11 @@ final readonly class MachineAppCatalog
 
             throw $e;
         } catch (CatalogUnavailable $e) {
-            if ($kept === null) {
-                throw $e;
+            if ($this->kept($key) !== null) {
+                Log::info('Cbox ID app catalog: keeping the last good answer.', ['reason' => $e->getMessage()]);
             }
 
-            Log::info('Cbox ID app catalog: serving the last good answer.', ['reason' => $e->getMessage()]);
-
-            return [...$kept['payload'], 'refresh_after' => self::STALE_REFRESH_AFTER];
+            throw $e;
         }
 
         $fresh = max(self::MIN_FRESH, $catalog['refresh_after']);
@@ -100,6 +127,34 @@ final readonly class MachineAppCatalog
         $this->cache->forget($this->key('fallback'));
 
         return [...$catalog, 'refresh_after' => $fresh];
+    }
+
+    /**
+     * Read this person's catalog in the background: a queued {@see WarmAppCatalog}, or
+     * the same read after the response in an app with no queue worker. One per person
+     * and organization in any {@see self::STALE_REFRESH_AFTER} seconds. Does nothing
+     * while Cbox ID refuses this client the scope. Never throws.
+     */
+    public function warm(AppCatalogContext $context): void
+    {
+        try {
+            if ($this->cache->get($this->key('refused')) !== null
+                || ! $this->cache->add($this->key('warming', [$context->subject, $context->organizationId]), self::now(), self::STALE_REFRESH_AFTER)) {
+                return;
+            }
+        } catch (Throwable $error) {
+            report($error);
+
+            return;
+        }
+
+        $job = new WarmAppCatalog($context->subject, $context->organizationId);
+
+        Background::dispatch(
+            'cbox-id-client:app-catalog:'.$job->uniqueId(),
+            static fn (): PendingDispatch => WarmAppCatalog::dispatch($context->subject, $context->organizationId),
+            fn () => $job->handle($this),
+        );
     }
 
     /**

@@ -45,13 +45,20 @@ catalog route:
 
 An answer is fresh for Cbox ID's `refresh_after`, at least 60 seconds. It is cached per
 issuer, client, person and organization in the catalog's cache store
-(`CBOX_APP_CATALOG_CACHE_STORE`, the default store when empty). The last good answer is
-kept for 24 hours.
+(`CBOX_APP_CATALOG_CACHE_STORE`, the default store when empty). An answer is kept for
+thirty days.
 
-The cache comes first. When Cbox ID errors, rate-limits or times out, the route serves the
-last good answer, still `200`, with a short `refresh_after` (30 seconds). Only when
-there is no earlier answer does it answer `503 {error: "catalog_unavailable"}`, which the
-switcher retries quietly.
+The cache comes first. A kept answer that is no longer fresh is still served, `200`, with
+a short `refresh_after` (30 seconds), and the `WarmAppCatalog` job reads the catalog
+again in the background (after the response in an app with no queue worker). So opening
+the switcher does not wait for Cbox ID, and a Cbox ID that errors, rate-limits or times
+out changes nothing the person sees. Only when nothing is kept does the route ask Cbox ID
+itself, and answer `503 {error: "catalog_unavailable"}` if that fails, which the switcher
+retries quietly.
+
+A sign-in queues the same job (`authenticate()` does it, with no call of its own), so the
+catalog is usually kept before the person opens the switcher for the first time. Set
+`CBOX_APP_CATALOG_WARM=false` to leave it to the first open.
 
 When Cbox ID answers `404`, the person is no longer an active member of the organization.
 The kept answer is dropped and the route answers `401 {signin_url}`. That is the only
@@ -97,7 +104,8 @@ calls `CboxId::authenticate($request)`, the SDK keeps two things, sealed in the 
 
 That is all the callback does for the catalog. It makes no extra call to Cbox ID, so an
 app switch with a live Cbox ID session stays a plain SSO hop: one call to the token
-endpoint, plus the discovery, keys and UserInfo the login itself needs.
+endpoint. Discovery and keys are read from the cache, and UserInfo is only called for an
+id_token that leaves claims out.
 
 The first catalog read trades the login token for a catalog grant (RFC 8693 token
 exchange, bound to a fresh DPoP key) and drops the login token.

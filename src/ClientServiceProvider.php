@@ -16,6 +16,7 @@ use Cbox\Id\Client\Authz\ManifestPublisher;
 use Cbox\Id\Client\BackchannelLogout\LogoutTokenVerifier;
 use Cbox\Id\Client\BackchannelLogout\SessionRegistry;
 use Cbox\Id\Client\Console\PublishManifestCommand;
+use Cbox\Id\Client\Console\RefreshCommand;
 use Cbox\Id\Client\Contracts\BackchannelAuthentication;
 use Cbox\Id\Client\Contracts\DeviceAuthorization;
 use Cbox\Id\Client\Contracts\HasFeatureFlags;
@@ -28,6 +29,7 @@ use Cbox\Id\Client\Contracts\ServiceConnections;
 use Cbox\Id\Client\Contracts\UserProperties;
 use Cbox\Id\Client\Contracts\VerifiesApiKeys;
 use Cbox\Id\Client\Decisions\KeptDecisions;
+use Cbox\Id\Client\Events\BackchannelLogoutReceived;
 use Cbox\Id\Client\Events\UserPropertiesUpdated;
 use Cbox\Id\Client\Exceptions\ClientConfigurationException;
 use Cbox\Id\Client\Frontend\FrontendClient;
@@ -64,11 +66,13 @@ use Cbox\Id\Client\Tenancy\CurrentPrincipal;
 use Cbox\Id\Client\Tenancy\PermissionGate;
 use Cbox\Id\Client\Tenancy\SessionIdentityStore;
 use Cbox\Id\Client\UserProperties\HttpUserProperties;
+use Cbox\Id\Client\UserProperties\KeptUserProperties;
 use Cbox\Id\Client\Webhooks\EventType;
 use Cbox\Id\Client\Webhooks\WebhookEvent;
 use Cbox\Id\Client\Webhooks\WebhookHandlers;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Auth\Access\Gate;
 use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Contracts\Cache\Repository;
@@ -125,7 +129,7 @@ class ClientServiceProvider extends ServiceProvider
                 $app,
                 self::configString('cbox-id-client.client_id'),
                 self::configInt('cbox-id-client.decisions.fresh_for', 30),
-                self::configInt('cbox-id-client.decisions.max_age', 86_400),
+                self::configInt('cbox-id-client.decisions.max_age', KeptDecisions::DEFAULT_MAX_AGE),
                 $connection !== '' ? $connection : null,
                 $queue !== '' ? $queue : null,
             );
@@ -220,6 +224,22 @@ class ClientServiceProvider extends ServiceProvider
         $this->app->bind(UserProperties::class, static fn () => new HttpUserProperties(
             app(Factory::class), self::configString('cbox-id-client.issuer'), self::configInt('cbox-id-client.http_timeout', 10),
         ));
+
+        // Bound, not a singleton, so a test that swaps the properties client or the
+        // identity client reaches it.
+        $this->app->bind(KeptUserProperties::class, static function (Application $app): KeptUserProperties {
+            $store = self::configString('cbox-id-client.user_properties.store');
+
+            return new KeptUserProperties(
+                $app->make(UserProperties::class),
+                $app->make(IdentityClient::class),
+                Cache::store($store !== '' ? $store : null),
+                self::configString('cbox-id-client.issuer'),
+                self::configString('cbox-id-client.client_id'),
+                self::configInt('cbox-id-client.user_properties.fresh_for', KeptUserProperties::DEFAULT_FRESH_FOR),
+                self::configInt('cbox-id-client.user_properties.keep_for', KeptUserProperties::DEFAULT_KEEP_FOR),
+            );
+        });
 
         // CIBA and the device grant. Bound, not singletons, so the HTTP factory and the
         // timer are resolved when the grant is — which is what lets a test swap either.
@@ -356,7 +376,7 @@ class ClientServiceProvider extends ServiceProvider
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'cbox-id-client');
 
         if ($this->app->runningInConsole()) {
-            $this->commands([PublishManifestCommand::class]);
+            $this->commands([PublishManifestCommand::class, RefreshCommand::class]);
 
             $this->publishes([
                 __DIR__.'/../config/cbox-id-client.php' => config_path('cbox-id-client.php'),
@@ -374,7 +394,14 @@ class ClientServiceProvider extends ServiceProvider
             });
         }
 
+        // A kept copy of a person's properties follows Cbox ID's "it changed" webhook.
+        Event::listen(UserPropertiesUpdated::class, function (UserPropertiesUpdated $event): void {
+            $this->app->make(KeptUserProperties::class)->changed($event->userId, $event->namespace, $event->version);
+        });
+
+        $this->dropKeptDecisionsOnRevocation();
         $this->registerWebhookRoute();
+        $this->scheduleRefresh();
 
         // Audit events buffered during the request go out after the response is sent. A
         // failure is reported, never thrown at a response that has already left.
@@ -413,6 +440,47 @@ class ClientServiceProvider extends ServiceProvider
         if (config('cbox-id-client.authorization.gate') === true) {
             PermissionGate::register($this->app->make(Gate::class), $this->app->make(CurrentPrincipal::class));
         }
+    }
+
+    /**
+     * A kept "yes" ends when Cbox ID says access changed: the webhooks that take a
+     * person's access away (or an organization's), and a back-channel logout, make the
+     * next check ask again. See {@see KeptDecisions::revokedBy()}.
+     */
+    private function dropKeptDecisionsOnRevocation(): void
+    {
+        $handlers = $this->app->make(WebhookHandlers::class);
+        $revoke = function (WebhookEvent $event): void {
+            $this->app->make(KeptDecisions::class)->revokedBy($event);
+        };
+
+        foreach ([...KeptDecisions::SUBJECT_EVENTS, ...KeptDecisions::ORGANIZATION_EVENTS] as $type) {
+            $handlers->on($type, $revoke);
+        }
+
+        Event::listen(BackchannelLogoutReceived::class, function (BackchannelLogoutReceived $event): void {
+            if (is_string($event->token->subject) && $event->token->subject !== '') {
+                $this->app->make(KeptDecisions::class)->revokeSubject($event->token->subject);
+            }
+        });
+    }
+
+    /**
+     * `cbox-id:refresh` every five minutes, in the app's own scheduler, so an app gets it
+     * by upgrading. It renews the discovery document, the JWKS and the machine tokens
+     * before a request would find them stale. Off with
+     * `cbox-id-client.background.schedule` false. An app that runs no scheduler loses
+     * nothing: requests then renew after their response.
+     */
+    private function scheduleRefresh(): void
+    {
+        if (filter_var(config('cbox-id-client.background.schedule', true), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === false) {
+            return;
+        }
+
+        $this->callAfterResolving(Schedule::class, static function (Schedule $schedule): void {
+            $schedule->command(RefreshCommand::class)->everyFiveMinutes();
+        });
     }
 
     /**
@@ -683,7 +751,12 @@ class ClientServiceProvider extends ServiceProvider
 
         $store = self::configString('cbox-id-client.token_cache.store');
 
-        return new MachineTokenCache(Cache::store($store !== '' ? $store : null), $app->make(StringEncrypter::class));
+        return new MachineTokenCache(
+            Cache::store($store !== '' ? $store : null),
+            $app->make(StringEncrypter::class),
+            self::configInt('cbox-id-client.token_cache.refresh_ahead', MachineTokenCache::DEFAULT_REFRESH_AHEAD),
+            self::configInt('cbox-id-client.token_cache.keep_warm_for', MachineTokenCache::DEFAULT_KEEP_WARM_FOR),
+        );
     }
 
     private static function configString(string $key): string
