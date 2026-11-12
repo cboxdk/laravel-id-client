@@ -804,8 +804,8 @@ class IdentityClient
         // NEVER A TOKEN THAT NAMES THE PERSON IN A URL. A URL is written to access logs,
         // kept in browser history and sent on as Referer. An id_token minted under the
         // `identity_claims` scope carries email, name, organizations and roles, so it is
-        // left out here: the browser is still signed out, by `client_id`. To end the
-        // person's sessions everywhere with such a token, post it: {@see logoutForm()}.
+        // left out here: the browser arrives with its session cookie and is signed out, by
+        // `client_id`. The hint can travel in a request body instead: {@see logoutForm()}.
         if ($idTokenHint !== null && $idTokenHint !== '' && ! $this->namesThePerson($idTokenHint)) {
             $params['id_token_hint'] = $idTokenHint;
         }
@@ -844,9 +844,28 @@ class IdentityClient
     }
 
     /**
-     * Whether an id_token's payload carries a claim about who the person is. Read without
-     * verifying: the question is what would be written into a URL, not whether to trust it.
-     * A token that cannot be read is treated as naming the person.
+     * The id_token claims that may travel in a URL: the protocol's own (OIDC Core §2, RFC
+     * 7519 §4.1, Back-Channel Logout's `sid`), the organization the sign-in is bound to, and
+     * the keys of the feature flags that are on. None of them says who the person is beyond
+     * the opaque `sub`.
+     *
+     * @var list<string>
+     */
+    private const array HINT_CLAIMS_SAFE_IN_A_URL = [
+        'iss', 'sub', 'aud', 'azp', 'exp', 'iat', 'nbf', 'jti', 'auth_time', 'nonce', 'acr', 'amr',
+        'at_hash', 'c_hash', 's_hash', 'sid',
+        'org', 'org_name', 'org_role', 'feature_flags',
+    ];
+
+    /**
+     * Whether an id_token's payload says more about the person than {@see HINT_CLAIMS_SAFE_IN_A_URL}.
+     * Read without verifying: the question is what would be written into a URL, not whether
+     * to trust it.
+     *
+     * DENY BY DEFAULT. Any claim that is not on the list keeps the token out of the URL:
+     * `email`, `name`, `roles`, `permissions`, `organizations` and `groups` from Cbox ID, the
+     * standard profile claims of any other provider, and whatever is added to the ID token
+     * next. A token that cannot be read is treated the same way.
      */
     private function namesThePerson(string $idToken): bool
     {
@@ -859,11 +878,11 @@ class IdentityClient
         $payload = base64_decode(strtr($segments[1], '-_', '+/'), true);
         $claims = $payload === false ? null : json_decode($payload, true);
 
-        if (! is_array($claims)) {
+        if (! is_array($claims) || $claims === [] || array_is_list($claims)) {
             return true;
         }
 
-        return array_intersect_key($claims, array_flip(['email', 'name', 'organizations', 'roles', 'permissions', 'groups'])) !== [];
+        return array_diff(array_keys($claims), self::HINT_CLAIMS_SAFE_IN_A_URL) !== [];
     }
 
     /**

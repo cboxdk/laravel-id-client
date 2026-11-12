@@ -5,14 +5,19 @@ their GitHub release pages.
 
 ## [Unreleased]
 
+## 0.19.8 — 2026-11-12
+
+Sign-out no longer puts an id_token that says who the person is in a URL. An app gets it by
+upgrading; nothing in its code changes.
+
 ### Security
 
-- **An id_token that names the person is never put in the logout URL.** `logoutUrl($returnTo, $idTokenHint)` leaves the hint out when the token carries `email`, `name`, `organizations`, `roles`, `permissions` or `groups`, or cannot be read: a URL is written to access logs, kept in browser history and sent on as `Referer`. The browser is still signed out, by `client_id`. A hint that names nobody (`sub`, `org`, `org_name`, `org_role`) is passed as before.
+- **An id_token that names the person is never put in the logout URL.** `logoutUrl($returnTo, $idTokenHint)` passes the hint only when every claim in it is a protocol claim (`iss`, `sub`, `aud`, `exp`, `iat`, `auth_time`, `nonce`, `acr`, `amr`, `at_hash`, `sid`, …), the bound organization (`org`, `org_name`, `org_role`) or `feature_flags`. Any other claim (`email`, `name`, `roles`, `permissions`, `organizations`, `groups`, a standard profile claim, one added later) or a token that cannot be read leaves the hint out: a URL is written to access logs, kept in browser history and sent on as `Referer`. The browser is still signed out, by `client_id`.
 
 ### Added
 
-- `logoutForm($returnTo, $idTokenHint)` and `ValueObjects\LogoutForm`: RP-initiated logout by POST, with the hint in the request body. Return it from the logout route and it renders a page that posts itself (`withNonce()` for a Content-Security-Policy that refuses inline scripts; without scripts it shows a button). This is how an app that asks for the `identity_claims` scope ends the person's sessions everywhere.
-- The `identity_claims` scope (Cbox ID with laravel-id 2.7): add it to `scopes` once an operator has granted it to the app's client, and the id_token carries what UserInfo answers, so sign-in skips the UserInfo call. Without it nothing changes.
+- `logoutForm($returnTo, $idTokenHint)` and `ValueObjects\LogoutForm`: RP-initiated logout by POST (OIDC RP-Initiated Logout 1.0 §2), with the hint in the request body. Return it from the logout route and it renders a page that posts itself (`withNonce()` for a Content-Security-Policy that refuses inline scripts; without scripts it shows a button). The app's `form-action` policy has to allow the issuer. From another site the provider does not receive its own session cookie with a POST (`SameSite=Lax`), so what ends there is what the provider ends on the hint alone: see "When the id_token names the person" in `docs/cookbook/log-in-users.md` before choosing it over `logoutUrl()`.
+- The `identity_claims` scope (Cbox ID with laravel-id 2.7): add it to `scopes` (`CBOX_ID_SCOPES`) once an operator has granted it to the app's client, and the id_token carries what UserInfo answers, so sign-in skips the UserInfo call. Without it nothing changes. Ask for it only after the grant: Cbox ID answers `invalid_scope` to an app that asks for a scope its client does not hold.
 
 ## 0.19.7 — 2026-11-12
 

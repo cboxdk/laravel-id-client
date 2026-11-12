@@ -1,7 +1,7 @@
 {
     "bomFormat": "CycloneDX",
     "specVersion": "1.5",
-    "serialNumber": "urn:uuid:7740523c-8d4a-4acb-b094-be9ed71f6692",
+    "serialNumber": "urn:uuid:73dc50a1-217a-47fd-a3f0-a95db264a959",
     "version": 1,
     "metadata": {
         "tools": [
@@ -181,11 +181,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/guzzlehttp/guzzle@8.3.1",
+            "bom-ref": "pkg:composer/guzzlehttp/guzzle@8.4.0",
             "group": "guzzlehttp",
             "name": "guzzle",
-            "version": "8.3.1",
-            "purl": "pkg:composer/guzzlehttp/guzzle@8.3.1",
+            "version": "8.4.0",
+            "purl": "pkg:composer/guzzlehttp/guzzle@8.4.0",
             "description": "Guzzle is a PHP HTTP client library",
             "licenses": [
                 {
@@ -213,11 +213,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/guzzlehttp/psr7@3.2.0",
+            "bom-ref": "pkg:composer/guzzlehttp/psr7@3.3.0",
             "group": "guzzlehttp",
             "name": "psr7",
-            "version": "3.2.0",
-            "purl": "pkg:composer/guzzlehttp/psr7@3.2.0",
+            "version": "3.3.0",
+            "purl": "pkg:composer/guzzlehttp/psr7@3.3.0",
             "description": "PSR-7 message implementation that also provides common utility methods",
             "licenses": [
                 {

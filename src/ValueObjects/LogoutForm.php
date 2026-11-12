@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cbox\Id\Client\ValueObjects;
 
+use Cbox\Id\Client\IdentityClient;
 use Illuminate\Contracts\Support\Responsable;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -24,6 +25,15 @@ use Illuminate\Http\Response;
  * or read `action` and `fields` and put the form in a page of your own. Under a
  * Content-Security-Policy that refuses inline scripts, pass the page's nonce with
  * {@see withNonce()}; without one the page shows a "Sign out" button to press.
+ *
+ * FROM ANOTHER SITE THE PROVIDER'S COOKIE DOES NOT COME ALONG. A browser does not send a
+ * `SameSite=Lax` session cookie with a cross-site POST, so the provider learns who is
+ * signing out from the hint alone and ends what it ends for a verified hint. When the app
+ * and the issuer are on different sites and the provider needs its cookie to end the
+ * browser's session, {@see IdentityClient::logoutUrl()} is the request that
+ * carries it (and it leaves a hint that names the person out by itself).
+ *
+ * The app's Content-Security-Policy must allow the issuer in `form-action`.
  *
  * `new LogoutForm('https://id.example/oauth/logout')` is a valid form with no fields, so
  * a test can build one.
