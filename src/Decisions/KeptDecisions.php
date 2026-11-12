@@ -10,8 +10,12 @@ use Cbox\Id\Client\Contracts\PermissionDecisions;
 use Cbox\Id\Client\Enums\OrganizationRole;
 use Cbox\Id\Client\Exceptions\AuthenticationFailed;
 use Cbox\Id\Client\IdentityClient;
+use Cbox\Id\Client\Support\Background;
+use Cbox\Id\Client\Webhooks\EventType;
+use Cbox\Id\Client\Webhooks\WebhookEvent;
 use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Foundation\Bus\PendingDispatch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Throwable;
@@ -21,16 +25,26 @@ use Throwable;
  * keep rendering while Cbox ID is down.
  *
  * Every answer, yes or no, is kept with the time it was asked. It is fresh for
- * `fresh_for` seconds and kept for `max_age` seconds:
+ * `fresh_for` seconds and kept for `max_age` seconds (thirty days):
  *
  * - A fresh answer is used by every caller.
- * - A page view (a safe method: GET, HEAD) gets a stale answer at once, and a queued
- *   {@see RefreshKeptDecision} asks Cbox ID again, so a changed role shows one page view
- *   later. If Cbox ID is down, the job fails quietly and the kept answer stays.
+ * - A page view (a safe method: GET, HEAD) gets a stale answer at once, however old it
+ *   is within `max_age`, and a queued {@see RefreshKeptDecision} asks Cbox ID again, so
+ *   a changed role shows one page view later. In an app with no queue worker (the
+ *   `sync` driver) the same refresh runs after the response instead of inside it. If
+ *   Cbox ID is down, the refresh fails quietly and the kept answer stays.
  * - A change (POST, PUT, PATCH, DELETE), a call with `$acting: true`, and a call outside
  *   an HTTP request (queue job, console) never act on a stale answer: they ask now.
  * - With no kept answer, or one older than `max_age`, the caller asks now. That is the
  *   one wait a person has, on their first visit.
+ *
+ * WHAT ENDS A KEPT ANSWER EARLY. Cbox ID saying that access changed: the webhooks in
+ * {@see self::SUBJECT_EVENTS} and {@see self::ORGANIZATION_EVENTS}, and a back-channel
+ * logout, mark the person (or the whole organization) as changed at that moment, and
+ * every answer kept before the mark is ignored, so the next check asks now. The package
+ * registers those handlers itself; they run when the app receives Cbox ID's webhooks.
+ * Without them a page view can show a revoked person one stale page, once `fresh_for`
+ * has passed, before the background refresh corrects it; a change never can.
  *
  * Asking uses a `decisions:read` machine token, which the identity client keeps until
  * shortly before it expires. A 401 drops that token and asks once more with a new one.
@@ -49,6 +63,43 @@ class KeptDecisions implements KeptPermissionDecisions
 
     private const int VERSION = 1;
 
+    /** `max_age` when nothing is configured: thirty days. */
+    public const int DEFAULT_MAX_AGE = 2_592_000;
+
+    /**
+     * Webhooks that change what one person may do. Each carries `user_id`.
+     *
+     * @var list<EventType>
+     */
+    public const array SUBJECT_EVENTS = [
+        EventType::UserDeactivated,
+        EventType::UserReactivated,
+        EventType::OrganizationMemberRemoved,
+        EventType::OrganizationMemberRoleChanged,
+        EventType::MembershipDeleted,
+        EventType::MembershipUpdated,
+        EventType::RoleAssigned,
+        EventType::RoleUnassigned,
+        EventType::RoleAssignedEverywhere,
+        EventType::RoleUnassignedEverywhere,
+        EventType::GovernanceAccessRevoked,
+        EventType::DirectoryUserDeprovisioned,
+        EventType::DirectoryUserDeactivated,
+        EventType::DirectoryGroupMembershipChanged,
+    ];
+
+    /**
+     * Webhooks that change what everybody in one organization may do.
+     *
+     * @var list<EventType>
+     */
+    public const array ORGANIZATION_EVENTS = [
+        EventType::OrganizationSuspended,
+        EventType::OrganizationReactivated,
+        EventType::OrganizationArchived,
+        EventType::OrganizationDeleted,
+    ];
+
     private readonly int $freshFor;
 
     private readonly int $maxAge;
@@ -60,7 +111,7 @@ class KeptDecisions implements KeptPermissionDecisions
         private readonly Application $app,
         private readonly string $clientId,
         int $freshFor = 30,
-        int $maxAge = 86_400,
+        int $maxAge = self::DEFAULT_MAX_AGE,
         private readonly ?string $connection = null,
         private readonly ?string $queue = null,
     ) {
@@ -77,6 +128,11 @@ class KeptDecisions implements KeptPermissionDecisions
         }
 
         $kept = $this->read($this->key($subject, $organization, $permissions));
+
+        if ($kept !== null && $kept['at'] <= $this->changedAt($subject, $organization)) {
+            // Cbox ID said this person's access changed after the answer was asked.
+            $kept = null;
+        }
 
         if ($kept !== null) {
             $age = Carbon::now()->getTimestamp() - $kept['at'];
@@ -126,6 +182,53 @@ class KeptDecisions implements KeptPermissionDecisions
     }
 
     /**
+     * Cbox ID said what this person may do has changed (deactivated, removed from an
+     * organization, a role taken away). Every answer kept for them before now is
+     * ignored: the next check asks. Never throws.
+     */
+    public function revokeSubject(string $subject): void
+    {
+        $this->mark($this->subjectMark($subject));
+    }
+
+    /** The same for everybody in one organization (it was suspended, archived, deleted). */
+    public function revokeOrganization(string $organization): void
+    {
+        $this->mark($this->organizationMark($organization));
+    }
+
+    /**
+     * Apply a verified webhook: one of {@see self::SUBJECT_EVENTS} marks its `user_id`,
+     * one of {@see self::ORGANIZATION_EVENTS} its organization. Anything else is ignored.
+     */
+    public function revokedBy(WebhookEvent $event): void
+    {
+        $type = $event->eventType();
+
+        if ($type === null) {
+            return;
+        }
+
+        if (in_array($type, self::SUBJECT_EVENTS, true)) {
+            $subject = $event->id('user_id');
+
+            if ($subject !== null && $subject !== '') {
+                $this->revokeSubject($subject);
+            }
+
+            return;
+        }
+
+        if (in_array($type, self::ORGANIZATION_EVENTS, true)) {
+            $organization = $event->organizationId ?? $event->id('id');
+
+            if ($organization !== null && $organization !== '') {
+                $this->revokeOrganization($organization);
+            }
+        }
+    }
+
+    /**
      * The cache key for one question. Permissions are deduplicated and sorted, so the
      * order they are asked in does not matter.
      *
@@ -159,23 +262,55 @@ class KeptDecisions implements KeptPermissionDecisions
      */
     private function queueRefresh(string $subject, ?string $organization, array $permissions): void
     {
+        $permissions = array_values(array_unique($permissions));
+
+        Background::dispatch(
+            'cbox-id-client:decision:'.$this->key($subject, $organization, $permissions),
+            static fn (): PendingDispatch => RefreshKeptDecision::dispatch($subject, $organization, $permissions),
+            function () use ($subject, $organization, $permissions): void {
+                $this->refresh($subject, $organization, $permissions);
+            },
+            $this->connection,
+            $this->queue,
+        );
+    }
+
+    /**
+     * When Cbox ID last said this person's access, or this organization's, changed.
+     * Zero when it never did. A cache that cannot be read counts as "never": the
+     * answer's own age still bounds it.
+     */
+    private function changedAt(string $subject, ?string $organization): int
+    {
         try {
-            $pending = RefreshKeptDecision::dispatch($subject, $organization, array_values(array_unique($permissions)));
+            $subjectAt = $this->cache->get($this->subjectMark($subject));
+            $organizationAt = $organization !== null ? $this->cache->get($this->organizationMark($organization)) : null;
+        } catch (Throwable $error) {
+            report($error);
 
-            if ($this->connection !== null) {
-                $pending->onConnection($this->connection);
-            }
+            return 0;
+        }
 
-            if ($this->queue !== null) {
-                $pending->onQueue($this->queue);
-            }
+        return max(is_int($subjectAt) ? $subjectAt : 0, is_int($organizationAt) ? $organizationAt : 0);
+    }
 
-            // The job is sent when the pending dispatch is destroyed: do it here, so a
-            // queue that is down is reported instead of failing the page.
-            unset($pending);
+    private function mark(string $key): void
+    {
+        try {
+            $this->cache->put($key, Carbon::now()->getTimestamp(), $this->maxAge);
         } catch (Throwable $error) {
             report($error);
         }
+    }
+
+    private function subjectMark(string $subject): string
+    {
+        return self::PREFIX.'changed.subject.'.hash('sha256', json_encode([$this->clientId, $subject], JSON_THROW_ON_ERROR));
+    }
+
+    private function organizationMark(string $organization): string
+    {
+        return self::PREFIX.'changed.organization.'.hash('sha256', json_encode([$this->clientId, $organization], JSON_THROW_ON_ERROR));
     }
 
     /** @return array{at: int, decision: PermissionDecision}|null */

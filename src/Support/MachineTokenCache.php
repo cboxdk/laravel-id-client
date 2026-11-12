@@ -10,6 +10,7 @@ use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Contracts\Encryption\StringEncrypter;
+use Illuminate\Support\Carbon;
 
 /**
  * Keeps client-credentials tokens in a cache until shortly before they expire.
@@ -26,6 +27,13 @@ use Illuminate\Contracts\Encryption\StringEncrypter;
  *
  * Use a store every worker shares (Redis, Valkey, database); a per-process store
  * still works, it just saves fewer requests.
+ *
+ * RENEWED AHEAD OF EXPIRY, so a request finds a valid token. A token asked for through
+ * {@see rememberFor()} is noted as in use. {@see due()} lists the ones in use with less
+ * than `refresh_ahead` left, for the scheduled `cbox-id:refresh` to {@see renew()}; a
+ * request that finds one in its last two minutes returns it and renews it after the
+ * response. A request asks Cbox ID itself only when there is no token at all. A token
+ * nothing has asked for in `keep_warm_for` is no longer renewed.
  */
 class MachineTokenCache
 {
@@ -38,16 +46,37 @@ class MachineTokenCache
     /** Never kept longer than this, whatever the token says. */
     public const int MAX_SECONDS = 3600;
 
+    /** A request that finds a token with this little left renews it after its response. */
+    public const int RENEW_AFTER_RESPONSE_WITHIN = 120;
+
+    /** `refresh_ahead` when nothing is configured: ten minutes, two runs of the schedule. */
+    public const int DEFAULT_REFRESH_AHEAD = 600;
+
+    /** `keep_warm_for` when nothing is configured: seven days. */
+    public const int DEFAULT_KEEP_WARM_FOR = 604_800;
+
+    /** How often a token's "in use" time is written, at most. */
+    private const int NOTE_USE_EVERY = 3600;
+
     private const string PREFIX = 'cbox-id-client.machine-token.';
 
     private const int LOCK_SECONDS = 10;
 
     private const int LOCK_WAIT_SECONDS = 5;
 
+    private readonly int $refreshAhead;
+
+    private readonly int $keepWarmFor;
+
     public function __construct(
         private readonly Repository $cache,
         private readonly StringEncrypter $encrypter,
-    ) {}
+        int $refreshAhead = self::DEFAULT_REFRESH_AHEAD,
+        int $keepWarmFor = self::DEFAULT_KEEP_WARM_FOR,
+    ) {
+        $this->refreshAhead = max(0, $refreshAhead);
+        $this->keepWarmFor = max(self::NOTE_USE_EVERY, $keepWarmFor);
+    }
 
     /**
      * The cache key for one token. Scopes are deduplicated and sorted, so `['b', 'a']`
@@ -102,6 +131,104 @@ class MachineTokenCache
         }
     }
 
+    /**
+     * {@see remember()}, and the token is noted as in use, so it is renewed ahead of its
+     * expiry from then on ({@see due()}, {@see renew()}). A kept token in its last two
+     * minutes is returned as it is and renewed once the response has been sent.
+     *
+     * @param  Closure(): IssuedMachineToken  $fetch
+     */
+    public function rememberFor(MachineTokenRequest $request, Closure $fetch): string
+    {
+        $key = $this->keyFor($request);
+        $cached = $this->cached($key);
+
+        if ($cached === null) {
+            // No token at all: the one wait. `renew()` writes the note when it stores.
+            $token = $this->remember($key, $fetch);
+            $this->note($request, $this->meta($key)['until'] ?? null, true);
+
+            return $token;
+        }
+
+        $meta = $this->meta($key);
+        $now = Carbon::now()->getTimestamp();
+
+        if ($meta === null || $now - $meta['used_at'] >= self::NOTE_USE_EVERY) {
+            $this->note($request, $meta['until'] ?? null, true);
+        }
+
+        if ($meta !== null && $meta['until'] - $now <= self::RENEW_AFTER_RESPONSE_WITHIN) {
+            Background::afterResponse('cbox-id-client:machine-token:'.$key, function () use ($request, $fetch): void {
+                $this->renew($request, $fetch);
+            });
+        }
+
+        return $cached;
+    }
+
+    /**
+     * The tokens of this issuer and client that are in use and have less than
+     * `refresh_ahead` left, or have expired. One nothing has asked for in
+     * `keep_warm_for` is dropped from the list instead.
+     *
+     * @return list<MachineTokenRequest>
+     */
+    public function due(string $issuer, string $clientId): array
+    {
+        $now = Carbon::now()->getTimestamp();
+        $index = $this->index($issuer, $clientId);
+        $due = [];
+        $kept = [];
+
+        foreach ($index as $key => $entry) {
+            $meta = $this->meta($key);
+
+            if ($meta === null || $now - $meta['used_at'] > $this->keepWarmFor) {
+                continue;
+            }
+
+            $kept[$key] = $entry;
+
+            if ($this->refreshAhead >= $meta['until'] - $now || $this->cached($key) === null) {
+                $due[] = new MachineTokenRequest($issuer, $clientId, $entry['scopes'], $entry['resource']);
+            }
+        }
+
+        if (count($kept) !== count($index)) {
+            $this->cache->put($this->indexKey($issuer, $clientId), $kept, $this->keepWarmFor);
+        }
+
+        return $due;
+    }
+
+    /**
+     * Ask for the token again and keep the new one, under the same lock as
+     * {@see remember()}. Returns false, and asks nothing, when another worker holds that
+     * lock: it is fetching the same token. A failure is thrown and the kept token stays.
+     *
+     * @param  Closure(): IssuedMachineToken  $fetch
+     */
+    public function renew(MachineTokenRequest $request, Closure $fetch): bool
+    {
+        $key = $this->keyFor($request);
+        $store = $this->cache->getStore();
+        $lock = $store instanceof LockProvider ? $store->lock($key.'.lock', self::LOCK_SECONDS) : null;
+
+        if ($lock !== null && ! $lock->get()) {
+            return false;
+        }
+
+        try {
+            $this->fetch($key, $fetch);
+            $this->note($request, $this->meta($key)['until'] ?? null, false);
+
+            return true;
+        } finally {
+            $lock?->release();
+        }
+    }
+
     /** Drop the cached token, for example after Cbox ID refused it. */
     public function forget(string $key): void
     {
@@ -149,9 +276,91 @@ class MachineTokenCache
 
         if ($seconds > 0) {
             $this->cache->put($key, $this->encrypter->encryptString($issued->token), $seconds);
+
+            // When the kept copy ends, next to it: the token itself stays an opaque,
+            // encrypted string, readable by a version that knows nothing of this.
+            $meta = $this->meta($key);
+            $now = Carbon::now()->getTimestamp();
+            $this->cache->put($key.'.meta', ['until' => $now + $seconds, 'used_at' => $meta['used_at'] ?? $now], $this->keepWarmFor);
         }
 
         return $issued->token;
+    }
+
+    private function keyFor(MachineTokenRequest $request): string
+    {
+        return $this->key($request->issuer, $request->clientId, $request->scopes, $request->resource);
+    }
+
+    /**
+     * Write the token's note (when its kept copy ends, when it was last asked for) and
+     * list it for {@see due()}. `$used` moves the "last asked for" time to now.
+     */
+    private function note(MachineTokenRequest $request, ?int $until, bool $used): void
+    {
+        $key = $this->keyFor($request);
+        $now = Carbon::now()->getTimestamp();
+        $meta = $this->meta($key);
+
+        $this->cache->put($key.'.meta', [
+            'until' => $until ?? $meta['until'] ?? $now,
+            'used_at' => $used ? $now : ($meta['used_at'] ?? $now),
+        ], $this->keepWarmFor);
+
+        $index = $this->index($request->issuer, $request->clientId);
+
+        if (! isset($index[$key])) {
+            $scopes = array_values(array_unique($request->scopes));
+            sort($scopes);
+
+            // Read, then written: two workers adding at once can lose one entry, which
+            // is added again the next time that token is asked for.
+            $index[$key] = ['scopes' => $scopes, 'resource' => $request->resource];
+            $this->cache->put($this->indexKey($request->issuer, $request->clientId), $index, $this->keepWarmFor);
+        }
+    }
+
+    /** @return array{until: int, used_at: int}|null */
+    private function meta(string $key): ?array
+    {
+        $meta = $this->cache->get($key.'.meta');
+
+        if (! is_array($meta) || ! is_int($meta['until'] ?? null) || ! is_int($meta['used_at'] ?? null)) {
+            return null;
+        }
+
+        return ['until' => $meta['until'], 'used_at' => $meta['used_at']];
+    }
+
+    /**
+     * The tokens noted as in use for one issuer and client: scopes and resource only,
+     * never a token.
+     *
+     * @return array<string, array{scopes: list<string>, resource: ?string}>
+     */
+    private function index(string $issuer, string $clientId): array
+    {
+        $stored = $this->cache->get($this->indexKey($issuer, $clientId));
+        $index = [];
+
+        foreach (is_array($stored) ? $stored : [] as $key => $entry) {
+            if (! is_string($key) || ! is_array($entry) || ! is_array($entry['scopes'] ?? null)) {
+                continue;
+            }
+
+            $resource = $entry['resource'] ?? null;
+            $index[$key] = [
+                'scopes' => array_values(array_filter($entry['scopes'], 'is_string')),
+                'resource' => is_string($resource) ? $resource : null,
+            ];
+        }
+
+        return $index;
+    }
+
+    private function indexKey(string $issuer, string $clientId): string
+    {
+        return self::PREFIX.'index.'.hash('sha256', json_encode([$issuer, $clientId], JSON_THROW_ON_ERROR));
     }
 
     private function cached(string $key): ?string

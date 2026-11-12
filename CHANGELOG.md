@@ -5,6 +5,35 @@ their GitHub release pages.
 
 ## [Unreleased]
 
+## 0.19.7 — 2026-11-12
+
+A page or a sign-in reads what the app already holds; Cbox ID is asked again in the
+background. An app gets all of it by upgrading. New page: "What a request waits for".
+
+### Added
+
+- `cbox-id:refresh`, scheduled by the package every five minutes (`background.schedule`, `CBOX_ID_BACKGROUND_SCHEDULE`). It fetches the discovery document and the JWKS again when older than `cache_ttl` and renews the machine tokens in use that have less than `token_cache.refresh_ahead` (600 s) left. `IdentityClient::refreshKept()` and `refreshMachineTokens()` do the same from code. An app with no scheduler loses nothing: requests refresh after their response.
+- `UserProperties\KeptUserProperties`: `read($user, $namespace)` returns the kept copy of a person's properties and refreshes it in the background (`RefreshKeptUserProperties`); the `user.preferences.updated` / `user.metadata.updated` webhooks refresh it on the webhook worker. Also `refresh()`, `remember()`, `forget()`, `changed()`. Config `user_properties`.
+- `InternalRoutes::publicRoute()`: headers that keep one request on the public path while `CBOX_INTERNAL_ROUTES` routes the rest of that host in-cluster, for uptime probes of public URLs. The marker header is removed before the request is sent.
+- `KeptDecisions::revokeSubject()`, `revokeOrganization()` and `revokedBy(WebhookEvent)`. The package registers webhook handlers for the events that change a person's or an organization's access (`KeptDecisions::SUBJECT_EVENTS`, `ORGANIZATION_EVENTS`) and listens for back-channel logout: answers kept before such an event are ignored and the next check asks Cbox ID.
+- `AppCatalog\WarmAppCatalog` and `MachineAppCatalog::warm()` / `refresh()`. `authenticate()` queues the first read of the person's catalog (`app_catalog.warm`, `CBOX_APP_CATALOG_WARM`).
+- Config: `userinfo` (`CBOX_ID_USERINFO`), `cache_keep` (`CBOX_ID_CACHE_KEEP`), `token_cache.refresh_ahead`, `token_cache.keep_warm_for`, `background.queue_connection`, `background.queue`.
+
+### Changed
+
+- `authenticate()` no longer calls UserInfo when the verified id_token carries what the requested scopes promise: `email` for the `email` scope, `name` for `profile`, `organizations` for `organizations`, and at least one of `email`, `name`, `organizations`, `roles`, `permissions`. Otherwise it calls UserInfo as before. `refresh(remember: true)` decides the same way. The subject still comes from the signature, a UserInfo `sub` must still match, and an `openid` sign-in without an id_token is still refused. `CBOX_ID_USERINFO=always` restores a call on every sign-in.
+- The discovery document and the JWKS are fetched in a request once. A copy older than `cache_ttl` is still used and fetched again after the response; it is used for at most `cache_keep` (seven days). A `kid` the kept JWKS lacks still forces a fetch at once.
+- A machine token in its last two minutes is returned and renewed after the response instead of expiring into the next request.
+- Kept permission decisions: `decisions.max_age` defaults to thirty days (was one day). On the `sync` queue driver a stale page view's refresh runs after the response, no longer inside the request.
+- The machine-mode app catalog is kept for thirty days (was one day). A stale catalog is served at once and read again in the background, where it was read in the request before. A person who left the organization sees the kept catalog once more before the route answers `401`.
+- Refresh jobs use `background.queue_connection` / `background.queue` when their own setting is empty.
+
+### Upgrade notes
+
+- An app with a published `config/cbox-id-client.php` keeps the `decisions.max_age` written there (`86400` in files published before this release).
+- The package now registers webhook handlers for the access-changing events, so those deliveries are queued (`ProcessCboxIdWebhook`) even in an app that registered none itself.
+- Tests that relied on a stale kept decision or catalog being refreshed inside the request need `Illuminate\Support\defer()->invoke()` (or a queue worker) between the two reads.
+
 ## 0.19.6 — 2026-11-11
 
 ### Added

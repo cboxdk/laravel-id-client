@@ -27,6 +27,36 @@ $updated = $properties->patch($userId, 'preferences', new PropertyPatch(
 ), $token);
 ```
 
+## Reading without waiting for Cbox ID
+
+`read()` above is a call to Cbox ID. On a sign-in or a page, read the copy the app keeps
+instead:
+
+```php
+use Cbox\Id\Client\UserProperties\KeptUserProperties;
+
+$preferences = app(KeptUserProperties::class)->read($user->id, 'preferences');
+```
+
+- With a kept copy it returns that, with no call. A copy older than five minutes
+  (`CBOX_ID_USER_PROPERTIES_FRESH_FOR`) is read again in the background: the
+  `RefreshKeptUserProperties` job, or after the response in an app with no queue worker.
+- With nothing kept (the person's first sign-in in the app) it asks Cbox ID now. Pass a
+  `PropertyToken` as the third argument to use the person's own access token for that
+  read; without one the app's machine token is used.
+- The `user.preferences.updated` and `user.metadata.updated` webhooks refresh the kept
+  copy on the webhook worker. The package registers that itself; your own
+  `UserPropertiesUpdated` listeners still run.
+- A copy is only replaced by a newer version. A 401, 403 or 404 drops it. An outage
+  leaves it. Nothing older than thirty days (`CBOX_ID_USER_PROPERTIES_KEEP_FOR`) is used.
+
+The background read uses the app's machine token with `user_properties:read`, so the
+client needs a read grant on the namespace. After a `patch()`, hand the returned
+document to `remember()` so the kept copy is current at once. Call `forget($user,
+$namespace)` when a person is erased.
+
+## Grants and the wire format
+
 The OAuth client also needs explicit read/write grants on the namespace. Scopes
 alone do not grant access. User tokens are restricted to their own subject;
 machine tokens require a namespace grant. Do not replace existing namespace grants

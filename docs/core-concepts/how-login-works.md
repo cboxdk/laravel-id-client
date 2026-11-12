@@ -28,7 +28,8 @@ redirect and a callback, not a rewrite.
     │                      │  • POST code + verifier ───────>│  token endpoint
     │                      │  •            tokens <──────────│
     │                      │  • verify id_token vs JWKS      │
-    │                      │  • merge userinfo               │
+    │                      │  • userinfo, only if the        │
+    │                      │    id_token leaves claims out   │
     │   your app logs in <─│  returns CboxUser               │
 ```
 
@@ -75,15 +76,21 @@ Every one of these must pass, or it throws:
    issuer, `aud` contains the client id, and `nonce` matches the session nonce.
 7. **A subject (`sub`)** is present on the verified claims.
 
-UserInfo is then merged in to fill claims (email/name/org) a minimal `id_token` may
-omit, and you get a `CboxUser`.
+When the verified `id_token` already carries what the requested scopes promise, that is
+the whole callback: one call, the code exchange. Otherwise UserInfo is called to fill the
+claims (email, name, roles) a minimal `id_token` omits; its `sub` must match and it never
+replaces a signed claim. Either way you get a `CboxUser`. See
+[What a request waits for](local-first.md).
 
 ## Endpoint discovery
 
 Endpoints aren't configured — they're read from
 `{issuer}/.well-known/openid-configuration` and the JWKS from its `jwks_uri`. Both
-are cached for `cache_ttl` seconds (default one hour). Rotating a signing key on the
-instance therefore becomes usable no later than the cache TTL.
+are fetched in a request once and then read from the cache. A copy older than
+`cache_ttl` seconds (one hour) is still used, and is fetched again in the background, so
+no later request waits for it; a copy is used for at most `cache_keep` seconds (seven
+days). A token signed with a key the kept JWKS does not have forces a fetch at once, so
+a rotated signing key works immediately.
 
 ## What this means for you
 

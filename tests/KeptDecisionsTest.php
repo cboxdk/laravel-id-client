@@ -18,6 +18,8 @@ use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 
+use function Illuminate\Support\defer;
+
 /*
  * Pages render from kept answers and keep rendering while Cbox ID is down; changes
  * never act on a stale answer.
@@ -115,9 +117,14 @@ it('shows a changed answer one page view later', function (): void {
     $this->decisionState = 'deny';
     $this->travel(31)->seconds();
 
-    // The sync queue runs the refresh right after this page got the kept answer.
+    // No queue worker (the sync driver): the refresh runs after this page's response,
+    // never inside the request.
     expect(keptCheck()->allowed())->toBeTrue()
-        ->and(keptCheck()->allowed())->toBeFalse()
+        ->and(decisionRequests())->toBe(1);
+
+    defer()->invoke();
+
+    expect(keptCheck()->allowed())->toBeFalse()
         ->and(decisionRequests())->toBe(2);
 });
 
@@ -199,8 +206,9 @@ it('keeps serving the kept answer to page views while Cbox ID is down', function
     $this->decisionState = 'down';
     $this->travel(31)->seconds();
 
-    expect(keptCheck()->allowed())->toBeTrue()
-        ->and(keptCheck()->allowed())->toBeTrue();
+    expect(keptCheck()->allowed())->toBeTrue();
+    defer()->invoke();
+    expect(keptCheck()->allowed())->toBeTrue();
     Exceptions::assertReported(AuthenticationFailed::class);
 });
 

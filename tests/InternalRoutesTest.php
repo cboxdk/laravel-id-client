@@ -80,6 +80,38 @@ it('leaves every other request alone', function (string $url): void {
     'another port on a mapped host' => 'https://cbox.cboxid.com:8443/oauth/token',
 ]);
 
+it('leaves one request on the public path when the caller asks, and never sends the marker', function (): void {
+    bootWithInternalRoutes('cbox.cboxid.com='.CBOX_ID_SVC);
+    Http::fake();
+
+    Http::withHeaders(InternalRoutes::publicRoute())->get('https://cbox.cboxid.com/up?probe=1');
+
+    $request = onlyRequest();
+    expect($request->url())->toBe('https://cbox.cboxid.com/up?probe=1')
+        ->and($request->hasHeader(InternalRoutes::PUBLIC_ROUTE_HEADER))->toBeFalse()
+        ->and($request->hasHeader('X-Forwarded-Host'))->toBeFalse();
+});
+
+it('still routes the next request to the same host inside', function (): void {
+    bootWithInternalRoutes('cbox.cboxid.com='.CBOX_ID_SVC);
+    Http::fake();
+
+    Http::withHeaders(InternalRoutes::publicRoute())->get('https://cbox.cboxid.com/up');
+    Http::get('https://cbox.cboxid.com/api/v1/x');
+
+    expect(Http::recorded()[1][0]->url())->toBe(CBOX_ID_SVC.'/api/v1/x');
+});
+
+it('adds no marker when no routes are configured, so a probe target never sees one', function (): void {
+    bootWithInternalRoutes('');
+    Http::fake();
+
+    Http::withHeaders(InternalRoutes::publicRoute())->get('https://example.com/up');
+
+    expect(InternalRoutes::publicRoute())->toBe([])
+        ->and(onlyRequest()->hasHeader(InternalRoutes::PUBLIC_ROUTE_HEADER))->toBeFalse();
+});
+
 it('registers nothing when unset', function (): void {
     bootWithInternalRoutes('');
 

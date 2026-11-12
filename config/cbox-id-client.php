@@ -195,10 +195,13 @@ return [
         // Grant mode: renew this many seconds before the grant expires.
         'renew_before' => 300,
         // The cache that holds the machine-mode catalog (fresh for refresh_after,
-        // kept a day as the fallback answer) and, in grant mode, the renewal lock and
-        // the newest rotated tokens. It must support locks and be shared by every
-        // web server.
+        // kept thirty days and read again in the background once stale) and, in
+        // grant mode, the renewal lock and the newest rotated tokens. It must support
+        // locks and be shared by every web server.
         'cache_store' => env('CBOX_APP_CATALOG_CACHE_STORE'),
+        // Machine mode: a sign-in queues the first read of the person's catalog, so
+        // the switcher opens from a kept copy. False leaves it to the first open.
+        'warm' => (bool) env('CBOX_APP_CATALOG_WARM', true),
     ],
 
     /*
@@ -376,10 +379,73 @@ return [
      * `store` is a cache store from config/cache.php; empty means the default
      * store. Use one every worker shares (redis, database). Set `enabled` to false
      * to ask Cbox ID on every call.
+     *
+     * A token in use is renewed before it expires, so a request finds a valid one:
+     * the scheduled `cbox-id:refresh` renews every token with less than
+     * `refresh_ahead` seconds left, and a request that finds one in its last two
+     * minutes renews it after its response. A token nothing has asked for in
+     * `keep_warm_for` seconds is no longer renewed.
      */
     'token_cache' => [
         'enabled' => (bool) env('CBOX_ID_TOKEN_CACHE', true),
         'store' => env('CBOX_ID_TOKEN_CACHE_STORE'),
+        'refresh_ahead' => (int) env('CBOX_ID_TOKEN_REFRESH_AHEAD', 600),
+        'keep_warm_for' => (int) env('CBOX_ID_TOKEN_KEEP_WARM_FOR', 604800),
+    ],
+
+    /*
+    |---------------------------------------------------------------------------
+    | Background refresh
+    |---------------------------------------------------------------------------
+    |
+    | What the app keeps of Cbox ID (discovery, signing keys, machine tokens,
+    | permission decisions, the app catalog, user properties) is refreshed outside
+    | the request a person is waiting on.
+    |
+    | `schedule` — the package adds `cbox-id:refresh` to the app's scheduler, every
+    | five minutes. It needs `schedule:run` (or `schedule:work`) to be running;
+    | without it nothing breaks, requests refresh after their response instead.
+    |
+    | `queue_connection` / `queue` — where the refresh jobs run (empty means the
+    | app defaults). On the `sync` driver they run after the response, never in it.
+    |
+    */
+
+    'background' => [
+        'schedule' => (bool) env('CBOX_ID_BACKGROUND_SCHEDULE', true),
+        'queue_connection' => env('CBOX_ID_BACKGROUND_QUEUE_CONNECTION'),
+        'queue' => env('CBOX_ID_BACKGROUND_QUEUE'),
+    ],
+
+    /*
+    |---------------------------------------------------------------------------
+    | UserInfo at sign-in
+    |---------------------------------------------------------------------------
+    |
+    | `auto` — the callback skips the UserInfo call when the verified id_token
+    | already carries what the requested scopes promise, and makes it otherwise.
+    | `always` — call UserInfo on every sign-in, as before 0.19.7.
+    |
+    */
+
+    'userinfo' => env('CBOX_ID_USERINFO', 'auto'),
+
+    /*
+    |---------------------------------------------------------------------------
+    | Kept user properties
+    |---------------------------------------------------------------------------
+    |
+    | `UserProperties\KeptUserProperties` keeps a person's shared properties
+    | (`preferences`). A copy older than `fresh_for` seconds is still returned and
+    | read again in the background; nothing older than `keep_for` is used. `store`
+    | is a cache store every web server and worker shares (empty: the default).
+    |
+    */
+
+    'user_properties' => [
+        'fresh_for' => (int) env('CBOX_ID_USER_PROPERTIES_FRESH_FOR', 300),
+        'keep_for' => (int) env('CBOX_ID_USER_PROPERTIES_KEEP_FOR', 2592000),
+        'store' => env('CBOX_ID_USER_PROPERTIES_STORE'),
     ],
 
     /*
@@ -391,25 +457,26 @@ return [
     | renders from local data and keeps rendering while Cbox ID is down. An
     | answer is fresh for `fresh_for` seconds. After that a page view (GET, HEAD)
     | still gets it at once and a queued job asks Cbox ID again; a change (POST,
-    | PUT, PATCH, DELETE) asks now. Nothing older than `max_age` is used.
+    | PUT, PATCH, DELETE) asks now. Nothing older than `max_age` (thirty days) is
+    | used. A webhook that takes access away, or a back-channel logout, ends the
+    | person's kept answers at once.
     |
     | `store` is a cache store every web server and worker shares (empty means
     | the default store). `queue_connection` and `queue` say where the refresh
-    | job runs (empty means the app defaults).
+    | job runs (empty means `background` below, then the app defaults).
     |
     */
 
     'decisions' => [
         'fresh_for' => (int) env('CBOX_ID_DECISIONS_FRESH_FOR', 30),
-        'max_age' => (int) env('CBOX_ID_DECISIONS_MAX_AGE', 86400),
+        'max_age' => (int) env('CBOX_ID_DECISIONS_MAX_AGE', 2592000),
         'store' => env('CBOX_ID_DECISIONS_STORE'),
         'queue_connection' => env('CBOX_ID_DECISIONS_QUEUE_CONNECTION'),
         'queue' => env('CBOX_ID_DECISIONS_QUEUE'),
     ],
 
     /*
-     * HTTP timeout (seconds) for back-channel calls, and how long the discovery
-     * document and JWKS are cached.
+     * HTTP timeout (seconds) for back-channel calls.
      */
     'http_timeout' => (int) env('CBOX_ID_HTTP_TIMEOUT', 10),
 
@@ -450,7 +517,18 @@ return [
         'key_id' => env('CBOX_ID_KEY_ID'),
         'algorithm' => env('CBOX_ID_KEY_ALGORITHM', 'RS256'),
     ],
+
+    /*
+     * The discovery document and the JWKS. Fetched in a request once, then read from
+     * the cache. A copy older than `cache_ttl` seconds is still used and fetched again
+     * in the background (after the response that noticed, and by the scheduled
+     * `cbox-id:refresh`), so a changed endpoint or a retired signing key is picked up
+     * about `cache_ttl` after it changed. `cache_keep` is how long a copy may be used
+     * at all when no refresh got through (seven days); past it, a request fetches.
+     * A token signed with a key the kept JWKS lacks always forces a fetch at once.
+     */
     'cache_ttl' => (int) env('CBOX_ID_CACHE_TTL', 3600),
+    'cache_keep' => (int) env('CBOX_ID_CACHE_KEEP', 604800),
 
     /*
      * Authorization manifest — declare this app's ROLES and PERMISSIONS in code, and

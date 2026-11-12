@@ -6,13 +6,20 @@ namespace Cbox\Id\Client\Support;
 
 use Cbox\Id\Client\Exceptions\ClientConfigurationException;
 use Cbox\Id\Client\Exceptions\NotConfigured;
+use Closure;
+use Illuminate\Container\Container;
+use Illuminate\Contracts\Config\Repository;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 /**
  * Resolves the Cbox ID instance's OIDC endpoints from its discovery document
- * (`{issuer}/.well-known/openid-configuration`) and its JWKS, both cached. This is
- * what lets you configure only the issuer URL — every endpoint is discovered.
+ * (`{issuer}/.well-known/openid-configuration`) and its JWKS, both kept in the cache.
+ * This is what lets you configure only the issuer URL — every endpoint is discovered.
+ *
+ * Both are fetched in a request once. After that a request reads the kept copy, and a
+ * copy older than `cache_ttl` is fetched again in the background; see {@see kept()}.
  */
 class Discovery
 {
@@ -22,12 +29,30 @@ class Discovery
      */
     private const REFETCH_COOLDOWN_SECONDS = 60;
 
+    /** How long a failed or running background refresh holds off the next one. */
+    private const REFRESH_COOLDOWN_SECONDS = 60;
+
+    /** `cache_keep` when nothing is configured: seven days. */
+    public const int DEFAULT_KEEP_SECONDS = 604_800;
+
+    private readonly int $keepFor;
+
+    /**
+     * @param  int  $cacheTtl  seconds a kept copy is fresh for; older, it is still served
+     *                         and fetched again after the response. Zero keeps nothing.
+     * @param  int|null  $keepFor  seconds a copy is kept at all; null reads
+     *                             `cbox-id-client.cache_keep` (seven days). Never
+     *                             shorter than `$cacheTtl`.
+     */
     public function __construct(
         private readonly string $issuer,
         private readonly int $cacheTtl,
         private readonly int $timeout,
+        ?int $keepFor = null,
     ) {
         self::assertSecureIssuer($issuer);
+
+        $this->keepFor = max($cacheTtl, $keepFor ?? self::configuredKeep());
     }
 
     /**
@@ -92,34 +117,7 @@ class Discovery
             throw NotConfigured::key('issuer', 'discover the Cbox ID endpoints');
         }
 
-        /** @var array<string, mixed> $doc */
-        $doc = Cache::remember('cbox-id-client:discovery:'.md5($this->issuer), $this->cacheTtl, function (): array {
-            $response = Http::timeout($this->timeout)->connectTimeout(HttpTimeouts::connect())->get(rtrim($this->issuer, '/').'/.well-known/openid-configuration');
-
-            if (! $response->successful()) {
-                throw ClientConfigurationException::because('Could not load the Cbox ID discovery document from '.$this->issuer.'.');
-            }
-
-            /** @var array<string, mixed> $json */
-            $json = $response->json();
-
-            // RFC 8414 §3.3: the document's `issuer` MUST be the one it was fetched for.
-            // Without this a host answering with another tenant's document silently
-            // redirects the whole flow — the authorization code and client secret to that
-            // tenant's token endpoint, id_token verification against its JWKS — while this
-            // application still believes it is talking to the issuer it configured.
-            $claimed = $json['issuer'] ?? null;
-
-            if (! is_string($claimed) || rtrim($claimed, '/') !== rtrim($this->issuer, '/')) {
-                throw ClientConfigurationException::because(
-                    'The Cbox ID discovery document is for a different issuer than '.$this->issuer.'.',
-                );
-            }
-
-            return $json;
-        });
-
-        return $doc;
+        return $this->kept($this->documentCacheKey(), $this->fetchDocument(...));
     }
 
     /**
@@ -129,21 +127,31 @@ class Discovery
     {
         $uri = $this->endpoint('jwks_uri');
 
-        /** @var array<string, mixed> $jwks */
-        $jwks = Cache::remember($this->jwksCacheKey($uri), $this->cacheTtl, function () use ($uri): array {
-            $response = Http::timeout($this->timeout)->connectTimeout(HttpTimeouts::connect())->get($uri);
+        return $this->kept($this->jwksCacheKey($uri), fn (): array => $this->fetchJwks($uri));
+    }
 
-            if (! $response->successful()) {
-                throw ClientConfigurationException::because('Could not load the Cbox ID signing keys (JWKS).');
-            }
+    /**
+     * Fetch the document and the JWKS again where the kept copy is older than
+     * `cache_ttl` (or missing). For a scheduled command, so no request ever finds a
+     * stale copy. Returns how many were fetched; a failure is thrown.
+     */
+    public function refreshStale(): int
+    {
+        $fetched = 0;
 
-            /** @var array<string, mixed> $json */
-            $json = $response->json();
+        if ($this->fresh($this->documentCacheKey()) === null) {
+            $this->keep($this->documentCacheKey(), $this->fetchDocument());
+            $fetched++;
+        }
 
-            return $json;
-        });
+        $uri = $this->endpoint('jwks_uri');
 
-        return $jwks;
+        if ($this->fresh($this->jwksCacheKey($uri)) === null) {
+            $this->keep($this->jwksCacheKey($uri), $this->fetchJwks($uri));
+            $fetched++;
+        }
+
+        return $fetched;
     }
 
     /**
@@ -166,13 +174,148 @@ class Discovery
             return null;
         }
 
-        Cache::forget($this->jwksCacheKey($uri));
+        return $this->keep($this->jwksCacheKey($uri), $this->fetchJwks($uri));
+    }
 
-        return $this->jwks();
+    /**
+     * The kept copy, or a fetched one when there is none.
+     *
+     * LOCAL FIRST. A copy is served however old it is, up to `cache_keep`. One older
+     * than `cache_ttl` is fetched again once the response has been sent, so a changed
+     * document or a rotated key set is picked up one request after it went stale and
+     * no request waits for it. Only an app that holds no copy at all (its first
+     * request, or one after `cache_keep` without any) fetches while a person waits.
+     *
+     * A refresh that fails leaves the kept copy in place and is tried again a minute
+     * later. A refreshed document goes through the same issuer check as the first.
+     *
+     * @param  Closure(): array<string, mixed>  $fetch
+     * @return array<string, mixed>
+     */
+    private function kept(string $key, Closure $fetch): array
+    {
+        if ($this->cacheTtl <= 0) {
+            return $fetch();
+        }
+
+        $entry = $this->entry($key);
+
+        if ($entry === null) {
+            return $this->keep($key, $fetch());
+        }
+
+        if (Carbon::now()->getTimestamp() - $entry['at'] >= $this->cacheTtl) {
+            Background::afterResponse('cbox-id-client:refresh:'.$key, function () use ($key, $fetch): void {
+                // add() is atomic: one refresh per cooldown across every worker.
+                if (Cache::add($key.':refreshing', true, self::REFRESH_COOLDOWN_SECONDS)) {
+                    $this->keep($key, $fetch());
+                }
+            });
+        }
+
+        return $entry['value'];
+    }
+
+    /**
+     * @param  array<string, mixed>  $value
+     * @return array<string, mixed>
+     */
+    private function keep(string $key, array $value): array
+    {
+        if ($this->cacheTtl > 0) {
+            Cache::put($key, ['at' => Carbon::now()->getTimestamp(), 'value' => $value], $this->keepFor);
+        }
+
+        return $value;
+    }
+
+    /**
+     * @return array{at: int, value: array<string, mixed>}|null
+     */
+    private function entry(string $key): ?array
+    {
+        $entry = Cache::get($key);
+
+        if (! is_array($entry) || ! is_int($entry['at'] ?? null) || ! is_array($entry['value'] ?? null)) {
+            return null;
+        }
+
+        return ['at' => $entry['at'], 'value' => Claims::normalize($entry['value'])];
+    }
+
+    /**
+     * The kept copy while it is younger than `cache_ttl`.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function fresh(string $key): ?array
+    {
+        $entry = $this->entry($key);
+
+        return $entry !== null && Carbon::now()->getTimestamp() - $entry['at'] < $this->cacheTtl ? $entry['value'] : null;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function fetchDocument(): array
+    {
+        $response = Http::timeout($this->timeout)->connectTimeout(HttpTimeouts::connect())->get(rtrim($this->issuer, '/').'/.well-known/openid-configuration');
+
+        if (! $response->successful()) {
+            throw ClientConfigurationException::because('Could not load the Cbox ID discovery document from '.$this->issuer.'.');
+        }
+
+        $json = Claims::normalize($response->json());
+
+        // RFC 8414 §3.3: the document's `issuer` MUST be the one it was fetched for.
+        // Without this a host answering with another tenant's document silently
+        // redirects the whole flow — the authorization code and client secret to that
+        // tenant's token endpoint, id_token verification against its JWKS — while this
+        // application still believes it is talking to the issuer it configured.
+        $claimed = $json['issuer'] ?? null;
+
+        if (! is_string($claimed) || rtrim($claimed, '/') !== rtrim($this->issuer, '/')) {
+            throw ClientConfigurationException::because(
+                'The Cbox ID discovery document is for a different issuer than '.$this->issuer.'.',
+            );
+        }
+
+        return $json;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function fetchJwks(string $uri): array
+    {
+        $response = Http::timeout($this->timeout)->connectTimeout(HttpTimeouts::connect())->get($uri);
+
+        if (! $response->successful()) {
+            throw ClientConfigurationException::because('Could not load the Cbox ID signing keys (JWKS).');
+        }
+
+        return Claims::normalize($response->json());
+    }
+
+    // New key names: an entry an older version wrote under the old ones has another
+    // shape and its own, shorter, lifetime.
+    private function documentCacheKey(): string
+    {
+        return 'cbox-id-client:discovery:kept:'.md5($this->issuer);
     }
 
     private function jwksCacheKey(string $uri): string
     {
-        return 'cbox-id-client:jwks:'.md5($uri);
+        return 'cbox-id-client:jwks:kept:'.md5($uri);
+    }
+
+    private static function configuredKeep(): int
+    {
+        $container = Container::getInstance();
+        $config = $container->bound('config') ? $container->make('config') : null;
+        $value = $config instanceof Repository ? $config->get('cbox-id-client.cache_keep') : null;
+
+        return is_numeric($value) && (int) $value > 0 ? (int) $value : self::DEFAULT_KEEP_SECONDS;
     }
 }

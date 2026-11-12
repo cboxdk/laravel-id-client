@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cbox\Id\Client\Support;
 
 use GuzzleHttp\Psr7\Uri;
+use Illuminate\Container\Container;
 use Psr\Http\Message\RequestInterface;
 
 /**
@@ -27,9 +28,25 @@ use Psr\Http\Message\RequestInterface;
  * `localhost` / `127.0.0.1` when the application runs in the `testing` environment),
  * and no path, query or credentials. Entries that break a rule are left out and
  * reported in {@see self::$rejected}.
+ *
+ * ONE REQUEST CAN STAY ON THE PUBLIC PATH. A call whose point is the public route (an
+ * uptime probe of the public URL, a check of the certificate or the CDN in front) adds
+ * {@see self::publicRoute()} to its headers:
+ *
+ *     Http::withHeaders(InternalRoutes::publicRoute())->get('https://app.cboxbilling.com/up');
+ *
+ * That request is sent as written, to the public host, and the marker header is removed
+ * before it leaves, so the target never sees it. Every other request to the same host
+ * keeps going inside.
  */
 class InternalRoutes
 {
+    /**
+     * A request carrying this header is not rewritten. Removed before the request is
+     * sent. Use {@see self::publicRoute()} instead of writing it by hand.
+     */
+    public const string PUBLIC_ROUTE_HEADER = 'X-Cbox-Public-Route';
+
     /**
      * @param  array<string, Uri>  $routes  public host => internal base URL
      * @param  list<string>  $rejected  why each left-out entry was left out
@@ -85,8 +102,27 @@ class InternalRoutes
         return array_map(static fn (Uri $uri): string => (string) $uri, $this->routes);
     }
 
+    /**
+     * The headers that keep one request on the public path:
+     * `Http::withHeaders(InternalRoutes::publicRoute())`. Empty when the application has
+     * no internal routes, since then nothing would remove the marker again.
+     *
+     * @return array<string, string>
+     */
+    public static function publicRoute(): array
+    {
+        $container = Container::getInstance();
+        $routes = $container->bound(self::class) ? $container->make(self::class) : null;
+
+        return $routes instanceof self && ! $routes->isEmpty() ? [self::PUBLIC_ROUTE_HEADER => '1'] : [];
+    }
+
     public function rewrite(RequestInterface $request): RequestInterface
     {
+        if ($request->hasHeader(self::PUBLIC_ROUTE_HEADER)) {
+            return $request->withoutHeader(self::PUBLIC_ROUTE_HEADER);
+        }
+
         $uri = $request->getUri();
         $host = strtolower($uri->getHost());
 
