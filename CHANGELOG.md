@@ -5,6 +5,15 @@ their GitHub release pages.
 
 ## [Unreleased]
 
+### Security
+
+- **An id_token that names the person is never put in the logout URL.** `logoutUrl($returnTo, $idTokenHint)` leaves the hint out when the token carries `email`, `name`, `organizations`, `roles`, `permissions` or `groups`, or cannot be read: a URL is written to access logs, kept in browser history and sent on as `Referer`. The browser is still signed out, by `client_id`. A hint that names nobody (`sub`, `org`, `org_name`, `org_role`) is passed as before.
+
+### Added
+
+- `logoutForm($returnTo, $idTokenHint)` and `ValueObjects\LogoutForm`: RP-initiated logout by POST, with the hint in the request body. Return it from the logout route and it renders a page that posts itself (`withNonce()` for a Content-Security-Policy that refuses inline scripts; without scripts it shows a button). This is how an app that asks for the `identity_claims` scope ends the person's sessions everywhere.
+- The `identity_claims` scope (Cbox ID with laravel-id 2.7): add it to `scopes` once an operator has granted it to the app's client, and the id_token carries what UserInfo answers, so sign-in skips the UserInfo call. Without it nothing changes.
+
 ## 0.19.7 — 2026-11-12
 
 A page or a sign-in reads what the app already holds; Cbox ID is asked again in the

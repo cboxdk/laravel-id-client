@@ -133,3 +133,25 @@ $url = CboxId::logoutUrl(
 Optional: an empty or missing hint is simply omitted. Storing the token costs session
 space (it is typically ~1 kB), so skip it unless you need it — a registered `returnTo`
 is enough for a normal single-account sign-out.
+
+### When the id_token names the person: post it
+
+An app that asks for the `identity_claims` scope gets an id_token that carries the
+person's email, name, organizations and roles (that is what lets sign-in skip the UserInfo
+call). Such a token must not be put in a URL: a URL is written to access logs, kept in
+browser history and sent on as `Referer`.
+
+- `logoutUrl()` leaves that hint out by itself. The browser is still signed out, by
+  `client_id`; the person's other sessions are left alone.
+- To send the hint, post it. `logoutForm()` returns the end-session endpoint and the fields,
+  and renders as a page that posts itself:
+
+```php
+// at logout
+return CboxId::logoutForm(returnTo: url('/'), idTokenHint: session('cbox_id_token'))
+    ?->withNonce($cspNonce)          // only under a CSP that refuses inline scripts
+    ?? redirect('/');
+```
+
+Without scripts the page shows a "Sign out" button. Or read `->action` and `->fields`
+and put the form in a page of your own.

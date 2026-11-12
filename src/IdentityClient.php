@@ -34,6 +34,7 @@ use Cbox\Id\Client\Tenancy\CurrentPrincipal;
 use Cbox\Id\Client\Tenancy\SessionIdentityStore;
 use Cbox\Id\Client\ValueObjects\CboxUser;
 use Cbox\Id\Client\ValueObjects\Identity;
+use Cbox\Id\Client\ValueObjects\LogoutForm;
 use Cbox\Id\Client\ValueObjects\Organization;
 use Cbox\Id\Client\ValueObjects\PipeToken;
 use Cbox\Id\Client\ValueObjects\RefreshedTokens;
@@ -800,11 +801,69 @@ class IdentityClient
             $params['post_logout_redirect_uri'] = $returnTo;
         }
 
-        if ($idTokenHint !== null && $idTokenHint !== '') {
+        // NEVER A TOKEN THAT NAMES THE PERSON IN A URL. A URL is written to access logs,
+        // kept in browser history and sent on as Referer. An id_token minted under the
+        // `identity_claims` scope carries email, name, organizations and roles, so it is
+        // left out here: the browser is still signed out, by `client_id`. To end the
+        // person's sessions everywhere with such a token, post it: {@see logoutForm()}.
+        if ($idTokenHint !== null && $idTokenHint !== '' && ! $this->namesThePerson($idTokenHint)) {
             $params['id_token_hint'] = $idTokenHint;
         }
 
         return $endpoint.'?'.http_build_query($params);
+    }
+
+    /**
+     * RP-initiated logout by POST (OIDC RP-Initiated Logout 1.0 §2): the end-session
+     * endpoint and the fields to post to it, with `$idTokenHint` in the body. Return it
+     * from the logout route; it renders a page that posts itself. Null when discovery
+     * names no end-session endpoint, like {@see logoutUrl()}.
+     *
+     * This is the way to send the hint when the id_token carries identity claims (the
+     * `identity_claims` scope), and it is safe for any id_token.
+     */
+    public function logoutForm(?string $returnTo = null, ?string $idTokenHint = null): ?LogoutForm
+    {
+        try {
+            $endpoint = $this->discovery->endpoint('end_session_endpoint');
+        } catch (Throwable) {
+            return null;
+        }
+
+        $fields = ['client_id' => $this->clientId()];
+
+        if ($returnTo !== null) {
+            $fields['post_logout_redirect_uri'] = $returnTo;
+        }
+
+        if ($idTokenHint !== null && $idTokenHint !== '') {
+            $fields['id_token_hint'] = $idTokenHint;
+        }
+
+        return new LogoutForm($endpoint, $fields);
+    }
+
+    /**
+     * Whether an id_token's payload carries a claim about who the person is. Read without
+     * verifying: the question is what would be written into a URL, not whether to trust it.
+     * A token that cannot be read is treated as naming the person.
+     */
+    private function namesThePerson(string $idToken): bool
+    {
+        $segments = explode('.', $idToken);
+
+        if (count($segments) !== 3) {
+            return true;
+        }
+
+        $payload = base64_decode(strtr($segments[1], '-_', '+/'), true);
+        $claims = $payload === false ? null : json_decode($payload, true);
+
+        if (! is_array($claims)) {
+            return true;
+        }
+
+        return array_intersect_key($claims, array_flip(['email', 'name', 'organizations', 'roles', 'permissions', 'groups'])) !== [];
     }
 
     /**

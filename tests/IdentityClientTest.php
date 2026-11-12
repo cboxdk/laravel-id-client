@@ -117,15 +117,81 @@ it('always carries client_id on the RP-initiated logout URL', function (): void 
         ->and($bare)->not->toHaveKey('post_logout_redirect_uri');
 });
 
-it('passes an id_token_hint on the logout URL when one is supplied', function (): void {
+it('leaves a hint it cannot read out of the logout URL', function (): void {
     fakeCbox();
 
-    $url = app(IdentityClient::class)->logoutUrl('https://app.test/bye', 'header.payload.sig');
+    parse_str((string) parse_url((string) app(IdentityClient::class)->logoutUrl('https://app.test/bye', 'header.payload.sig'), PHP_URL_QUERY), $query);
+
+    expect($query)->not->toHaveKey('id_token_hint')
+        ->and($query['client_id'])->toBe('client_1');
+});
+
+/** An unsigned token with $claims as its payload: what is in it is all these tests read. */
+function logoutHint(array $claims): string
+{
+    $part = static fn (array $data): string => rtrim(strtr(base64_encode((string) json_encode($data)), '+/', '-_'), '=');
+
+    return $part(['alg' => 'RS256', 'typ' => 'JWT']).'.'.$part($claims).'.sig';
+}
+
+it('never puts an id_token that names the person in the logout URL', function (array $identity): void {
+    fakeCbox();
+
+    $url = app(IdentityClient::class)->logoutUrl('https://app.test/bye', logoutHint(['sub' => 'user_1', 'org' => 'org_1', ...$identity]));
 
     parse_str((string) parse_url((string) $url, PHP_URL_QUERY), $query);
 
-    expect($query['id_token_hint'])->toBe('header.payload.sig')
-        ->and($query['client_id'])->toBe('client_1');
+    // A URL reaches access logs, browser history and Referer. The browser is still signed
+    // out, by client_id; the hint goes by POST (logoutForm()).
+    expect($query)->not->toHaveKey('id_token_hint')
+        ->and($query['client_id'])->toBe('client_1')
+        ->and($query['post_logout_redirect_uri'])->toBe('https://app.test/bye');
+})->with([
+    'email' => [['email' => 'ada@example.com']],
+    'name' => [['name' => 'Ada']],
+    'organizations' => [['organizations' => []]],
+    'roles' => [['roles' => ['admin']]],
+    'permissions' => [['permissions' => ['invoices:read']]],
+]);
+
+it('still passes a hint that names nobody on the logout URL', function (): void {
+    fakeCbox();
+    $hint = logoutHint(['sub' => 'user_1', 'org' => 'org_1', 'org_name' => 'Acme', 'org_role' => 'owner', 'sid' => 's1']);
+
+    parse_str((string) parse_url((string) app(IdentityClient::class)->logoutUrl('https://app.test/bye', $hint), PHP_URL_QUERY), $query);
+
+    expect($query['id_token_hint'])->toBe($hint);
+});
+
+it('gives a logout form that carries the hint in the body, whatever the token says', function (): void {
+    fakeCbox();
+    $hint = logoutHint(['sub' => 'user_1', 'email' => 'ada@example.com', 'roles' => ['admin']]);
+
+    $form = app(IdentityClient::class)->logoutForm('https://app.test/bye', $hint);
+
+    expect($form)->not->toBeNull()
+        ->and($form->action)->toBe('https://id.test/oauth/logout')
+        ->and($form->action)->not->toContain('?')
+        ->and($form->fields)->toBe([
+            'client_id' => 'client_1',
+            'post_logout_redirect_uri' => 'https://app.test/bye',
+            'id_token_hint' => $hint,
+        ]);
+});
+
+it('renders the logout form as a page that posts itself and shows a button without scripts', function (): void {
+    fakeCbox();
+    $hint = logoutHint(['sub' => 'user_1', 'email' => 'ada@example.com']);
+
+    $response = app(IdentityClient::class)->logoutForm('https://app.test/bye', $hint)?->toResponse(request());
+    $html = (string) $response?->getContent();
+
+    expect($response?->getStatusCode())->toBe(200)
+        ->and($response?->headers->get('Cache-Control'))->toContain('no-store')
+        ->and($html)->toContain('<form method="post" action="https://id.test/oauth/logout"')
+        ->and($html)->toContain('name="id_token_hint" value="'.$hint.'"')
+        ->and($html)->toContain('<button type="submit"')
+        ->and($html)->not->toContain('?id_token_hint');
 });
 
 it('mints a machine (client-credentials) token', function (): void {
