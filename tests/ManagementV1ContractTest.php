@@ -487,7 +487,7 @@ it('moves the organization plane to /v1/organization, and keeps a page-numbered 
         ->and($runs['v1'][1]->total)->toBe(3);
 });
 
-it('waits out an approval on /v1 alike, and hands the app the bare approval id', function (): void {
+it('waits out an approval on /v1 alike, and hands the app the bare approval id', function (string $prefix): void {
     $e = V1C_ISSUER.'/api/v1';
     $v = V1C_API.'/v1';
     $org = V1C_ORG;
@@ -498,19 +498,24 @@ it('waits out an approval on /v1 alike, and hands the app the bare approval id',
         'approval' => ['id' => $apr, 'status' => 'pending', 'binding_code' => '42-17', 'expires_at' => now()->addMinutes(5)->toIso8601String(), 'poll_url' => $poll],
     ];
     $seenApprovals = [];
-    $answers = static function (bool $v1) use ($e, $v, $org, $apr, $approval): Closure {
+    $answers = static function (bool $v1) use ($e, $v, $org, $apr, $approval, $prefix): Closure {
         $held = false;
 
-        return function (HttpRequest $request) use (&$held, $v1, $e, $v, $org, $apr, $approval) {
+        return function (HttpRequest $request) use (&$held, $v1, $e, $v, $org, $apr, $approval, $prefix) {
             $line = $request->method().' '.$request->url();
-            $poll = $v1 ? "{$v}/approvals/apr_{$apr}" : "{$e}/action-approvals/{$apr}";
+            $poll = $v1 ? "{$v}/approvals/{$prefix}_{$apr}" : "{$e}/action-approvals/{$apr}";
 
             if ($line === 'DELETE '.($v1 ? $v : $e)."/organizations/{$org}") {
                 if (! $held) {
                     $held = true;
                     $body = $approval($poll);
 
-                    return Http::response($v1 ? v1cShape($body, 202, 'organization') : $body, 202);
+                    return Http::response($v1 ? [
+                        'object' => 'approval',
+                        ...$body['approval'],
+                        'id' => $prefix.'_'.$apr,
+                        'detail' => $body['message'],
+                    ] : $body, 202);
                 }
 
                 // The repeat carries the approval, in the form the app was handed.
@@ -523,7 +528,7 @@ it('waits out an approval on /v1 alike, and hands the app the bare approval id',
             if ($line === "GET {$poll}") {
                 $body = ['data' => ['id' => $apr, 'status' => 'approved']];
 
-                return Http::response($v1 ? v1cShape($body, 200, 'approval') : $body);
+                return Http::response($v1 ? ['object' => 'approval', 'id' => $prefix.'_'.$apr, 'status' => 'approved'] : $body);
             }
 
             throw new RuntimeException("No answer for {$line}");
@@ -552,7 +557,7 @@ it('waits out an approval on /v1 alike, and hands the app the bare approval id',
     v1cExpectSame(['legacy' => $legacy, 'v1' => $v1]);
     expect($seenApprovals[1])->toBe($seenApprovals[0])
         ->and($seenApprovals[1][0])->toBe(V1C_APR);
-});
+})->with(['current' => 'idapr', 'legacy' => 'apr']);
 
 // -- Ids in, ids out ---------------------------------------------------------------------------
 

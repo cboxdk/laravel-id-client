@@ -40,7 +40,7 @@ final class V1Shape
     public const array PREFIXES = [
         'org', 'usr', 'mbr', 'ivt', 'prj', 'env', 'rol', 'perm', 'rla', 'app', 'apir', 'scp',
         'conn', 'dir', 'dusr', 'dgrp', 'vdom', 'whe', 'whd', 'idevt', 'alog', 'flag', 'ses',
-        'dvc', 'sva', 'vsec', 'pipe', 'hook', 'lstr', 'prov', 'sod', 'arc', 'ari', 'rdr', 'apr',
+        'dvc', 'sva', 'vsec', 'pipe', 'hook', 'lstr', 'prov', 'sod', 'arc', 'ari', 'rdr', 'apr', 'idapr',
         'sup', 'capp', 'fga', 'okey', 'ekey', 'ckey', 'pkey', 'pat', 'sapp', 'brd', 'mfa', 'psk',
     ];
 

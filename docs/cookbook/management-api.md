@@ -35,6 +35,13 @@ the ULID its tables and token claims (`sub`, `org_id`) hold. A customer's own da
 (`metadata`, audit actors and targets) keeps whatever it was given. Ids may be passed in either
 form.
 
+Approval ids follow the same rule: `/v1` returns `idapr_<ULID>`, and the client hands the
+application the bare ULID. The previous `apr_` prefix remains readable during Cbox ID's
+overlap, ending 15 January 2027. This normalization requires version 0.19.10 or later;
+older clients' management prefix allowlist does not recognize it. Applications storing
+bare approval ids need no data rewrite. Applications storing prefixed ids must migrate
+their references consistently and stop sending `apr_` before the overlap ends.
+
 A few calls stay on `/api/v1` because their `/v1` answer drops something an app reads: the
 organization member list (`meta.directory_revision`), the FGA lists
 (`meta.consistency_token`), the organization plane's page-numbered lists (`meta.total`),

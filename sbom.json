@@ -1,7 +1,7 @@
 {
     "bomFormat": "CycloneDX",
     "specVersion": "1.5",
-    "serialNumber": "urn:uuid:dda5e285-2cef-4516-acd4-ac69e5523ed2",
+    "serialNumber": "urn:uuid:5e2b8608-6164-42c4-9f8e-f5b6029a6685",
     "version": 1,
     "metadata": {
         "tools": [
@@ -293,11 +293,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/league/commonmark@2.10.9",
+            "bom-ref": "pkg:composer/league/commonmark@2.10.10",
             "group": "league",
             "name": "commonmark",
-            "version": "2.10.9",
-            "purl": "pkg:composer/league/commonmark@2.10.9",
+            "version": "2.10.10",
+            "purl": "pkg:composer/league/commonmark@2.10.10",
             "description": "Highly-extensible PHP Markdown parser which fully supports the CommonMark spec and GitHub-Flavored Markdown (GFM)",
             "licenses": [
                 {

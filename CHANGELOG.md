@@ -5,6 +5,12 @@ their GitHub release pages.
 
 ## [Unreleased]
 
+## 0.19.10 — 2026-11-26
+
+### Fixed
+
+- Normalize Cbox ID's new `idapr_` approval ids to bare ULIDs in management responses, including approval polling and retries. Continue accepting `apr_` responses during the overlap.
+
 ## 0.19.9 — 2026-11-26
 
 ### Fixed
