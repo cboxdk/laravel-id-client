@@ -1196,7 +1196,10 @@ class IdentityClient
         }
 
         try {
-            $claims = $this->asArray(get_object_vars(JWT::decode($idToken, JWK::parseKeySet($jwks, self::DEFAULT_JWK_ALG))));
+            $verified = JWT::decode($idToken, JWK::parseKeySet($jwks, self::DEFAULT_JWK_ALG));
+            // Match UserInfo's associative JSON shape, including objects inside lists.
+            // get_object_vars() alone leaves organizations as stdClass entries.
+            $claims = $this->asArray(json_decode(json_encode($verified, JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR));
         } catch (Throwable $e) {
             throw AuthenticationFailed::because('The id_token could not be verified: '.$e->getMessage());
         }

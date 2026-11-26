@@ -5,6 +5,12 @@ their GitHub release pages.
 
 ## [Unreleased]
 
+## 0.19.9 — 2026-11-26
+
+### Fixed
+
+- Normalize nested objects in verified ID-token claims to arrays, matching UserInfo responses. With `identity_claims`, organization entries now reach consumers before session serialization instead of being silently discarded by array-based readers.
+
 ## 0.19.8 — 2026-11-12
 
 Sign-out no longer puts an id_token that says who the person is in a URL. An app gets it by

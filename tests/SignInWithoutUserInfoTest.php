@@ -88,6 +88,27 @@ it('calls UserInfo when the id_token lacks a claim a requested scope promises', 
     'a claim of the wrong type' => [['openid', 'email'], ['email' => ['grace@id.test']]],
 ]);
 
+it('returns nested signed claims as arrays before the session serializes them', function (): void {
+    $organizations = [['id' => 'org_9', 'name' => 'Nine', 'role' => 'admin'], ['id' => 'org_2', 'name' => 'Two', 'role' => 'member']];
+    $nested = ['settings' => ['enabled' => false, 'count' => 0, 'optional' => null, 'labels' => ['first', 'second']]];
+    fakeCbox(signedIdToken(['email' => 'grace@id.test', 'organizations' => $organizations, 'custom' => $nested]));
+
+    $user = app(IdentityClient::class)->authenticate(callbackFor(['openid', 'email', 'organizations', 'identity_claims']));
+
+    expect(userinfoCalls())->toBe(0)
+        ->and($user->claims['organizations'])->toBe($organizations)
+        ->and($user->claims['custom'])->toBe($nested)
+        ->and(array_map(fn ($org) => $org->id, $user->organizations()))->toBe(['org_9', 'org_2']);
+});
+
+it('does not turn malformed organization ids into memberships', function (): void {
+    fakeCbox(signedIdToken(['email' => 'grace@id.test', 'organizations' => [['id' => 42], ['id' => null], ['id' => ''], 'org_9']]));
+
+    $user = app(IdentityClient::class)->authenticate(callbackFor(['openid', 'email', 'organizations', 'identity_claims']));
+
+    expect($user->organizations())->toBe([]);
+});
+
 it('takes an empty organizations list in the id_token as an answer', function (): void {
     fakeCbox(signedIdToken(['email' => 'grace@id.test', 'organizations' => []]));
 

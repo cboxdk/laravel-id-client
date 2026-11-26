@@ -1,7 +1,7 @@
 {
     "bomFormat": "CycloneDX",
     "specVersion": "1.5",
-    "serialNumber": "urn:uuid:73dc50a1-217a-47fd-a3f0-a95db264a959",
+    "serialNumber": "urn:uuid:dda5e285-2cef-4516-acd4-ac69e5523ed2",
     "version": 1,
     "metadata": {
         "tools": [
@@ -117,11 +117,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/egulias/email-validator@4.0.4",
+            "bom-ref": "pkg:composer/egulias/email-validator@4.0.5",
             "group": "egulias",
             "name": "email-validator",
-            "version": "4.0.4",
-            "purl": "pkg:composer/egulias/email-validator@4.0.4",
+            "version": "4.0.5",
+            "purl": "pkg:composer/egulias/email-validator@4.0.5",
             "description": "A library for validating emails against several RFCs",
             "licenses": [
                 {
@@ -133,11 +133,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/firebase/php-jwt@v7.2.1",
+            "bom-ref": "pkg:composer/firebase/php-jwt@v7.2.2",
             "group": "firebase",
             "name": "php-jwt",
-            "version": "v7.2.1",
-            "purl": "pkg:composer/firebase/php-jwt@v7.2.1",
+            "version": "v7.2.2",
+            "purl": "pkg:composer/firebase/php-jwt@v7.2.2",
             "description": "A simple library to encode and decode JSON Web Tokens (JWT) in PHP. Should conform to the current spec.",
             "licenses": [
                 {
@@ -181,11 +181,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/guzzlehttp/guzzle@8.4.0",
+            "bom-ref": "pkg:composer/guzzlehttp/guzzle@8.6.0",
             "group": "guzzlehttp",
             "name": "guzzle",
-            "version": "8.4.0",
-            "purl": "pkg:composer/guzzlehttp/guzzle@8.4.0",
+            "version": "8.6.0",
+            "purl": "pkg:composer/guzzlehttp/guzzle@8.6.0",
             "description": "Guzzle is a PHP HTTP client library",
             "licenses": [
                 {
@@ -197,11 +197,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/guzzlehttp/promises@3.1.0",
+            "bom-ref": "pkg:composer/guzzlehttp/promises@3.2.0",
             "group": "guzzlehttp",
             "name": "promises",
-            "version": "3.1.0",
-            "purl": "pkg:composer/guzzlehttp/promises@3.1.0",
+            "version": "3.2.0",
+            "purl": "pkg:composer/guzzlehttp/promises@3.2.0",
             "description": "Guzzle promises library",
             "licenses": [
                 {
@@ -213,11 +213,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/guzzlehttp/psr7@3.3.0",
+            "bom-ref": "pkg:composer/guzzlehttp/psr7@3.6.0",
             "group": "guzzlehttp",
             "name": "psr7",
-            "version": "3.3.0",
-            "purl": "pkg:composer/guzzlehttp/psr7@3.3.0",
+            "version": "3.6.0",
+            "purl": "pkg:composer/guzzlehttp/psr7@3.6.0",
             "description": "PSR-7 message implementation that also provides common utility methods",
             "licenses": [
                 {
@@ -245,11 +245,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/laravel/framework@v13.42.0",
+            "bom-ref": "pkg:composer/laravel/framework@v13.44.1",
             "group": "laravel",
             "name": "framework",
-            "version": "v13.42.0",
-            "purl": "pkg:composer/laravel/framework@v13.42.0",
+            "version": "v13.44.1",
+            "purl": "pkg:composer/laravel/framework@v13.44.1",
             "description": "The Laravel Framework.",
             "licenses": [
                 {
@@ -261,11 +261,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/laravel/prompts@v0.3.27",
+            "bom-ref": "pkg:composer/laravel/prompts@v0.3.28",
             "group": "laravel",
             "name": "prompts",
-            "version": "v0.3.27",
-            "purl": "pkg:composer/laravel/prompts@v0.3.27",
+            "version": "v0.3.28",
+            "purl": "pkg:composer/laravel/prompts@v0.3.28",
             "description": "Add beautiful and user-friendly forms to your command-line applications.",
             "licenses": [
                 {
@@ -293,11 +293,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/league/commonmark@2.10.7",
+            "bom-ref": "pkg:composer/league/commonmark@2.10.9",
             "group": "league",
             "name": "commonmark",
-            "version": "2.10.7",
-            "purl": "pkg:composer/league/commonmark@2.10.7",
+            "version": "2.10.9",
+            "purl": "pkg:composer/league/commonmark@2.10.9",
             "description": "Highly-extensible PHP Markdown parser which fully supports the CommonMark spec and GitHub-Flavored Markdown (GFM)",
             "licenses": [
                 {
@@ -405,11 +405,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/monolog/monolog@3.12.1",
+            "bom-ref": "pkg:composer/monolog/monolog@3.13.0",
             "group": "monolog",
             "name": "monolog",
-            "version": "3.12.1",
-            "purl": "pkg:composer/monolog/monolog@3.12.1",
+            "version": "3.13.0",
+            "purl": "pkg:composer/monolog/monolog@3.13.0",
             "description": "Sends your logs to files, sockets, inboxes, databases and various web services",
             "licenses": [
                 {
@@ -641,11 +641,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/ramsey/uuid@4.9.4",
+            "bom-ref": "pkg:composer/ramsey/uuid@4.10.0",
             "group": "ramsey",
             "name": "uuid",
-            "version": "4.9.4",
-            "purl": "pkg:composer/ramsey/uuid@4.9.4",
+            "version": "4.10.0",
+            "purl": "pkg:composer/ramsey/uuid@4.10.0",
             "description": "A PHP library for generating and working with universally unique identifiers (UUIDs).",
             "licenses": [
                 {
@@ -673,11 +673,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/console@v8.1.11",
+            "bom-ref": "pkg:composer/symfony/console@v8.1.12",
             "group": "symfony",
             "name": "console",
-            "version": "v8.1.11",
-            "purl": "pkg:composer/symfony/console@v8.1.11",
+            "version": "v8.1.12",
+            "purl": "pkg:composer/symfony/console@v8.1.12",
             "description": "Eases the creation of beautiful and testable command line interfaces",
             "licenses": [
                 {
@@ -769,11 +769,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/finder@v8.1.11",
+            "bom-ref": "pkg:composer/symfony/finder@v8.1.12",
             "group": "symfony",
             "name": "finder",
-            "version": "v8.1.11",
-            "purl": "pkg:composer/symfony/finder@v8.1.11",
+            "version": "v8.1.12",
+            "purl": "pkg:composer/symfony/finder@v8.1.12",
             "description": "Finds files and directories via an intuitive fluent interface",
             "licenses": [
                 {
@@ -785,11 +785,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/http-foundation@v8.1.11",
+            "bom-ref": "pkg:composer/symfony/http-foundation@v8.1.12",
             "group": "symfony",
             "name": "http-foundation",
-            "version": "v8.1.11",
-            "purl": "pkg:composer/symfony/http-foundation@v8.1.11",
+            "version": "v8.1.12",
+            "purl": "pkg:composer/symfony/http-foundation@v8.1.12",
             "description": "Defines an object-oriented layer for the HTTP specification",
             "licenses": [
                 {
@@ -801,11 +801,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/http-kernel@v8.1.11",
+            "bom-ref": "pkg:composer/symfony/http-kernel@v8.1.12",
             "group": "symfony",
             "name": "http-kernel",
-            "version": "v8.1.11",
-            "purl": "pkg:composer/symfony/http-kernel@v8.1.11",
+            "version": "v8.1.12",
+            "purl": "pkg:composer/symfony/http-kernel@v8.1.12",
             "description": "Provides a structured process for converting a Request into a Response",
             "licenses": [
                 {
@@ -817,11 +817,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/mailer@v8.1.10",
+            "bom-ref": "pkg:composer/symfony/mailer@v8.1.12",
             "group": "symfony",
             "name": "mailer",
-            "version": "v8.1.10",
-            "purl": "pkg:composer/symfony/mailer@v8.1.10",
+            "version": "v8.1.12",
+            "purl": "pkg:composer/symfony/mailer@v8.1.12",
             "description": "Helps sending emails",
             "licenses": [
                 {
@@ -833,11 +833,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/mime@v8.1.10",
+            "bom-ref": "pkg:composer/symfony/mime@v8.1.12",
             "group": "symfony",
             "name": "mime",
-            "version": "v8.1.10",
-            "purl": "pkg:composer/symfony/mime@v8.1.10",
+            "version": "v8.1.12",
+            "purl": "pkg:composer/symfony/mime@v8.1.12",
             "description": "Allows manipulating MIME messages",
             "licenses": [
                 {
@@ -977,11 +977,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/polyfill-php85@v1.43.0",
+            "bom-ref": "pkg:composer/symfony/polyfill-php85@v1.44.0",
             "group": "symfony",
             "name": "polyfill-php85",
-            "version": "v1.43.0",
-            "purl": "pkg:composer/symfony/polyfill-php85@v1.43.0",
+            "version": "v1.44.0",
+            "purl": "pkg:composer/symfony/polyfill-php85@v1.44.0",
             "description": "Symfony polyfill backporting some PHP 8.5+ features to lower PHP versions",
             "licenses": [
                 {
@@ -1041,11 +1041,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/process@v8.1.10",
+            "bom-ref": "pkg:composer/symfony/process@v8.1.12",
             "group": "symfony",
             "name": "process",
-            "version": "v8.1.10",
-            "purl": "pkg:composer/symfony/process@v8.1.10",
+            "version": "v8.1.12",
+            "purl": "pkg:composer/symfony/process@v8.1.12",
             "description": "Executes commands in sub-processes",
             "licenses": [
                 {
@@ -1057,11 +1057,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/routing@v8.1.11",
+            "bom-ref": "pkg:composer/symfony/routing@v8.1.12",
             "group": "symfony",
             "name": "routing",
-            "version": "v8.1.11",
-            "purl": "pkg:composer/symfony/routing@v8.1.11",
+            "version": "v8.1.12",
+            "purl": "pkg:composer/symfony/routing@v8.1.12",
             "description": "Maps an HTTP request to a set of configuration variables",
             "licenses": [
                 {
@@ -1089,11 +1089,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/string@v8.1.10",
+            "bom-ref": "pkg:composer/symfony/string@v8.1.12",
             "group": "symfony",
             "name": "string",
-            "version": "v8.1.10",
-            "purl": "pkg:composer/symfony/string@v8.1.10",
+            "version": "v8.1.12",
+            "purl": "pkg:composer/symfony/string@v8.1.12",
             "description": "Provides an object-oriented API to strings and deals with bytes, UTF-8 code points and grapheme clusters in a unified way",
             "licenses": [
                 {
@@ -1105,11 +1105,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/translation@v8.1.11",
+            "bom-ref": "pkg:composer/symfony/translation@v8.1.12",
             "group": "symfony",
             "name": "translation",
-            "version": "v8.1.11",
-            "purl": "pkg:composer/symfony/translation@v8.1.11",
+            "version": "v8.1.12",
+            "purl": "pkg:composer/symfony/translation@v8.1.12",
             "description": "Provides tools to internationalize your application",
             "licenses": [
                 {
@@ -1153,11 +1153,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/symfony/var-dumper@v8.1.10",
+            "bom-ref": "pkg:composer/symfony/var-dumper@v8.1.12",
             "group": "symfony",
             "name": "var-dumper",
-            "version": "v8.1.10",
-            "purl": "pkg:composer/symfony/var-dumper@v8.1.10",
+            "version": "v8.1.12",
+            "purl": "pkg:composer/symfony/var-dumper@v8.1.12",
             "description": "Provides mechanisms for walking through any arbitrary PHP variable",
             "licenses": [
                 {
@@ -1185,11 +1185,11 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:composer/vlucas/phpdotenv@v5.8.0",
+            "bom-ref": "pkg:composer/vlucas/phpdotenv@v5.8.1",
             "group": "vlucas",
             "name": "phpdotenv",
-            "version": "v5.8.0",
-            "purl": "pkg:composer/vlucas/phpdotenv@v5.8.0",
+            "version": "v5.8.1",
+            "purl": "pkg:composer/vlucas/phpdotenv@v5.8.1",
             "description": "Loads environment variables from `.env` to `$_ENV` and `$_SERVER` automagically, and optionally to `getenv()`.",
             "licenses": [
                 {
