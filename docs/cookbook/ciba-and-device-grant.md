@@ -136,6 +136,42 @@ To check once and come back later, for example from a scheduled command, call
 `poll($pending, $interval)`. It returns a `PollResult`. If `granted()` is false,
 wait `$result->interval` seconds before you poll again.
 
+## Require one organization at initiation
+
+The opt-in Cbox extension uses the additive `OrganizationBoundBackchannelAuthentication`
+capability. Existing `BackchannelAuthentication` implementations remain valid for unbound
+requests. Check the capability explicitly; never fall back to `start()` when it is absent.
+
+```php
+use Cbox\Id\Client\Contracts\BackchannelAuthentication;
+use Cbox\Id\Client\Contracts\OrganizationBoundBackchannelAuthentication;
+
+$ciba = app(BackchannelAuthentication::class);
+if (! $ciba instanceof OrganizationBoundBackchannelAuthentication) {
+    throw new LogicException('This client cannot request organization binding.');
+}
+$pending = $ciba->startForOrganization(
+    organizationId: $operation->organizationId,
+    loginHint: $operation->approverId,
+    scope: 'openid',
+    bindingMessage: $operation->bindingMessage,
+    resource: $approvalResource,
+);
+```
+
+The helper accepts a bare organization ULID or `org_<ULID>`, sends the normalized bare
+id and requires a matching `organization_id` in the server's successful response. An
+old server that ignores the field causes `GrantFailed`; the SDK never retries unbound.
+The pending value's `organizationId` survives `toArray()` / `fromArray()`. Its serialized
+form is unchanged for unbound requests. `FakeBackchannelAuthentication` supports the same
+capability and records the normalized `organization_id` in `started`.
+
+The server must enable its organization-binding policy for this registered confidential
+client/resource. The receiver must still verify the signed claims (including `org`),
+saved request binding and current domain permissions. The start response is not approval.
+Persist the operation and pending request securely; losing a token-redemption response
+does not justify repeating the operation or falling back to an unbound request.
+
 ## CLI: sign in with the device grant
 
 Outside a Laravel container, build the helper with `make()`:
