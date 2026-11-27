@@ -19,9 +19,10 @@ readonly class PendingBackchannelAuthentication
         public int $interval = 5,
         public int $expiresAt = 0,
         public ?string $resource = null,
+        public ?string $organizationId = null,
     ) {}
 
-    /** @return array{auth_req_id: string, expires_in: int, interval: int, expires_at: int, resource: ?string} */
+    /** @return array{auth_req_id: string, expires_in: int, interval: int, expires_at: int, resource: ?string, organization_id?: string} */
     public function toArray(): array
     {
         return [
@@ -30,6 +31,7 @@ readonly class PendingBackchannelAuthentication
             'interval' => $this->interval,
             'expires_at' => $this->expiresAt,
             'resource' => $this->resource,
+            ...($this->organizationId === null ? [] : ['organization_id' => $this->organizationId]),
         ];
     }
 
@@ -42,6 +44,7 @@ readonly class PendingBackchannelAuthentication
             is_int($data['interval'] ?? null) ? $data['interval'] : 5,
             is_int($data['expires_at'] ?? null) ? $data['expires_at'] : 0,
             is_string($data['resource'] ?? null) ? $data['resource'] : null,
+            is_string($data['organization_id'] ?? null) ? $data['organization_id'] : null,
         );
     }
 }

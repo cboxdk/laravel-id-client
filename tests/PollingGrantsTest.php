@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Cbox\Id\Client\Contracts\BackchannelAuthentication;
 use Cbox\Id\Client\Contracts\DeviceAuthorization;
+use Cbox\Id\Client\Contracts\OrganizationBoundBackchannelAuthentication;
 use Cbox\Id\Client\Enums\ClientAuthMethod;
 use Cbox\Id\Client\Exceptions\AuthorizationDenied;
 use Cbox\Id\Client\Exceptions\AuthorizationExpired;
@@ -70,6 +71,35 @@ function cibaGrant(): BackchannelAuthentication
 {
     return app(BackchannelAuthentication::class);
 }
+
+it('starts an organization-bound request and preserves its binding across storage', function (): void {
+    $org = '01j9zq3k4m5n6p7q8r9s0t1v2w';
+    Http::fake([
+        'id.test/.well-known/oauth-authorization-server' => Http::response(grantMetadata()),
+        'id.test/oauth/backchannel_authentication' => Http::response([...cibaStarted(), 'organization_id' => $org]),
+    ]);
+    $ciba = cibaGrant();
+    expect($ciba)->toBeInstanceOf(OrganizationBoundBackchannelAuthentication::class);
+    $pending = $ciba->startForOrganization('org_'.strtoupper($org), 'usr_alice', 'openid', 'Delete sandbox B', 'https://infra.test/approval', 120, 'nonce-bound', 'ping-secret');
+    expect($pending->organizationId)->toBe($org)
+        ->and(PendingBackchannelAuthentication::fromArray($pending->toArray()))->toEqual($pending);
+    Http::assertSent(fn (Request $request): bool => $request->url() === GRANT_ISSUER.'/oauth/backchannel_authentication'
+        && grantForm($request) === [
+            'login_hint' => 'usr_alice', 'scope' => 'openid', 'binding_message' => 'Delete sandbox B',
+            'resource' => 'https://infra.test/approval', 'requested_expiry' => '120', 'nonce' => 'nonce-bound',
+            'client_notification_token' => 'ping-secret', 'organization_id' => $org,
+        ]);
+});
+
+it('refuses a server that does not confirm the requested organization', function (mixed $echo): void {
+    Http::fake([
+        'id.test/.well-known/oauth-authorization-server' => Http::response(grantMetadata()),
+        'id.test/oauth/backchannel_authentication' => Http::response([...cibaStarted(), ...($echo === null ? [] : ['organization_id' => $echo])]),
+    ]);
+    expect(fn () => cibaGrant()->startForOrganization('org_01j9zq3k4m5n6p7q8r9s0t1v2w', 'alice@example.test', 'openid', 'Delete sandbox B', 'https://infra.test/approval'))
+        ->toThrow(GrantFailed::class);
+    Http::assertSentCount(2);
+})->with([null, '01j9zq3k4m5n6p7q8r9s0t1v2x', 'usr_01j9zq3k4m5n6p7q8r9s0t1v2w', '', 42]);
 
 function grantPending(int $interval = 5, int $expiresAt = 1_700_000_120, ?string $resource = 'https://app.cboxbrain.com/mcp'): PendingBackchannelAuthentication
 {

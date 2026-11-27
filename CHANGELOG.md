@@ -5,6 +5,12 @@ their GitHub release pages.
 
 ## [Unreleased]
 
+## 0.19.11 — 2026-11-27
+
+### Added
+
+- Opt-in organization-bound CIBA starts through `OrganizationBoundBackchannelAuthentication::startForOrganization()`. The client normalizes the organization id and requires the server to confirm the same binding; it never falls back to an unbound request. Pending requests and the testing fake preserve the binding. Existing `start()` callers remain unchanged. Requires an ID server with organization-bound CIBA and an explicit host policy.
+
 ## 0.19.10 — 2026-11-26
 
 ### Fixed

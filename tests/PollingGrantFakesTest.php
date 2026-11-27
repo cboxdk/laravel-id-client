@@ -99,3 +99,13 @@ it('scripts a denied device sign-in', function (): void {
 
     $device->waitForToken($device->start());
 })->throws(AuthorizationDenied::class);
+
+it('records and returns the organization on a bound fake request', function (): void {
+    $fake = new FakeBackchannelAuthentication;
+    $org = '01j9zq3k4m5n6p7q8r9s0t1v2w';
+    $pending = $fake->startForOrganization('org_'.$org, 'alice@example.test', 'openid', 'Delete sandbox B', BRAIN_MCP, 60, 'nonce', 'ping-token');
+    expect($pending->organizationId)->toBe($org)
+        ->and($fake->started[0])->toMatchArray(['organization_id' => $org, 'nonce' => 'nonce', 'client_notification_token' => 'ping-token']);
+    $legacy = $fake->start('alice@example.test', 'openid', 'Legacy');
+    expect($legacy->organizationId)->toBeNull()->and($legacy->toArray())->not->toHaveKey('organization_id');
+});

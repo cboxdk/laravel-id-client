@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Cbox\Id\Client\Grants;
 
-use Cbox\Id\Client\Contracts\BackchannelAuthentication;
+use Cbox\Id\Client\Contracts\OrganizationBoundBackchannelAuthentication;
 use Cbox\Id\Client\Exceptions\GrantFailed;
 use Cbox\Id\Client\Exceptions\InvalidBindingMessage;
 use Cbox\Id\Client\ValueObjects\PendingBackchannelAuthentication;
@@ -20,7 +20,7 @@ use Illuminate\Http\Client\Factory;
  *     $ciba = HttpBackchannelAuthentication::make('https://id.example.com',
  *         ClientAuthentication::clientSecretBasic($clientId, $secret));
  */
-class HttpBackchannelAuthentication extends PollingGrant implements BackchannelAuthentication
+class HttpBackchannelAuthentication extends PollingGrant implements OrganizationBoundBackchannelAuthentication
 {
     public const string GRANT_TYPE = 'urn:openid:params:grant-type:ciba';
 
@@ -45,6 +45,41 @@ class HttpBackchannelAuthentication extends PollingGrant implements BackchannelA
         ?int $requestedExpiry = null,
         ?string $nonce = null,
         ?string $clientNotificationToken = null,
+    ): PendingBackchannelAuthentication {
+        return $this->initiate($loginHint, $scope, $bindingMessage, $resource, $requestedExpiry, $nonce, $clientNotificationToken);
+    }
+
+    public function startForOrganization(
+        string $organizationId,
+        string $loginHint,
+        string $scope,
+        string $bindingMessage,
+        ?string $resource = null,
+        ?int $requestedExpiry = null,
+        ?string $nonce = null,
+        ?string $clientNotificationToken = null,
+    ): PendingBackchannelAuthentication {
+        return $this->initiate($loginHint, $scope, $bindingMessage, $resource, $requestedExpiry, $nonce, $clientNotificationToken, self::organizationId($organizationId));
+    }
+
+    private static function organizationId(string $id): string
+    {
+        if (preg_match('/\A(?:org_)?([0-7][0-9a-hjkmnp-tv-z]{25})\z/i', $id, $match) !== 1) {
+            throw new GrantFailed('Organization binding requires an organization ULID.', 'invalid_request');
+        }
+
+        return strtolower($match[1]);
+    }
+
+    private function initiate(
+        string $loginHint,
+        string $scope,
+        string $bindingMessage,
+        ?string $resource,
+        ?int $requestedExpiry,
+        ?string $nonce,
+        ?string $clientNotificationToken,
+        ?string $organizationId = null,
     ): PendingBackchannelAuthentication {
         $loginHint = trim($loginHint);
 
@@ -75,6 +110,7 @@ class HttpBackchannelAuthentication extends PollingGrant implements BackchannelA
             'requested_expiry' => $requestedExpiry !== null ? (string) $requestedExpiry : '',
             'nonce' => $nonce ?? '',
             'client_notification_token' => $clientNotificationToken ?? '',
+            'organization_id' => $organizationId ?? '',
         ], static fn (string $value): bool => $value !== '');
 
         $response = $this->send($this->metadata->backchannelAuthenticationEndpoint(), $params);
@@ -84,6 +120,11 @@ class HttpBackchannelAuthentication extends PollingGrant implements BackchannelA
         }
 
         $body = self::body($response);
+        if ($organizationId !== null && (! is_string($body['organization_id'] ?? null)
+            || self::organizationId($body['organization_id']) !== $organizationId)) {
+            throw new GrantFailed('Cbox ID did not confirm the requested organization binding.', 'organization_binding_unconfirmed');
+        }
+
         $authReqId = self::nonEmptyString($body['auth_req_id'] ?? null);
         $expiresIn = self::positiveInt($body['expires_in'] ?? null);
         $interval = $body['interval'] ?? self::DEFAULT_INTERVAL;
@@ -98,6 +139,7 @@ class HttpBackchannelAuthentication extends PollingGrant implements BackchannelA
             $interval,
             $this->timer->now() + $expiresIn,
             $resource !== null && $resource !== '' ? $resource : null,
+            $organizationId,
         );
     }
 
