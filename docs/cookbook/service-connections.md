@@ -43,3 +43,46 @@ the provider's responsibility.
 Tests can replace the interface with `Testing\FakeServiceConnections`, queued
 with explicit grants, leases, booleans or exceptions. The fake fails when no
 result is queued; it does not manufacture a successful integration.
+
+## First-party machine provisioning
+
+`Contracts\ProvisionsServiceConnections` is a separate, optional capability for
+operator-authorized first-party connections. It does not change the existing
+`ServiceConnections` interface or bypass authorization for other consumers.
+It requires `CBOX_ID_API_URL` and a confidential client allowed to request
+`id:service-connection-provisions:write`.
+
+```php
+$connection = app(\Cbox\Id\Client\Contracts\ProvisionsServiceConnections::class)
+    ->provision($organizationId, 'cbox_assets', $expectedAssetsAudience);
+```
+
+The SDK obtains its own machine credential and posts the explicit organization
+to `/v1/service-connections/{service}/provision`. It never uses a person's token
+or falls back to the legacy connect endpoint. The ID server determines whether
+the consumer and organization are eligible. A matching active connection is
+reused; a revoked or conflicting connection fails with HTTP 409 and is never
+automatically reactivated. Caller or eligibility denial is 403; unavailable
+eligibility is 503. `ServiceConnectionFailed::getCode()` preserves HTTP refusals.
+After 401, the next explicit call obtains a fresh provisioning token; the SDK
+does not retry the mutation automatically.
+
+Provisioning, status and leasing also translate machine-token and discovery failures
+into sanitized `ServiceConnectionFailed` exceptions, without chaining upstream
+payloads. Token refusals preserve their HTTP status; unavailable discovery or transport
+uses 503, and a successful token response missing its credential uses 502.
+
+Validate the returned scopes against the provider contract before storing the
+connection. Existing `status()` and `lease()` calls still check central revocation.
+
+For tests, bind **both** contracts to the same queued fake:
+
+```php
+$fake = new \Cbox\Id\Client\Testing\FakeServiceConnections([$connection, $lease]);
+app()->instance(\Cbox\Id\Client\Contracts\ProvisionsServiceConnections::class, $fake);
+app()->instance(\Cbox\Id\Client\Contracts\ServiceConnections::class, $fake);
+```
+
+`provision()` consumes a matching `ServiceConnection` or throws the queued
+exception. `lease()` consumes a `ServiceConnectionLease`. No separate fake or
+person authorization is needed for this path.

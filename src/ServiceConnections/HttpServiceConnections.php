@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Cbox\Id\Client\ServiceConnections;
 
+use Cbox\Id\Client\Contracts\ProvisionsServiceConnections;
 use Cbox\Id\Client\Contracts\ServiceConnections;
+use Cbox\Id\Client\Exceptions\AuthenticationFailed;
+use Cbox\Id\Client\Exceptions\ClientConfigurationException;
 use Cbox\Id\Client\Exceptions\ServiceConnectionFailed;
 use Cbox\Id\Client\IdentityClient;
 use Cbox\Id\Client\Support\ApiUrl;
@@ -20,13 +23,32 @@ use Illuminate\Http\Client\Factory;
  * `CBOX_ID_API_URL` set `{api_url}/v1/service-connections/…`, where a connection is created
  * with `PUT`, checked with `/inspect` and leased with `/lease` ({@see ApiUrl}).
  */
-class HttpServiceConnections implements ServiceConnections
+class HttpServiceConnections implements ProvisionsServiceConnections, ServiceConnections
 {
     public function __construct(private readonly Factory $http, private readonly IdentityClient $identity, private readonly string $issuer, private readonly string $clientId) {}
 
     public function connect(#[\SensitiveParameter] string $accessToken, string $organization, string $service, string $audience): ServiceConnection
     {
         $body = $this->request($accessToken, $this->api()->v1 ? 'PUT' : 'POST', $service);
+
+        return $this->connection($body, $organization, $service, $audience);
+    }
+
+    public function provision(string $organization, string $service, string $audience): ServiceConnection
+    {
+        if (! $this->api()->v1) {
+            throw new ServiceConnectionFailed('Machine provisioning requires CBOX_ID_API_URL.');
+        }
+        $scope = 'id:service-connection-provisions:write';
+        $body = $this->request($this->machineToken($scope), 'POST', $service, 'provision', machine: true,
+            payload: ['organization_id' => $organization], machineScope: $scope);
+
+        return $this->connection($body, $organization, $service, $audience);
+    }
+
+    /** @param array<string, mixed> $body */
+    private function connection(array $body, string $organization, string $service, string $audience): ServiceConnection
+    {
         if (! PublicId::same(self::stringOrNull($body['organization_id'] ?? null), $organization) || ($body['service'] ?? null) !== $service
             || ($body['audience'] ?? null) !== $audience || ($body['consumer_client_id'] ?? null) !== $this->clientId
             || ! array_key_exists('revoked_at', $body) || $body['revoked_at'] !== null
@@ -43,7 +65,7 @@ class HttpServiceConnections implements ServiceConnections
     {
         $this->owned($connection);
         // `/status` became `/inspect` on the /v1 API, which takes the same lease scope.
-        $body = $this->request($this->identity->machineToken(['service_connections.lease']), 'POST', $connection->id, $this->api()->v1 ? 'inspect' : 'status', machine: true);
+        $body = $this->request($this->machineToken('service_connections.lease'), 'POST', $connection->id, $this->api()->v1 ? 'inspect' : 'status', machine: true);
         if (($body['active'] ?? null) === false) {
             return false;
         }
@@ -61,7 +83,7 @@ class HttpServiceConnections implements ServiceConnections
     public function lease(ServiceConnection $connection): ServiceConnectionLease
     {
         $this->owned($connection);
-        $body = $this->request($this->identity->machineToken(['service_connections.lease']), 'POST', $connection->id, $this->api()->v1 ? 'lease' : 'token', machine: true);
+        $body = $this->request($this->machineToken('service_connections.lease'), 'POST', $connection->id, $this->api()->v1 ? 'lease' : 'token', machine: true);
         if (! is_string($body['access_token'] ?? null) || $body['access_token'] === ''
             || ($body['token_type'] ?? null) !== 'Bearer' || ($body['audience'] ?? null) !== $connection->audience
             || ! is_int($body['expires_in'] ?? null) || $body['expires_in'] < 1
@@ -84,6 +106,19 @@ class HttpServiceConnections implements ServiceConnections
     private function api(): ApiUrl
     {
         return ApiUrl::for($this->issuer);
+    }
+
+    private function machineToken(string $scope): string
+    {
+        try {
+            return $this->identity->machineToken([$scope]);
+        } catch (AuthenticationFailed $error) {
+            // The upstream error and description may contain credentials. Keep only
+            // its HTTP status, without attaching the original exception.
+            throw new ServiceConnectionFailed('ID could not authorize the service connection request.', $error->status ?? 502);
+        } catch (ClientConfigurationException|ConnectionException) {
+            throw new ServiceConnectionFailed('ID service connection credentials are unavailable.', 503);
+        }
     }
 
     private static function stringOrNull(mixed $value): ?string
@@ -116,8 +151,11 @@ class HttpServiceConnections implements ServiceConnections
         return $scopes;
     }
 
-    /** @return array<string, mixed> */
-    private function request(#[\SensitiveParameter] string $token, string $method, string $path, string $suffix = '', bool $machine = false): array
+    /**
+     * @param  array<string, string>  $payload
+     * @return array<string, mixed>
+     */
+    private function request(#[\SensitiveParameter] string $token, string $method, string $path, string $suffix = '', bool $machine = false, array $payload = [], string $machineScope = 'service_connections.lease'): array
     {
         $issuer = rtrim($this->issuer, '/');
         $base = $this->api()->base;
@@ -132,17 +170,17 @@ class HttpServiceConnections implements ServiceConnections
         $path = rawurlencode($path).($suffix === '' ? '' : '/'.$suffix);
         try {
             $response = $this->http->acceptJson()->withToken($token)->withoutRedirecting()->connectTimeout(HttpTimeouts::connect())->timeout(20)
-                ->send($method, $base.'/service-connections/'.$path);
+                ->send($method, $base.'/service-connections/'.$path, $payload === [] ? [] : ['json' => $payload]);
         } catch (ConnectionException) {
-            throw new ServiceConnectionFailed('ID service connections are unavailable.');
+            throw new ServiceConnectionFailed('ID service connections are unavailable.', 503);
         }
         if ($machine && $response->status() === 401) {
             // The kept machine token was refused: the next call asks Cbox ID for a new one.
-            $this->identity->forgetMachineToken(['service_connections.lease']);
+            $this->identity->forgetMachineToken([$machineScope]);
         }
         $body = $response->json();
         if (! $response->successful() || ! is_array($body) || array_is_list($body)) {
-            throw new ServiceConnectionFailed('ID refused the connection request or returned an invalid response.');
+            throw new ServiceConnectionFailed('ID refused the connection request or returned an invalid response.', $response->status());
         }
         $result = [];
         foreach ($body as $key => $value) {

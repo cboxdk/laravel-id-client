@@ -24,6 +24,7 @@ use Cbox\Id\Client\Contracts\KeptPermissionDecisions;
 use Cbox\Id\Client\Contracts\Management;
 use Cbox\Id\Client\Contracts\OrganizationDirectory;
 use Cbox\Id\Client\Contracts\PermissionDecisions;
+use Cbox\Id\Client\Contracts\ProvisionsServiceConnections;
 use Cbox\Id\Client\Contracts\ResolvesAppCatalogContext;
 use Cbox\Id\Client\Contracts\ServiceConnections;
 use Cbox\Id\Client\Contracts\UserProperties;
@@ -152,6 +153,9 @@ class ClientServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(ServiceConnections::class, static fn (Container $app): HttpServiceConnections => new HttpServiceConnections(
+            $app->make(Factory::class), $app->make(IdentityClient::class), self::configString('cbox-id-client.issuer'), self::configString('cbox-id-client.client_id'),
+        ));
+        $this->app->singleton(ProvisionsServiceConnections::class, static fn (Container $app): HttpServiceConnections => new HttpServiceConnections(
             $app->make(Factory::class), $app->make(IdentityClient::class), self::configString('cbox-id-client.issuer'), self::configString('cbox-id-client.client_id'),
         ));
 
