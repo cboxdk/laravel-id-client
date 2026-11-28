@@ -4,19 +4,30 @@ declare(strict_types=1);
 
 namespace Cbox\Id\Client\Testing;
 
+use Cbox\Id\Client\Contracts\ProvisionsServiceConnections;
 use Cbox\Id\Client\Contracts\ServiceConnections;
 use Cbox\Id\Client\ValueObjects\ServiceConnection;
 use Cbox\Id\Client\ValueObjects\ServiceConnectionLease;
 use LogicException;
 
 /** Explicit queued results; an unconfigured fake never invents a successful grant. */
-class FakeServiceConnections implements ServiceConnections
+class FakeServiceConnections implements ProvisionsServiceConnections, ServiceConnections
 {
     /** @var list<string> */
     public array $calls = [];
 
     /** @param list<ServiceConnection|ServiceConnectionLease|bool|\Throwable> $results */
     public function __construct(private array $results = []) {}
+
+    public function provision(string $organization, string $service, string $audience): ServiceConnection
+    {
+        $result = $this->next('provision');
+        if (! $result instanceof ServiceConnection || $result->organizationId !== $organization || $result->service !== $service || $result->audience !== $audience) {
+            throw new LogicException('Queue a matching service connection.');
+        }
+
+        return $result;
+    }
 
     public function connect(string $accessToken, string $organization, string $service, string $audience): ServiceConnection
     {

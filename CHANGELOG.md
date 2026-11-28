@@ -5,6 +5,16 @@ their GitHub release pages.
 
 ## [Unreleased]
 
+## 0.19.12 — Unreleased
+
+### Added
+
+- Separate `ProvisionsServiceConnections::provision()` capability for operator-authorized first-party machine connections, with explicit organization binding and no person-token or legacy fallback. The existing service-connection fake supports the capability using queued grants and exceptions. Requires the corresponding ID server endpoint and machine scope; existing `ServiceConnections` implementations are unchanged.
+
+### Fixed
+
+- Service-connection provisioning, leasing and status checks now translate machine-token/discovery/transport failures into sanitized `ServiceConnectionFailed` exceptions, preserving HTTP refusals without exposing or chaining upstream error payloads.
+
 ## 0.19.11 — 2026-11-27
 
 ### Added
