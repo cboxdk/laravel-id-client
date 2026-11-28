@@ -2,7 +2,7 @@
   "repository": "https://github.com/cboxdk/laravel-id-client",
   "base_commit": "98d36632855e7ac0d29e20b3c9226ce99b7b7550",
   "candidate_branch": "feat/machine-service-connections",
-  "status": "Unpublished machine-provisioning candidate: base_commit plus the listed local changes, not a release receipt.",
+  "status": "Machine-provisioning source provenance: base_commit plus the listed changes. Publication is identified by the repository's release tags.",
   "changes": [
     "CANDIDATE-PROVENANCE.json",
     "CHANGELOG.md",

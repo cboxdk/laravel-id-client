@@ -5,7 +5,7 @@ their GitHub release pages.
 
 ## [Unreleased]
 
-## 0.19.12 — Unreleased
+## 0.19.12 — 2026-11-28
 
 ### Added
 
